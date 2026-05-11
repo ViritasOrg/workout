@@ -32,6 +32,110 @@
     overflow-x: hidden;
   }
 
+  /* PIN SCREEN */
+  #pin-screen {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+
+  #pin-screen.hidden { display: none; }
+
+  .pin-logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 36px;
+    letter-spacing: 3px;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+
+  .pin-sub {
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 48px;
+  }
+
+  .pin-dots {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 40px;
+  }
+
+  .pin-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    background: transparent;
+    transition: all 0.15s;
+  }
+
+  .pin-dot.filled {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .pin-dot.error {
+    background: var(--danger);
+    border-color: var(--danger);
+  }
+
+  .pin-keypad {
+    display: grid;
+    grid-template-columns: repeat(3, 72px);
+    gap: 12px;
+  }
+
+  .pin-key {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 24px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .pin-key:active {
+    background: var(--surface2);
+    transform: scale(0.93);
+    border-color: var(--accent);
+  }
+
+  .pin-key.empty { background: transparent; border: none; cursor: default; }
+  .pin-key.del { font-size: 20px; color: var(--muted); }
+
+  .pin-error {
+    margin-top: 24px;
+    font-size: 13px;
+    color: var(--danger);
+    height: 20px;
+    text-align: center;
+  }
+
+  .pin-setup-hint {
+    margin-top: 20px;
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+    line-height: 1.6;
+  }
+
   /* HEADER */
   .header {
     position: sticky;
@@ -576,10 +680,38 @@
 </head>
 <body>
 
+<!-- PIN SCREEN -->
+<div id="pin-screen">
+  <div class="pin-logo">HENRIK'S TRAINING</div>
+  <div class="pin-sub" id="pin-label">Enter PIN</div>
+  <div class="pin-dots">
+    <div class="pin-dot" id="d0"></div>
+    <div class="pin-dot" id="d1"></div>
+    <div class="pin-dot" id="d2"></div>
+    <div class="pin-dot" id="d3"></div>
+  </div>
+  <div class="pin-keypad">
+    <button class="pin-key" onclick="pinPress('1')">1</button>
+    <button class="pin-key" onclick="pinPress('2')">2</button>
+    <button class="pin-key" onclick="pinPress('3')">3</button>
+    <button class="pin-key" onclick="pinPress('4')">4</button>
+    <button class="pin-key" onclick="pinPress('5')">5</button>
+    <button class="pin-key" onclick="pinPress('6')">6</button>
+    <button class="pin-key" onclick="pinPress('7')">7</button>
+    <button class="pin-key" onclick="pinPress('8')">8</button>
+    <button class="pin-key" onclick="pinPress('9')">9</button>
+    <button class="pin-key empty"></button>
+    <button class="pin-key" onclick="pinPress('0')">0</button>
+    <button class="pin-key del" onclick="pinDel()">⌫</button>
+  </div>
+  <div class="pin-error" id="pin-error"></div>
+  <div class="pin-setup-hint" id="pin-hint"></div>
+</div>
+
 <div class="header">
   <div>
     <div class="header-title">HENRIK'S TRAINING</div>
-    <div class="header-sub">5-Day Program</div>
+    <div class="header-sub">5-Day Program &nbsp;·&nbsp; <span style="color:var(--accent);opacity:0.6">v1.1</span></div>
   </div>
   <div class="weight-badge" onclick="showWeightModal()">
     <div class="val" id="currentWeight">93.4</div>
@@ -856,6 +988,110 @@ const DAYS = {
     ]
   }
 };
+
+
+// ── PIN LOGIC ──────────────────────────────────────────
+const PIN_KEY = 'app_pin_hash';
+let pinBuffer = '';
+let pinMode = 'enter'; // 'setup' | 'confirm' | 'enter'
+let pinSetupFirst = '';
+
+function hashPin(pin) {
+  let h = 0;
+  for (let i = 0; i < pin.length; i++) {
+    h = (Math.imul(31, h) + pin.charCodeAt(i)) | 0;
+  }
+  return h.toString(36);
+}
+
+function initPin() {
+  const stored = localStorage.getItem(PIN_KEY);
+  if (!stored) {
+    pinMode = 'setup';
+    document.getElementById('pin-label').textContent = 'Create a 4-digit PIN';
+    document.getElementById('pin-hint').textContent = 'First time setup — choose a PIN you will remember.';
+  } else {
+    pinMode = 'enter';
+    document.getElementById('pin-label').textContent = 'Enter PIN';
+  }
+}
+
+function pinPress(digit) {
+  if (pinBuffer.length >= 4) return;
+  pinBuffer += digit;
+  updateDots();
+  if (pinBuffer.length === 4) {
+    setTimeout(() => handlePinComplete(), 120);
+  }
+}
+
+function pinDel() {
+  pinBuffer = pinBuffer.slice(0, -1);
+  updateDots();
+  document.getElementById('pin-error').textContent = '';
+}
+
+function updateDots(state) {
+  for (let i = 0; i < 4; i++) {
+    const dot = document.getElementById('d' + i);
+    dot.className = 'pin-dot';
+    if (state === 'error') dot.classList.add('error');
+    else if (i < pinBuffer.length) dot.classList.add('filled');
+  }
+}
+
+function handlePinComplete() {
+  if (pinMode === 'setup') {
+    pinSetupFirst = pinBuffer;
+    pinBuffer = '';
+    pinMode = 'confirm';
+    document.getElementById('pin-label').textContent = 'Confirm PIN';
+    document.getElementById('pin-hint').textContent = 'Enter the same PIN again to confirm.';
+    updateDots();
+  } else if (pinMode === 'confirm') {
+    if (pinBuffer === pinSetupFirst) {
+      localStorage.setItem(PIN_KEY, hashPin(pinBuffer));
+      unlockApp();
+    } else {
+      pinBuffer = '';
+      pinSetupFirst = '';
+      pinMode = 'setup';
+      document.getElementById('pin-label').textContent = 'Create a 4-digit PIN';
+      document.getElementById('pin-hint').textContent = 'PINs did not match. Try again.';
+      document.getElementById('pin-error').textContent = "PINs didn't match — start over";
+      updateDots('error');
+      setTimeout(() => { updateDots(); document.getElementById('pin-error').textContent = ''; }, 1200);
+    }
+  } else {
+    const stored = localStorage.getItem(PIN_KEY);
+    if (hashPin(pinBuffer) === stored) {
+      unlockApp();
+    } else {
+      document.getElementById('pin-error').textContent = 'Incorrect PIN';
+      updateDots('error');
+      setTimeout(() => {
+        pinBuffer = '';
+        updateDots();
+        document.getElementById('pin-error').textContent = '';
+      }, 900);
+    }
+  }
+}
+
+function unlockApp() {
+  sessionStorage.setItem('unlocked', '1');
+  document.getElementById('pin-screen').classList.add('hidden');
+}
+
+// Check if already unlocked this session
+document.addEventListener('DOMContentLoaded', function() {
+  if (sessionStorage.getItem('unlocked') === '1') {
+    document.getElementById('pin-screen').classList.add('hidden');
+  } else {
+    initPin();
+  }
+});
+// ────────────────────────────────────────────────────────
 
 // Storage helpers
 function getData(key, def) {
