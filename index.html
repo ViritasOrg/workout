@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -10,688 +9,686 @@
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap');
 
-:root {
-–bg: #0a0a0a;
-–surface: #131313;
-–surface2: #1c1c1c;
-–border: #2a2a2a;
-–accent: #e8ff3c;
-–accent2: #ff6b2b;
-–text: #f0f0f0;
-–muted: #666;
-–success: #3cffa0;
-–danger: #ff3c3c;
-}
-
-- { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-
-body {
-background: var(–bg);
-color: var(–text);
-font-family: ‘DM Sans’, sans-serif;
-min-height: 100vh;
-overflow-x: hidden;
-}
-
-/* PIN SCREEN */
-#pin-screen {
-position: fixed;
-inset: 0;
-background: var(–bg);
-z-index: 9999;
-display: flex;
-flex-direction: column;
-align-items: center;
-justify-content: center;
-padding: 40px 20px;
-width: 100vw;
-height: 100vh;
-overflow: hidden;
-}
-
-body.pin-locked {
-overflow: hidden;
-height: 100vh;
-}
-
-#pin-screen.hidden { display: none; }
-
-.pin-logo {
-font-family: ‘Bebas Neue’, sans-serif;
-font-size: 36px;
-letter-spacing: 3px;
-color: var(–accent);
-margin-bottom: 8px;
-}
-
-.pin-sub {
-font-size: 12px;
-color: var(–muted);
-text-transform: uppercase;
-letter-spacing: 2px;
-margin-bottom: 48px;
-}
-
-.pin-dots {
-display: flex;
-gap: 16px;
-margin-bottom: 40px;
-}
-
-.pin-dot {
-width: 16px;
-height: 16px;
-border-radius: 50%;
-border: 2px solid var(–border);
-background: transparent;
-transition: all 0.15s;
-}
-
-.pin-dot.filled {
-background: var(–accent);
-border-color: var(–accent);
-}
-
-.pin-dot.error {
-background: var(–danger);
-border-color: var(–danger);
-}
-
-.pin-keypad {
-display: grid;
-grid-template-columns: repeat(3, 72px);
-gap: 12px;
-}
-
-.pin-key {
-width: 72px;
-height: 72px;
-border-radius: 50%;
-background: var(–surface);
-border: 1px solid var(–border);
-color: var(–text);
-font-family: ‘DM Sans’, sans-serif;
-font-size: 24px;
-font-weight: 500;
-cursor: pointer;
-transition: all 0.1s;
-display: flex;
-align-items: center;
-justify-content: center;
-}
-
-.pin-key:active {
-background: var(–surface2);
-transform: scale(0.93);
-border-color: var(–accent);
-}
-
-.pin-key.empty { background: transparent; border: none; cursor: default; }
-.pin-key.del { font-size: 20px; color: var(–muted); }
-
-.pin-error {
-margin-top: 24px;
-font-size: 13px;
-color: var(–danger);
-height: 20px;
-text-align: center;
-}
-
-.pin-setup-hint {
-margin-top: 20px;
-font-size: 12px;
-color: var(–muted);
-text-align: center;
-line-height: 1.6;
-}
-
-/* HEADER */
-.header {
-position: sticky;
-top: 0;
-z-index: 100;
-background: var(–bg);
-border-bottom: 1px solid var(–border);
-padding: 16px 20px;
-display: flex;
-align-items: center;
-justify-content: space-between;
-}
-
-.header-title {
-font-family: ‘Bebas Neue’, sans-serif;
-font-size: 28px;
-letter-spacing: 2px;
-color: var(–accent);
-}
-
-.header-sub {
-font-size: 11px;
-color: var(–muted);
-letter-spacing: 1px;
-text-transform: uppercase;
-}
-
-.weight-badge {
-background: var(–surface2);
-border: 1px solid var(–border);
-border-radius: 8px;
-padding: 8px 12px;
-text-align: right;
-cursor: pointer;
-}
-
-.weight-badge .val {
-font-family: ‘Bebas Neue’, sans-serif;
-font-size: 22px;
-color: var(–accent);
-line-height: 1;
-}
-
-.weight-badge .lbl {
-font-size: 10px;
-color: var(–muted);
-text-transform: uppercase;
-letter-spacing: 1px;
-}
-
-/* NAV */
-.nav {
-display: flex;
-gap: 0;
-background: var(–surface);
-border-bottom: 1px solid var(–border);
-overflow-x: auto;
-scrollbar-width: none;
-}
-
-.nav::-webkit-scrollbar { display: none; }
-
-.nav-btn {
-flex: 0 0 auto;
-padding: 12px 18px;
-background: none;
-border: none;
-color: var(–muted);
-font-family: ‘DM Sans’, sans-serif;
-font-size: 13px;
-font-weight: 500;
-cursor: pointer;
-border-bottom: 2px solid transparent;
-transition: all 0.2s;
-white-space: nowrap;
-letter-spacing: 0.5px;
-}
-
-.nav-btn.active {
-color: var(–accent);
-border-bottom-color: var(–accent);
-}
-
-/* CONTENT */
-.content {
-padding: 16px 20px 100px;
-}
-
-.page { display: none; }
-.page.active { display: block; }
-
-/* DAY CARDS */
-.day-grid {
-display: grid;
-grid-template-columns: 1fr 1fr;
-gap: 10px;
-margin-bottom: 20px;
-}
-
-.day-card {
-background: var(–surface);
-border: 1px solid var(–border);
-border-radius: 12px;
-padding: 16px;
-cursor: pointer;
-transition: all 0.2s;
-position: relative;
-overflow: hidden;
-}
-
-.day-card::before {
-content: ‘’;
-position: absolute;
-top: 0; left: 0; right: 0;
-height: 3px;
-background: var(–accent);
-transform: scaleX(0);
-transition: transform 0.2s;
-}
-
-.day-card.active::before,
-.day-card:active::before { transform: scaleX(1); }
-
-.day-card.active {
-border-color: var(–accent);
-background: #1a1a0a;
-}
-
-.day-num {
-font-family: ‘Bebas Neue’, sans-serif;
-font-size: 36px;
-color: var(–accent);
-line-height: 1;
-}
-
-.day-name {
-font-size: 13px;
-font-weight: 600;
-color: var(–text);
-margin-top: 4px;
-}
-
-.day-focus {
-font-size: 11px;
-color: var(–muted);
-margin-top: 2px;
-}
-
-/* WORKOUT DETAIL */
-.workout-detail {
-background: var(–surface);
-border: 1px solid var(–border);
-border-radius: 12px;
-overflow: hidden;
-margin-bottom: 16px;
-}
-
-.workout-header {
-background: var(–surface2);
-padding: 16px;
-border-bottom: 1px solid var(–border);
-display: flex;
-align-items: center;
-justify-content: space-between;
-}
-
-.workout-title {
-font-family: ‘Bebas Neue’, sans-serif;
-font-size: 22px;
-letter-spacing: 1px;
-color: var(–accent);
-}
-
-.warmup-btn {
-background: var(–accent2);
-color: white;
-border: none;
-border-radius: 6px;
-padding: 6px 12px;
-font-size: 12px;
-font-weight: 600;
-cursor: pointer;
-font-family: ‘DM Sans’, sans-serif;
-}
-
-/* EXERCISE ROWS */
-.exercise-row {
-border-bottom: 1px solid var(–border);
-padding: 14px 16px;
-display: flex;
-align-items: center;
-gap: 12px;
-}
-
-.exercise-row:last-child { border-bottom: none; }
-
-.ex-info { flex: 1; }
-
-.ex-name {
-font-size: 14px;
-font-weight: 600;
-color: var(–text);
-}
-
-.ex-scheme {
-font-size: 12px;
-color: var(–muted);
-margin-top: 2px;
-}
-
-.ex-tag {
-font-size: 10px;
-padding: 2px 8px;
-border-radius: 20px;
-font-weight: 600;
-letter-spacing: 0.5px;
-}
-
-.tag-rehab { background: #ff6b2b22; color: var(–accent2); border: 1px solid #ff6b2b44; }
-.tag-strength { background: #e8ff3c22; color: var(–accent); border: 1px solid #e8ff3c44; }
-.tag-volume { background: #3cffa022; color: var(–success); border: 1px solid #3cffa044; }
-
-/* LOG SECTION */
-.log-section {
-margin-top: 20px;
-}
-
-.section-title {
-font-family: ‘Bebas Neue’, sans-serif;
-font-size: 20px;
-letter-spacing: 1px;
-color: var(–text);
-margin-bottom: 12px;
-}
-
-.log-entry {
-background: var(–surface);
-border: 1px solid var(–border);
-border-radius: 10px;
-padding: 14px 16px;
-margin-bottom: 10px;
-display: flex;
-justify-content: space-between;
-align-items: center;
-}
-
-.log-date {
-font-size: 12px;
-color: var(–muted);
-}
-
-.log-detail {
-font-size: 13px;
-color: var(–text);
-font-weight: 500;
-margin-top: 2px;
-}
-
-.log-weight {
-font-family: ‘Bebas Neue’, sans-serif;
-font-size: 28px;
-color: var(–accent);
-}
-
-/* MODAL */
-.modal-overlay {
-display: none;
-position: fixed;
-inset: 0;
-background: rgba(0,0,0,0.85);
-z-index: 200;
-padding: 20px;
-overflow-y: auto;
-}
-
-.modal-overlay.open { display: flex; align-items: flex-start; justify-content: center; }
-
-.modal {
-background: var(–surface);
-border: 1px solid var(–border);
-border-radius: 16px;
-width: 100%;
-max-width: 480px;
-margin-top: 20px;
-overflow: hidden;
-}
-
-.modal-header {
-background: var(–surface2);
-padding: 16px 20px;
-display: flex;
-justify-content: space-between;
-align-items: center;
-border-bottom: 1px solid var(–border);
-}
-
-.modal-title {
-font-family: ‘Bebas Neue’, sans-serif;
-font-size: 22px;
-letter-spacing: 1px;
-color: var(–accent2);
-}
-
-.modal-close {
-background: none;
-border: none;
-color: var(–muted);
-font-size: 24px;
-cursor: pointer;
-line-height: 1;
-padding: 0;
-}
-
-.modal-body { padding: 20px; }
-
-.warmup-phase {
-margin-bottom: 20px;
-}
-
-.phase-title {
-font-size: 11px;
-text-transform: uppercase;
-letter-spacing: 2px;
-color: var(–accent2);
-font-weight: 600;
-margin-bottom: 10px;
-}
-
-.warmup-item {
-display: flex;
-gap: 10px;
-align-items: flex-start;
-padding: 8px 0;
-border-bottom: 1px solid var(–border);
-font-size: 13px;
-}
-
-.warmup-item:last-child { border-bottom: none; }
-
-.warmup-bullet {
-width: 6px;
-height: 6px;
-border-radius: 50%;
-background: var(–accent2);
-margin-top: 5px;
-flex-shrink: 0;
-}
-
-/* LOG WORKOUT FORM */
-.log-form {
-background: var(–surface);
-border: 1px solid var(–border);
-border-radius: 12px;
-padding: 16px;
-margin-bottom: 16px;
-}
-
-.form-row {
-display: flex;
-gap: 10px;
-margin-bottom: 12px;
-align-items: center;
-}
-
-.form-label {
-font-size: 12px;
-color: var(–muted);
-text-transform: uppercase;
-letter-spacing: 1px;
-margin-bottom: 6px;
-}
-
-.form-group { flex: 1; }
-
-input, select, textarea {
-width: 100%;
-background: var(–surface2);
-border: 1px solid var(–border);
-border-radius: 8px;
-padding: 10px 12px;
-color: var(–text);
-font-family: ‘DM Sans’, sans-serif;
-font-size: 14px;
-outline: none;
-transition: border-color 0.2s;
-}
-
-input:focus, select:focus, textarea:focus {
-border-color: var(–accent);
-}
-
-textarea { resize: vertical; min-height: 80px; }
-
-.btn {
-padding: 12px 20px;
-border-radius: 8px;
-border: none;
-font-family: ‘DM Sans’, sans-serif;
-font-size: 14px;
-font-weight: 600;
-cursor: pointer;
-transition: all 0.2s;
-}
-
-.btn-primary {
-background: var(–accent);
-color: var(–bg);
-width: 100%;
-}
-
-.btn-primary:active { opacity: 0.8; transform: scale(0.98); }
-
-.btn-danger {
-background: transparent;
-color: var(–danger);
-border: 1px solid var(–danger);
-padding: 6px 12px;
-font-size: 12px;
-}
-
-/* PROGRESS PAGE */
-.stats-grid {
-display: grid;
-grid-template-columns: 1fr 1fr;
-gap: 10px;
-margin-bottom: 20px;
-}
-
-.stat-card {
-background: var(–surface);
-border: 1px solid var(–border);
-border-radius: 12px;
-padding: 16px;
-}
-
-.stat-val {
-font-family: ‘Bebas Neue’, sans-serif;
-font-size: 32px;
-color: var(–accent);
-line-height: 1;
-}
-
-.stat-lbl {
-font-size: 11px;
-color: var(–muted);
-text-transform: uppercase;
-letter-spacing: 1px;
-margin-top: 4px;
-}
-
-.stat-change {
-font-size: 12px;
-margin-top: 4px;
-}
-
-.stat-change.down { color: var(–success); }
-.stat-change.up { color: var(–danger); }
-
-/* MINI CHART */
-.chart-wrap {
-background: var(–surface);
-border: 1px solid var(–border);
-border-radius: 12px;
-padding: 16px;
-margin-bottom: 16px;
-}
-
-.chart-title {
-font-size: 12px;
-text-transform: uppercase;
-letter-spacing: 1px;
-color: var(–muted);
-margin-bottom: 12px;
-}
-
-canvas { width: 100% !important; }
-
-/* BOTTOM NAV */
-.bottom-nav {
-position: fixed;
-bottom: 0; left: 0; right: 0;
-background: var(–bg);
-border-top: 1px solid var(–border);
-display: flex;
-z-index: 100;
-}
-
-.bnav-btn {
-flex: 1;
-padding: 12px 8px;
-background: none;
-border: none;
-color: var(–muted);
-font-family: ‘DM Sans’, sans-serif;
-font-size: 10px;
-font-weight: 500;
-cursor: pointer;
-display: flex;
-flex-direction: column;
-align-items: center;
-gap: 4px;
-transition: color 0.2s;
-letter-spacing: 0.5px;
-text-transform: uppercase;
-}
-
-.bnav-btn.active { color: var(–accent); }
-
-.bnav-icon { font-size: 20px; line-height: 1; }
-
-/* EMPTY STATE */
-.empty {
-text-align: center;
-padding: 40px 20px;
-color: var(–muted);
-font-size: 14px;
-}
-
-.empty-icon { font-size: 40px; margin-bottom: 12px; }
-
-/* WEIGHT HISTORY */
-.weight-row {
-display: flex;
-justify-content: space-between;
-align-items: center;
-padding: 12px 0;
-border-bottom: 1px solid var(–border);
-}
-
-.weight-row:last-child { border-bottom: none; }
-
-/* TAGS */
-.tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
-
-.note-text {
-font-size: 12px;
-color: var(–muted);
-margin-top: 4px;
-font-style: italic;
-}
+  :root {
+    --bg: #0a0a0a;
+    --surface: #131313;
+    --surface2: #1c1c1c;
+    --border: #2a2a2a;
+    --accent: #e8ff3c;
+    --accent2: #ff6b2b;
+    --text: #f0f0f0;
+    --muted: #666;
+    --success: #3cffa0;
+    --danger: #ff3c3c;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* PIN SCREEN */
+  #pin-screen {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  body.pin-locked {
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  #pin-screen.hidden { display: none; }
+
+  .pin-logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 36px;
+    letter-spacing: 3px;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+
+  .pin-sub {
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 48px;
+  }
+
+  .pin-dots {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 40px;
+  }
+
+  .pin-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    background: transparent;
+    transition: all 0.15s;
+  }
+
+  .pin-dot.filled {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .pin-dot.error {
+    background: var(--danger);
+    border-color: var(--danger);
+  }
+
+  .pin-keypad {
+    display: grid;
+    grid-template-columns: repeat(3, 72px);
+    gap: 12px;
+  }
+
+  .pin-key {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 24px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .pin-key:active {
+    background: var(--surface2);
+    transform: scale(0.93);
+    border-color: var(--accent);
+  }
+
+  .pin-key.empty { background: transparent; border: none; cursor: default; }
+  .pin-key.del { font-size: 20px; color: var(--muted); }
+
+  .pin-error {
+    margin-top: 24px;
+    font-size: 13px;
+    color: var(--danger);
+    height: 20px;
+    text-align: center;
+  }
+
+  .pin-setup-hint {
+    margin-top: 20px;
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+    line-height: 1.6;
+  }
+
+  /* HEADER */
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .header-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    letter-spacing: 2px;
+    color: var(--accent);
+  }
+
+  .header-sub {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .weight-badge {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    text-align: right;
+    cursor: pointer;
+  }
+
+  .weight-badge .val {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  .weight-badge .lbl {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* NAV */
+  .nav {
+    display: flex;
+    gap: 0;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .nav::-webkit-scrollbar { display: none; }
+
+  .nav-btn {
+    flex: 0 0 auto;
+    padding: 12px 18px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+    letter-spacing: 0.5px;
+  }
+
+  .nav-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  /* CONTENT */
+  .content {
+    padding: 16px 20px 100px;
+  }
+
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* DAY CARDS */
+  .day-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .day-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .day-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--accent);
+    transform: scaleX(0);
+    transition: transform 0.2s;
+  }
+
+  .day-card.active::before,
+  .day-card:active::before { transform: scaleX(1); }
+
+  .day-card.active {
+    border-color: var(--accent);
+    background: #1a1a0a;
+  }
+
+  .day-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 36px;
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  .day-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-top: 4px;
+  }
+
+  .day-focus {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  /* WORKOUT DETAIL */
+  .workout-detail {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+
+  .workout-header {
+    background: var(--surface2);
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .workout-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 1px;
+    color: var(--accent);
+  }
+
+  .warmup-btn {
+    background: var(--accent2);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  /* EXERCISE ROWS */
+  .exercise-row {
+    border-bottom: 1px solid var(--border);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .exercise-row:last-child { border-bottom: none; }
+
+  .ex-info { flex: 1; }
+
+  .ex-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .ex-scheme {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .ex-tag {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+
+  .tag-rehab { background: #ff6b2b22; color: var(--accent2); border: 1px solid #ff6b2b44; }
+  .tag-strength { background: #e8ff3c22; color: var(--accent); border: 1px solid #e8ff3c44; }
+  .tag-volume { background: #3cffa022; color: var(--success); border: 1px solid #3cffa044; }
+
+  /* LOG SECTION */
+  .log-section {
+    margin-top: 20px;
+  }
+
+  .section-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    letter-spacing: 1px;
+    color: var(--text);
+    margin-bottom: 12px;
+  }
+
+  .log-entry {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .log-date {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .log-detail {
+    font-size: 13px;
+    color: var(--text);
+    font-weight: 500;
+    margin-top: 2px;
+  }
+
+  .log-weight {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    color: var(--accent);
+  }
+
+  /* MODAL */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 200;
+    padding: 20px;
+    overflow-y: auto;
+  }
+
+  .modal-overlay.open { display: flex; align-items: flex-start; justify-content: center; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 480px;
+    margin-top: 20px;
+    overflow: hidden;
+  }
+
+  .modal-header {
+    background: var(--surface2);
+    padding: 16px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .modal-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 1px;
+    color: var(--accent2);
+  }
+
+  .modal-close {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 24px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+  }
+
+  .modal-body { padding: 20px; }
+
+  .warmup-phase {
+    margin-bottom: 20px;
+  }
+
+  .phase-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--accent2);
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+
+  .warmup-item {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+
+  .warmup-item:last-child { border-bottom: none; }
+
+  .warmup-bullet {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent2);
+    margin-top: 5px;
+    flex-shrink: 0;
+  }
+
+  /* LOG WORKOUT FORM */
+  .log-form {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+
+  .form-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 12px;
+    align-items: center;
+  }
+
+  .form-label {
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+
+  .form-group { flex: 1; }
+
+  input, select, textarea {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--accent);
+  }
+
+  textarea { resize: vertical; min-height: 80px; }
+
+  .btn {
+    padding: 12px 20px;
+    border-radius: 8px;
+    border: none;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: var(--bg);
+    width: 100%;
+  }
+
+  .btn-primary:active { opacity: 0.8; transform: scale(0.98); }
+
+  .btn-danger {
+    background: transparent;
+    color: var(--danger);
+    border: 1px solid var(--danger);
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  /* PROGRESS PAGE */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+  }
+
+  .stat-val {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 32px;
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  .stat-lbl {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 4px;
+  }
+
+  .stat-change {
+    font-size: 12px;
+    margin-top: 4px;
+  }
+
+  .stat-change.down { color: var(--success); }
+  .stat-change.up { color: var(--danger); }
+
+  /* MINI CHART */
+  .chart-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+
+  .chart-title {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  canvas { width: 100% !important; }
+
+  /* BOTTOM NAV */
+  .bottom-nav {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    display: flex;
+    z-index: 100;
+  }
+
+  .bnav-btn {
+    flex: 1;
+    padding: 12px 8px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    transition: color 0.2s;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .bnav-btn.active { color: var(--accent); }
+
+  .bnav-icon { font-size: 20px; line-height: 1; }
+
+  /* EMPTY STATE */
+  .empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  .empty-icon { font-size: 40px; margin-bottom: 12px; }
+
+  /* WEIGHT HISTORY */
+  .weight-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .weight-row:last-child { border-bottom: none; }
+
+  /* TAGS */
+  .tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+
+  .note-text {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+    font-style: italic;
+  }
 </style>
-
 </head>
 <body>
 
 <!-- PIN SCREEN -->
-
 <div id="pin-screen">
   <div class="pin-logo">HENRIK'S TRAINING</div>
   <div class="pin-sub" id="pin-label">Enter PIN</div>
@@ -740,7 +737,6 @@ font-style: italic;
 <div class="content">
 
   <!-- PROGRAM PAGE -->
-
   <div class="page active" id="page-program">
     <div class="day-grid">
       <div class="day-card active" onclick="selectDay(1, this)" id="daycard-1">
@@ -770,14 +766,10 @@ font-style: italic;
       </div>
     </div>
 
-```
-<div id="workout-display"></div>
-```
-
+    <div id="workout-display"></div>
   </div>
 
   <!-- LOG PAGE -->
-
   <div class="page" id="page-log">
     <div class="log-form">
       <div class="form-label">Date</div>
@@ -813,7 +805,6 @@ font-style: italic;
   </div>
 
   <!-- HISTORY PAGE -->
-
   <div class="page" id="page-history">
     <div id="history-list">
       <div class="empty">
@@ -824,7 +815,6 @@ font-style: italic;
   </div>
 
   <!-- PROGRESS PAGE -->
-
   <div class="page" id="page-progress">
     <div class="stats-grid" id="stats-grid">
       <div class="stat-card">
@@ -846,51 +836,47 @@ font-style: italic;
       </div>
     </div>
 
-```
-<div class="chart-wrap">
-  <div class="chart-title">Body Weight (kg)</div>
-  <canvas id="weightChart" height="120"></canvas>
-</div>
+    <div class="chart-wrap">
+      <div class="chart-title">Body Weight (kg)</div>
+      <canvas id="weightChart" height="120"></canvas>
+    </div>
 
-<div class="section-title">TARGETS</div>
-<div class="workout-detail">
-  <div class="exercise-row">
-    <div class="ex-info">
-      <div class="ex-name">Squat</div>
-      <div class="ex-scheme">Target: 140kg × 5</div>
+    <div class="section-title">TARGETS</div>
+    <div class="workout-detail">
+      <div class="exercise-row">
+        <div class="ex-info">
+          <div class="ex-name">Squat</div>
+          <div class="ex-scheme">Target: 140kg × 5</div>
+        </div>
+        <span class="ex-tag tag-strength">3 months</span>
+      </div>
+      <div class="exercise-row">
+        <div class="ex-info">
+          <div class="ex-name">Deadlift</div>
+          <div class="ex-scheme">Target: 180kg × 5</div>
+        </div>
+        <span class="ex-tag tag-strength">3 months</span>
+      </div>
+      <div class="exercise-row">
+        <div class="ex-info">
+          <div class="ex-name">Pull-ups</div>
+          <div class="ex-scheme">Target: +10kg belt</div>
+        </div>
+        <span class="ex-tag tag-volume">6 weeks</span>
+      </div>
+      <div class="exercise-row">
+        <div class="ex-info">
+          <div class="ex-name">Landmine Press</div>
+          <div class="ex-scheme">+2.5kg every 2 weeks</div>
+        </div>
+        <span class="ex-tag tag-rehab">Rehab</span>
+      </div>
     </div>
-    <span class="ex-tag tag-strength">3 months</span>
-  </div>
-  <div class="exercise-row">
-    <div class="ex-info">
-      <div class="ex-name">Deadlift</div>
-      <div class="ex-scheme">Target: 180kg × 5</div>
-    </div>
-    <span class="ex-tag tag-strength">3 months</span>
-  </div>
-  <div class="exercise-row">
-    <div class="ex-info">
-      <div class="ex-name">Pull-ups</div>
-      <div class="ex-scheme">Target: +10kg belt</div>
-    </div>
-    <span class="ex-tag tag-volume">6 weeks</span>
-  </div>
-  <div class="exercise-row">
-    <div class="ex-info">
-      <div class="ex-name">Landmine Press</div>
-      <div class="ex-scheme">+2.5kg every 2 weeks</div>
-    </div>
-    <span class="ex-tag tag-rehab">Rehab</span>
-  </div>
-</div>
-```
-
   </div>
 
 </div>
 
 <!-- WARMUP MODAL -->
-
 <div class="modal-overlay" id="warmupModal">
   <div class="modal">
     <div class="modal-header">
@@ -928,7 +914,6 @@ font-style: italic;
 </div>
 
 <!-- WEIGHT MODAL -->
-
 <div class="modal-overlay" id="weightModal">
   <div class="modal">
     <div class="modal-header">
@@ -1343,6 +1328,5 @@ document.getElementById('log-date').value = new Date().toISOString().split('T')[
 updateCurrentWeight();
 renderWorkout(1);
 </script>
-
 </body>
 </html>
