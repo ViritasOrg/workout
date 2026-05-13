@@ -8,7 +8,7 @@
 <title>Henrik's Training</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap');
-  :root { --bg:#0a0a0a;--surface:#131313;--surface2:#1c1c1c;--border:#2a2a2a;--accent:#e8ff3c;--accent2:#ff6b2b;--text:#f0f0f0;--muted:#666;--success:#3cffa0;--danger:#ff3c3c; }
+  :root{--bg:#0a0a0a;--surface:#131313;--surface2:#1c1c1c;--border:#2a2a2a;--accent:#e8ff3c;--accent2:#ff6b2b;--text:#f0f0f0;--muted:#666;--success:#3cffa0;--danger:#ff3c3c;}
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
   body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden;}
   body.pin-locked{overflow:hidden;height:100vh;}
@@ -82,7 +82,7 @@
   .form-group{flex:1;}
   input,select,textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:border-color 0.2s;}
   input:focus,select:focus,textarea:focus{border-color:var(--accent);}
-  textarea{resize:vertical;min-height:80px;}
+  textarea{resize:vertical;min-height:160px;}
   .btn{padding:12px 20px;border-radius:8px;border:none;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.2s;}
   .btn-primary{background:var(--accent);color:var(--bg);width:100%;}
   .btn-primary:active{opacity:0.8;}
@@ -122,7 +122,7 @@
 <div class="header">
   <div>
     <div class="header-title">HENRIK'S TRAINING</div>
-    <div class="header-sub">5-Day Program &nbsp;·&nbsp; <span style="color:var(--accent);opacity:0.6">v1.4</span></div>
+    <div class="header-sub">5-Day Program &nbsp;·&nbsp; <span style="color:var(--accent);opacity:0.6">v1.5</span></div>
   </div>
   <div class="weight-badge" onclick="showWeightModal()">
     <div class="val" id="currentWeight">93.4</div>
@@ -152,7 +152,7 @@
       <div class="form-row"><div class="form-group"><input type="date" id="log-date"></div></div>
       <div class="form-label">Day</div>
       <div class="form-row"><div class="form-group">
-        <select id="log-day">
+        <select id="log-day" onchange="prefillLog(this.value)">
           <option value="1">Day 1 — Lower Strength</option>
           <option value="2">Day 2 — Pull</option>
           <option value="3">Day 3 — Push</option>
@@ -163,8 +163,8 @@
       <div class="form-label">Body Weight (kg)</div>
       <div class="form-row"><div class="form-group"><input type="number" id="log-weight" placeholder="93.4" step="0.1"></div></div>
       <div class="form-label">Key Lifts &amp; Sets</div>
-      <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Volume auto-calculated — format: "Squat 120kg 5-5-5" or "Deadlift 140kg x5"</div>
-      <textarea id="log-notes" placeholder="Squat 120kg 5-5-5&#10;Pull-ups 10-8-9&#10;Row 85kg 10-10-10&#10;Deadlift 140kg x5"></textarea>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Pre-filled from program — edit weights/reps as needed. Volume auto-calculated.</div>
+      <textarea id="log-notes" placeholder="Squat 120kg 5-5-5&#10;Pull-ups 10-8-9&#10;Row 85kg 10-10-10"></textarea>
       <div style="margin-top:12px"><button class="btn btn-primary" onclick="saveLog()">SAVE WORKOUT</button></div>
     </div>
   </div>
@@ -238,6 +238,15 @@ const DAYS={
   4:{name:"Day 4 — Lower Volume",warmup:false,exercises:[{name:"Deadlift",scheme:"5×5 — progressive overload",tag:"strength"},{name:"Smith Machine Squat",scheme:"3×10",tag:"volume"},{name:"Lunges",scheme:"3×10 each leg",tag:"volume"},{name:"Leg Extension",scheme:"3×12",tag:"volume"},{name:"Leg Curl",scheme:"3×12",tag:"volume"}]},
   5:{name:"Day 5 — Upper Full",warmup:true,exercises:[{name:"Weighted Pull-ups",scheme:"4×5",tag:"strength"},{name:"Barbell Row (heavy)",scheme:"4×6",tag:"strength"},{name:"Landmine Press",scheme:"4×8",tag:"rehab"},{name:"Cable Lateral Raise",scheme:"4×15",tag:"rehab"},{name:"Face Pulls",scheme:"4×15",tag:"rehab"},{name:"Push-ups",scheme:"3×max",tag:"volume"},{name:"Rear Delt Cable Fly",scheme:"4×15",tag:"rehab"},{name:"Curl variation",scheme:"4×10",tag:"volume"}]}
 };
+
+const DAY_TEMPLATES={
+  1:[{name:"Squat",sets:"5-5-5-5-5",kg:120},{name:"Romanian Deadlift",sets:"8-8-8",kg:80},{name:"Leg Press",sets:"10-10-10",kg:100},{name:"Leg Curl",sets:"10-10-10",kg:40},{name:"Calf Raises",sets:"15-15-15",kg:60}],
+  2:[{name:"Pull-ups",sets:"max-max-max-max",kg:0},{name:"Barbell Row",sets:"8-8-8-8",kg:85},{name:"Cable Row",sets:"10-10-10-10",kg:60},{name:"Face Pulls",sets:"15-15-15-15",kg:20},{name:"Rear Delt Fly",sets:"15-15-15-15",kg:12},{name:"Barbell Curl",sets:"10-10-10-10",kg:30},{name:"Hammer Curl",sets:"10-10-10-10",kg:16}],
+  3:[{name:"Push-ups",sets:"max-max-max-max",kg:0},{name:"Landmine Press",sets:"10-10-10-10",kg:30},{name:"Cable Lateral Raise",sets:"15-15-15-15",kg:10},{name:"Y-Raise",sets:"12-12-12",kg:15},{name:"Overhead Tricep Cable",sets:"12-12-12-12",kg:32},{name:"Tricep Pushdown",sets:"12-12-12-12",kg:35}],
+  4:[{name:"Deadlift",sets:"5-5-5-5-5",kg:140},{name:"Smith Machine Squat",sets:"10-10-10",kg:100},{name:"Lunges",sets:"10-10-10",kg:20},{name:"Leg Extension",sets:"12-12-12",kg:50},{name:"Leg Curl",sets:"12-12-12",kg:40}],
+  5:[{name:"Weighted Pull-ups",sets:"5-5-5-5",kg:10},{name:"Barbell Row",sets:"6-6-6-6",kg:90},{name:"Landmine Press",sets:"8-8-8-8",kg:35},{name:"Cable Lateral Raise",sets:"15-15-15-15",kg:10},{name:"Face Pulls",sets:"15-15-15-15",kg:20},{name:"Push-ups",sets:"max-max-max",kg:0},{name:"Rear Delt Cable Fly",sets:"15-15-15-15",kg:12},{name:"Curl variation",sets:"10-10-10-10",kg:20}]
+};
+
 function hashPin(p){let h=0;for(let i=0;i<p.length;i++)h=(Math.imul(31,h)+p.charCodeAt(i))|0;return h.toString(36);}
 const HARDCODED_PIN=hashPin('8538');
 let pinBuffer='';
@@ -246,23 +255,50 @@ function pinDel(){pinBuffer=pinBuffer.slice(0,-1);updateDots();document.getEleme
 function updateDots(s){for(let i=0;i<4;i++){const d=document.getElementById('d'+i);d.className='pin-dot';if(s==='error')d.classList.add('error');else if(i<pinBuffer.length)d.classList.add('filled');}}
 function handlePinComplete(){if(hashPin(pinBuffer)===HARDCODED_PIN){sessionStorage.setItem('unlocked','1');document.getElementById('pin-screen').classList.add('hidden');document.body.classList.remove('pin-locked');}else{document.getElementById('pin-error').textContent='Incorrect PIN';updateDots('error');setTimeout(()=>{pinBuffer='';updateDots();document.getElementById('pin-error').textContent='';},900);}}
 if(sessionStorage.getItem('unlocked')==='1'){document.getElementById('pin-screen').classList.add('hidden');document.body.classList.remove('pin-locked');}
+
 function getData(k,d){try{return JSON.parse(localStorage.getItem(k))||d;}catch{return d;}}
 function setData(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
+
 let logs=getData('workout_logs',[]);
 let weights=getData('weight_log',[{date:'2026-04-22',weight:96.3},{date:'2026-04-24',weight:95.4},{date:'2026-04-26',weight:93.7},{date:'2026-05-08',weight:93.1},{date:'2026-05-10',weight:93.4}]);
+
 function selectDay(num,el){document.querySelectorAll('.day-card').forEach(c=>c.classList.remove('active'));el.classList.add('active');renderWorkout(num);}
+
 function renderWorkout(num){
   const day=DAYS[num];const tc={strength:'tag-strength',volume:'tag-volume',rehab:'tag-rehab'};const tl={strength:'Strength',volume:'Volume',rehab:'🔧 Rehab'};
   let html=`<div class="workout-detail"><div class="workout-header"><div class="workout-title">${day.name}</div>${day.warmup?`<button class="warmup-btn" onclick="openModal('warmupModal')">🔥 Warm-up</button>`:''}</div>`;
   day.exercises.forEach(ex=>{html+=`<div class="exercise-row"><div class="ex-info"><div class="ex-name">${ex.name}</div><div class="ex-scheme">${ex.scheme}</div></div><span class="ex-tag ${tc[ex.tag]}">${tl[ex.tag]}</span></div>`;});
   html+='</div>';document.getElementById('workout-display').innerHTML=html;
 }
+
 function showPage(name,btn){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');btn.classList.add('active');
-  if(name==='history')renderHistory();if(name==='progress')renderProgress();
+  if(name==='history')renderHistory();
+  if(name==='progress')renderProgress();
+  if(name==='log')prefillLog(document.getElementById('log-day').value);
 }
+
+function prefillLog(day){
+  const tmpl=DAY_TEMPLATES[parseInt(day)];if(!tmpl)return;
+  const saved=getData('template_weights_day'+day,{});
+  const lines=tmpl.map(ex=>{
+    const kg=saved[ex.name]!==undefined?saved[ex.name]:ex.kg;
+    return kg===0?ex.name+' '+ex.sets:ex.name+' '+kg+'kg '+ex.sets;
+  });
+  document.getElementById('log-notes').value=lines.join('\n');
+}
+
+function saveTemplateWeights(day,notes){
+  const saved={};
+  for(const line of notes.split('\n')){
+    const wm=line.match(/^([^\d]+?)\s+(\d+(?:\.\d+)?)kg/);
+    if(wm)saved[wm[1].trim()]=parseFloat(wm[2]);
+  }
+  setData('template_weights_day'+day,saved);
+}
+
 function calcVolume(notes){
   let total=0;
   for(const line of notes.split('\n')){
@@ -275,6 +311,7 @@ function calcVolume(notes){
   }
   return total>0?Math.round(total):null;
 }
+
 function saveLog(){
   const date=document.getElementById('log-date').value;
   const day=document.getElementById('log-day').value;
@@ -282,20 +319,25 @@ function saveLog(){
   const notes=document.getElementById('log-notes').value;
   if(!date){alert('Please select a date');return;}
   const volume=calcVolume(notes);
+  saveTemplateWeights(day,notes);
   logs.unshift({date,day:parseInt(day),weight:weight||null,volume,notes,id:Date.now()});
   setData('workout_logs',logs);
   if(weight){weights.push({date,weight});weights.sort((a,b)=>a.date.localeCompare(b.date));setData('weight_log',weights);updateCurrentWeight();}
   document.getElementById('log-notes').value='';document.getElementById('log-weight').value='';
+  prefillLog(day);
   const volMsg=volume?`\nVolume: ${volume.toLocaleString()}kg`:'';
   alert('Workout saved! 💪'+volMsg);
 }
+
 function renderHistory(){
   const el=document.getElementById('history-list');
   if(!logs.length){el.innerHTML='<div class="empty"><div class="empty-icon">📋</div>No workouts logged yet.</div>';return;}
   const dn={1:'Lower Strength',2:'Pull',3:'Push',4:'Lower Volume',5:'Upper Full'};
   el.innerHTML=logs.map(l=>`<div class="log-entry"><div><div class="log-date">${formatDate(l.date)} · Day ${l.day}</div><div class="log-detail">${dn[l.day]}</div>${l.notes?`<div class="note-text">${l.notes.split('\n')[0]}${l.notes.split('\n').length>1?'...':''}</div>`:''}</div><div style="text-align:right">${l.weight?`<div class="log-weight">${l.weight}</div><div style="font-size:10px;color:var(--muted)">kg</div>`:''} ${l.volume?`<div style="font-family:'Bebas Neue';font-size:16px;color:var(--accent2);margin-top:2px">${l.volume.toLocaleString()}</div><div style="font-size:10px;color:var(--muted)">vol kg</div>`:''}<button class="btn btn-danger" onclick="deleteLog(${l.id})" style="margin-top:6px">✕</button></div></div>`).join('');
 }
+
 function deleteLog(id){logs=logs.filter(l=>l.id!==id);setData('workout_logs',logs);renderHistory();}
+
 function renderProgress(){
   document.getElementById('stat-sessions').textContent=logs.length;
   if(weights.length){const latest=weights[weights.length-1];const change=(latest.weight-weights[0].weight).toFixed(1);document.getElementById('stat-weight').textContent=latest.weight;document.getElementById('stat-change').textContent=(change>0?'+':'')+change;const dir=document.getElementById('stat-change-dir');dir.textContent=change<0?'▼ losing':'▲ gaining';dir.className='stat-change '+(change<0?'down':'up');}
@@ -305,6 +347,7 @@ function renderProgress(){
   if(lv.length){document.getElementById('stat-volume').textContent=lv[0].volume.toLocaleString();document.getElementById('stat-volume-total').textContent=(lv.reduce((s,l)=>s+l.volume,0)/1000).toFixed(1)+'t';}
   drawChart();drawVolumeChart();
 }
+
 function drawChart(){
   const canvas=document.getElementById('weightChart');const ctx=canvas.getContext('2d');const W=canvas.offsetWidth;const H=120;canvas.width=W;canvas.height=H;
   if(weights.length<2){ctx.fillStyle='#444';ctx.font='13px sans-serif';ctx.fillText('Log more weigh-ins to see chart',20,60);return;}
@@ -314,6 +357,7 @@ function drawChart(){
   ctx.beginPath();ctx.strokeStyle='#e8ff3c';ctx.lineWidth=2;weights.forEach((w,i)=>i===0?ctx.moveTo(x(i),y(w.weight)):ctx.lineTo(x(i),y(w.weight)));ctx.stroke();
   weights.forEach((w,i)=>{ctx.beginPath();ctx.arc(x(i),y(w.weight),4,0,Math.PI*2);ctx.fillStyle='#e8ff3c';ctx.fill();});
 }
+
 function drawVolumeChart(){
   const canvas=document.getElementById('volumeChart');if(!canvas)return;const ctx=canvas.getContext('2d');const W=canvas.offsetWidth;const H=120;canvas.width=W;canvas.height=H;
   const data=[...logs].filter(l=>l.volume).reverse();
@@ -325,6 +369,7 @@ function drawVolumeChart(){
   ctx.beginPath();ctx.strokeStyle='#ff6b2b';ctx.lineWidth=2;data.forEach((l,i)=>i===0?ctx.moveTo(x(i),y(l.volume)):ctx.lineTo(x(i),y(l.volume)));ctx.stroke();
   data.forEach((l,i)=>{ctx.beginPath();ctx.arc(x(i),y(l.volume),4,0,Math.PI*2);ctx.fillStyle='#ff6b2b';ctx.fill();});
 }
+
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 function showWeightModal(){renderWeightHistory();openModal('weightModal');}
@@ -332,8 +377,9 @@ function saveWeight(){const val=parseFloat(document.getElementById('weight-input
 function updateCurrentWeight(){if(weights.length)document.getElementById('currentWeight').textContent=weights[weights.length-1].weight;}
 function renderWeightHistory(){document.getElementById('weight-history-list').innerHTML=[...weights].reverse().slice(0,10).map(w=>`<div class="weight-row"><div style="font-size:13px;color:var(--muted)">${formatDate(w.date)}</div><div style="font-family:'Bebas Neue';font-size:24px;color:var(--accent)">${w.weight} <span style="font-size:14px">kg</span></div></div>`).join('');}
 function formatDate(d){return new Date(d+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});}
+
 document.getElementById('log-date').value=new Date().toISOString().split('T')[0];
-updateCurrentWeight();renderWorkout(1);
+updateCurrentWeight();renderWorkout(1);prefillLog(1);
 </script>
 </body>
 </html>
