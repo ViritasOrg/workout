@@ -10,45 +10,16 @@
   @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap');
 
   :root {
-    --bg: #0a0a0a;
-    --surface: #131313;
-    --surface2: #1c1c1c;
-    --border: #2a2a2a;
-    --accent: #e8ff3c;
-    --accent2: #ff6b2b;
-    --text: #f0f0f0;
-    --muted: #666;
-    --success: #3cffa0;
-    --danger: #ff3c3c;
+    --bg: #0a0a0a; --surface: #131313; --surface2: #1c1c1c; --border: #2a2a2a;
+    --accent: #e8ff3c; --accent2: #ff6b2b; --text: #f0f0f0; --muted: #666;
+    --success: #3cffa0; --danger: #ff3c3c;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'DM Sans', sans-serif;
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
-
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; overflow-x: hidden; }
   body.pin-locked { overflow: hidden; height: 100vh; }
 
-  #pin-screen {
-    position: fixed;
-    inset: 0;
-    background: var(--bg);
-    z-index: 9999;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 40px 20px;
-    width: 100vw;
-    height: 100vh;
-    overflow: hidden;
-  }
-
+  #pin-screen { position: fixed; inset: 0; background: var(--bg); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; width: 100vw; height: 100vh; overflow: hidden; }
   #pin-screen.hidden { display: none; }
   .pin-logo { font-family: 'Bebas Neue', sans-serif; font-size: 36px; letter-spacing: 3px; color: var(--accent); margin-bottom: 8px; }
   .pin-sub { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 48px; }
@@ -76,8 +47,7 @@
   .nav-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
 
   .content { padding: 16px 20px 100px; }
-  .page { display: none; }
-  .page.active { display: block; }
+  .page { display: none; } .page.active { display: block; }
 
   .day-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
   .day-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden; }
@@ -92,7 +62,6 @@
   .workout-header { background: var(--surface2); padding: 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
   .workout-title { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 1px; color: var(--accent); }
   .warmup-btn { background: var(--accent2); color: white; border: none; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; }
-
   .exercise-row { border-bottom: 1px solid var(--border); padding: 14px 16px; display: flex; align-items: center; gap: 12px; }
   .exercise-row:last-child { border-bottom: none; }
   .ex-info { flex: 1; }
@@ -116,7 +85,6 @@
   .modal-title { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 1px; color: var(--accent2); }
   .modal-close { background: none; border: none; color: var(--muted); font-size: 24px; cursor: pointer; line-height: 1; padding: 0; }
   .modal-body { padding: 20px; }
-
   .warmup-phase { margin-bottom: 20px; }
   .phase-title { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: var(--accent2); font-weight: 600; margin-bottom: 10px; }
   .warmup-item { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
@@ -127,11 +95,9 @@
   .form-row { display: flex; gap: 10px; margin-bottom: 12px; }
   .form-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
   .form-group { flex: 1; }
-
   input, select, textarea { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; transition: border-color 0.2s; }
   input:focus, select:focus, textarea:focus { border-color: var(--accent); }
   textarea { resize: vertical; min-height: 80px; }
-
   .btn { padding: 12px 20px; border-radius: 8px; border: none; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
   .btn-primary { background: var(--accent); color: var(--bg); width: 100%; }
   .btn-primary:active { opacity: 0.8; }
@@ -142,13 +108,10 @@
   .stat-val { font-family: 'Bebas Neue', sans-serif; font-size: 32px; color: var(--accent); line-height: 1; }
   .stat-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
   .stat-change { font-size: 12px; margin-top: 4px; }
-  .stat-change.down { color: var(--success); }
-  .stat-change.up { color: var(--danger); }
-
+  .stat-change.down { color: var(--success); } .stat-change.up { color: var(--danger); }
   .chart-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
   .chart-title { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 12px; }
   canvas { width: 100% !important; }
-
   .empty { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 14px; }
   .empty-icon { font-size: 40px; margin-bottom: 12px; }
   .weight-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
@@ -162,10 +125,8 @@
   <div class="pin-logo">HENRIK'S TRAINING</div>
   <div class="pin-sub" id="pin-label">Enter PIN</div>
   <div class="pin-dots">
-    <div class="pin-dot" id="d0"></div>
-    <div class="pin-dot" id="d1"></div>
-    <div class="pin-dot" id="d2"></div>
-    <div class="pin-dot" id="d3"></div>
+    <div class="pin-dot" id="d0"></div><div class="pin-dot" id="d1"></div>
+    <div class="pin-dot" id="d2"></div><div class="pin-dot" id="d3"></div>
   </div>
   <div class="pin-keypad">
     <button class="pin-key" onclick="pinPress('1')">1</button>
@@ -187,7 +148,7 @@
 <div class="header">
   <div>
     <div class="header-title">HENRIK'S TRAINING</div>
-    <div class="header-sub">5-Day Program &nbsp;·&nbsp; <span style="color:var(--accent);opacity:0.6">v1.2</span></div>
+    <div class="header-sub">5-Day Program &nbsp;·&nbsp; <span style="color:var(--accent);opacity:0.6">v1.3</span></div>
   </div>
   <div class="weight-badge" onclick="showWeightModal()">
     <div class="val" id="currentWeight">93.4</div>
@@ -230,10 +191,9 @@
       </div></div>
       <div class="form-label">Body Weight (kg)</div>
       <div class="form-row"><div class="form-group"><input type="number" id="log-weight" placeholder="93.4" step="0.1"></div></div>
-      <div class="form-label">Total Volume (kg)</div>
-      <div class="form-row"><div class="form-group"><input type="number" id="log-volume" placeholder="e.g. 4500" step="1"></div></div>
       <div class="form-label">Key Lifts &amp; Sets</div>
-      <textarea id="log-notes" placeholder="Squat 120kg 5-5-5&#10;Pull-ups 10-8-9&#10;Row 85kg 10-10-10"></textarea>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Volume auto-calculated — format: "Squat 120kg 5-5-5" or "Deadlift 140kg x5"</div>
+      <textarea id="log-notes" placeholder="Squat 120kg 5-5-5&#10;Pull-ups 10-8-9&#10;Row 85kg 10-10-10&#10;Deadlift 140kg x5"></textarea>
       <div style="margin-top:12px"><button class="btn btn-primary" onclick="saveLog()">SAVE WORKOUT</button></div>
     </div>
   </div>
@@ -248,7 +208,7 @@
       <div class="stat-card"><div class="stat-val" id="stat-weight">—</div><div class="stat-lbl">Current kg</div></div>
       <div class="stat-card"><div class="stat-val" id="stat-change">—</div><div class="stat-lbl">kg Change</div><div class="stat-change" id="stat-change-dir"></div></div>
       <div class="stat-card"><div class="stat-val" id="stat-streak">0</div><div class="stat-lbl">This Week</div></div>
-      <div class="stat-card"><div class="stat-val" id="stat-volume">—</div><div class="stat-lbl">Last Volume</div><div class="stat-change" id="stat-volume-unit" style="color:var(--muted)">kg</div></div>
+      <div class="stat-card"><div class="stat-val" id="stat-volume">—</div><div class="stat-lbl">Last Volume</div><div class="stat-change" style="color:var(--muted)">kg</div></div>
       <div class="stat-card" style="grid-column:span 2"><div class="stat-val" id="stat-volume-total">—</div><div class="stat-lbl">Total Volume Lifted</div></div>
     </div>
     <div class="chart-wrap"><div class="chart-title">Body Weight (kg)</div><canvas id="weightChart" height="120"></canvas></div>
@@ -306,53 +266,16 @@
 
 <script>
 const DAYS = {
-  1: { name:"Day 1 — Lower Strength", warmup:false, exercises:[
-    {name:"Squat",scheme:"5×5 — progressive overload",tag:"strength"},
-    {name:"Romanian Deadlift",scheme:"3×8",tag:"volume"},
-    {name:"Leg Press",scheme:"3×10",tag:"volume"},
-    {name:"Leg Curl",scheme:"3×10",tag:"volume"},
-    {name:"Calf Raises",scheme:"3×15",tag:"volume"}
-  ]},
-  2: { name:"Day 2 — Pull", warmup:true, exercises:[
-    {name:"Pull-ups",scheme:"4×max",tag:"strength"},
-    {name:"Barbell Row",scheme:"4×8",tag:"strength"},
-    {name:"Cable Row",scheme:"3×10",tag:"volume"},
-    {name:"Face Pulls",scheme:"4×15",tag:"rehab"},
-    {name:"Rear Delt Fly",scheme:"3×15",tag:"rehab"},
-    {name:"Barbell Curl",scheme:"3×10",tag:"volume"},
-    {name:"Hammer Curl",scheme:"3×10",tag:"volume"}
-  ]},
-  3: { name:"Day 3 — Push", warmup:true, exercises:[
-    {name:"Push-ups (weighted/elevated)",scheme:"4×max",tag:"strength"},
-    {name:"Landmine Press",scheme:"4×10",tag:"rehab"},
-    {name:"Cable Lateral Raise",scheme:"4×15",tag:"rehab"},
-    {name:"Y-Raise",scheme:"3×12",tag:"rehab"},
-    {name:"Overhead Tricep Cable",scheme:"3×12",tag:"volume"},
-    {name:"Tricep Pushdown",scheme:"3×12",tag:"volume"}
-  ]},
-  4: { name:"Day 4 — Lower Volume", warmup:false, exercises:[
-    {name:"Deadlift",scheme:"5×5 — progressive overload",tag:"strength"},
-    {name:"Smith Machine Squat",scheme:"3×10",tag:"volume"},
-    {name:"Lunges",scheme:"3×10 each leg",tag:"volume"},
-    {name:"Leg Extension",scheme:"3×12",tag:"volume"},
-    {name:"Leg Curl",scheme:"3×12",tag:"volume"}
-  ]},
-  5: { name:"Day 5 — Upper Full", warmup:true, exercises:[
-    {name:"Weighted Pull-ups",scheme:"4×5",tag:"strength"},
-    {name:"Barbell Row (heavy)",scheme:"4×6",tag:"strength"},
-    {name:"Landmine Press",scheme:"4×8",tag:"rehab"},
-    {name:"Cable Lateral Raise",scheme:"3×15",tag:"rehab"},
-    {name:"Face Pulls",scheme:"3×15",tag:"rehab"},
-    {name:"Push-ups",scheme:"3×max",tag:"volume"},
-    {name:"Rear Delt Cable Fly",scheme:"3×15",tag:"rehab"},
-    {name:"Curl variation",scheme:"3×10",tag:"volume"}
-  ]}
+  1:{name:"Day 1 — Lower Strength",warmup:false,exercises:[{name:"Squat",scheme:"5×5 — progressive overload",tag:"strength"},{name:"Romanian Deadlift",scheme:"3×8",tag:"volume"},{name:"Leg Press",scheme:"3×10",tag:"volume"},{name:"Leg Curl",scheme:"3×10",tag:"volume"},{name:"Calf Raises",scheme:"3×15",tag:"volume"}]},
+  2:{name:"Day 2 — Pull",warmup:true,exercises:[{name:"Pull-ups",scheme:"4×max",tag:"strength"},{name:"Barbell Row",scheme:"4×8",tag:"strength"},{name:"Cable Row",scheme:"3×10",tag:"volume"},{name:"Face Pulls",scheme:"4×15",tag:"rehab"},{name:"Rear Delt Fly",scheme:"3×15",tag:"rehab"},{name:"Barbell Curl",scheme:"3×10",tag:"volume"},{name:"Hammer Curl",scheme:"3×10",tag:"volume"}]},
+  3:{name:"Day 3 — Push",warmup:true,exercises:[{name:"Push-ups (weighted/elevated)",scheme:"4×max",tag:"strength"},{name:"Landmine Press",scheme:"4×10",tag:"rehab"},{name:"Cable Lateral Raise",scheme:"4×15",tag:"rehab"},{name:"Y-Raise",scheme:"3×12",tag:"rehab"},{name:"Overhead Tricep Cable",scheme:"3×12",tag:"volume"},{name:"Tricep Pushdown",scheme:"3×12",tag:"volume"}]},
+  4:{name:"Day 4 — Lower Volume",warmup:false,exercises:[{name:"Deadlift",scheme:"5×5 — progressive overload",tag:"strength"},{name:"Smith Machine Squat",scheme:"3×10",tag:"volume"},{name:"Lunges",scheme:"3×10 each leg",tag:"volume"},{name:"Leg Extension",scheme:"3×12",tag:"volume"},{name:"Leg Curl",scheme:"3×12",tag:"volume"}]},
+  5:{name:"Day 5 — Upper Full",warmup:true,exercises:[{name:"Weighted Pull-ups",scheme:"4×5",tag:"strength"},{name:"Barbell Row (heavy)",scheme:"4×6",tag:"strength"},{name:"Landmine Press",scheme:"4×8",tag:"rehab"},{name:"Cable Lateral Raise",scheme:"3×15",tag:"rehab"},{name:"Face Pulls",scheme:"3×15",tag:"rehab"},{name:"Push-ups",scheme:"3×max",tag:"volume"},{name:"Rear Delt Cable Fly",scheme:"3×15",tag:"rehab"},{name:"Curl variation",scheme:"3×10",tag:"volume"}]}
 };
 
 function hashPin(p){let h=0;for(let i=0;i<p.length;i++)h=(Math.imul(31,h)+p.charCodeAt(i))|0;return h.toString(36);}
 const HARDCODED_PIN=hashPin('8538');
 let pinBuffer='';
-
 function pinPress(d){if(pinBuffer.length>=4)return;pinBuffer+=d;updateDots();if(pinBuffer.length===4)setTimeout(handlePinComplete,120);}
 function pinDel(){pinBuffer=pinBuffer.slice(0,-1);updateDots();document.getElementById('pin-error').textContent='';}
 function updateDots(s){for(let i=0;i<4;i++){const d=document.getElementById('d'+i);d.className='pin-dot';if(s==='error')d.classList.add('error');else if(i<pinBuffer.length)d.classList.add('filled');}}
@@ -371,144 +294,98 @@ let weights=getData('weight_log',[{date:'2026-04-22',weight:96.3},{date:'2026-04
 function selectDay(num,el){document.querySelectorAll('.day-card').forEach(c=>c.classList.remove('active'));el.classList.add('active');renderWorkout(num);}
 
 function renderWorkout(num){
-  const day=DAYS[num];
-  const tc={strength:'tag-strength',volume:'tag-volume',rehab:'tag-rehab'};
-  const tl={strength:'Strength',volume:'Volume',rehab:'🔧 Rehab'};
+  const day=DAYS[num];const tc={strength:'tag-strength',volume:'tag-volume',rehab:'tag-rehab'};const tl={strength:'Strength',volume:'Volume',rehab:'🔧 Rehab'};
   let html=`<div class="workout-detail"><div class="workout-header"><div class="workout-title">${day.name}</div>${day.warmup?`<button class="warmup-btn" onclick="openModal('warmupModal')">🔥 Warm-up</button>`:''}</div>`;
   day.exercises.forEach(ex=>{html+=`<div class="exercise-row"><div class="ex-info"><div class="ex-name">${ex.name}</div><div class="ex-scheme">${ex.scheme}</div></div><span class="ex-tag ${tc[ex.tag]}">${tl[ex.tag]}</span></div>`;});
-  html+='</div>';
-  document.getElementById('workout-display').innerHTML=html;
+  html+='</div>';document.getElementById('workout-display').innerHTML=html;
 }
 
 function showPage(name,btn){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('page-'+name).classList.add('active');
-  btn.classList.add('active');
-  if(name==='history')renderHistory();
-  if(name==='progress')renderProgress();
+  document.getElementById('page-'+name).classList.add('active');btn.classList.add('active');
+  if(name==='history')renderHistory();if(name==='progress')renderProgress();
+}
+
+function calcVolume(notes){
+  let total=0;
+  for(const line of notes.split('\n')){
+    const wm=line.match(/(\d+(?:\.\d+)?)\s*kg/i);if(!wm)continue;const w=parseFloat(wm[1]);
+    const dm=line.match(/\b(\d+(?:-\d+){1,5})\b/);
+    if(dm){total+=dm[1].split('-').reduce((s,r)=>s+parseInt(r),0)*w;continue;}
+    const mm=line.match(/(\d+)\s*[x×]\s*(\d+)/i);
+    if(mm){total+=parseInt(mm[1])*parseInt(mm[2])*w;continue;}
+    const sm=line.match(/[x×]\s*(\d+)/i);if(sm){total+=parseInt(sm[1])*w;}
+  }
+  return total>0?Math.round(total):null;
 }
 
 function saveLog(){
   const date=document.getElementById('log-date').value;
   const day=document.getElementById('log-day').value;
   const weight=parseFloat(document.getElementById('log-weight').value);
-  const volume=parseFloat(document.getElementById('log-volume').value)||null;
   const notes=document.getElementById('log-notes').value;
   if(!date){alert('Please select a date');return;}
+  const volume=calcVolume(notes);
   logs.unshift({date,day:parseInt(day),weight:weight||null,volume,notes,id:Date.now()});
   setData('workout_logs',logs);
   if(weight){weights.push({date,weight});weights.sort((a,b)=>a.date.localeCompare(b.date));setData('weight_log',weights);updateCurrentWeight();}
-  document.getElementById('log-notes').value='';
-  document.getElementById('log-weight').value='';
-  document.getElementById('log-volume').value='';
-  alert('Workout saved! 💪');
+  document.getElementById('log-notes').value='';document.getElementById('log-weight').value='';
+  const volMsg=volume?`\nVolume: ${volume.toLocaleString()}kg`:'';
+  alert('Workout saved! 💪'+volMsg);
 }
 
 function renderHistory(){
   const el=document.getElementById('history-list');
   if(!logs.length){el.innerHTML='<div class="empty"><div class="empty-icon">📋</div>No workouts logged yet.</div>';return;}
   const dn={1:'Lower Strength',2:'Pull',3:'Push',4:'Lower Volume',5:'Upper Full'};
-  el.innerHTML=logs.map(l=>`
-    <div class="log-entry">
-      <div>
-        <div class="log-date">${formatDate(l.date)} · Day ${l.day}</div>
-        <div class="log-detail">${dn[l.day]}</div>
-        ${l.notes?`<div class="note-text">${l.notes.split('\n')[0]}${l.notes.split('\n').length>1?'...':''}</div>`:''}
-      </div>
-      <div style="text-align:right">
-        ${l.weight?`<div class="log-weight">${l.weight}</div><div style="font-size:10px;color:var(--muted)">kg</div>`:''}
-        ${l.volume?`<div style="font-family:'Bebas Neue';font-size:16px;color:var(--accent2);margin-top:2px">${l.volume.toLocaleString()}</div><div style="font-size:10px;color:var(--muted)">vol kg</div>`:''}
-        <button class="btn btn-danger" onclick="deleteLog(${l.id})" style="margin-top:6px">✕</button>
-      </div>
-    </div>`).join('');
+  el.innerHTML=logs.map(l=>`<div class="log-entry"><div><div class="log-date">${formatDate(l.date)} · Day ${l.day}</div><div class="log-detail">${dn[l.day]}</div>${l.notes?`<div class="note-text">${l.notes.split('\n')[0]}${l.notes.split('\n').length>1?'...':''}</div>`:''}</div><div style="text-align:right">${l.weight?`<div class="log-weight">${l.weight}</div><div style="font-size:10px;color:var(--muted)">kg</div>`:''} ${l.volume?`<div style="font-family:'Bebas Neue';font-size:16px;color:var(--accent2);margin-top:2px">${l.volume.toLocaleString()}</div><div style="font-size:10px;color:var(--muted)">vol kg</div>`:''}<button class="btn btn-danger" onclick="deleteLog(${l.id})" style="margin-top:6px">✕</button></div></div>`).join('');
 }
 
 function deleteLog(id){logs=logs.filter(l=>l.id!==id);setData('workout_logs',logs);renderHistory();}
 
 function renderProgress(){
   document.getElementById('stat-sessions').textContent=logs.length;
-  if(weights.length){
-    const latest=weights[weights.length-1];
-    const change=(latest.weight-weights[0].weight).toFixed(1);
-    document.getElementById('stat-weight').textContent=latest.weight;
-    document.getElementById('stat-change').textContent=(change>0?'+':'')+change;
-    const dir=document.getElementById('stat-change-dir');
-    dir.textContent=change<0?'▼ losing':'▲ gaining';
-    dir.className='stat-change '+(change<0?'down':'up');
-  }
+  if(weights.length){const latest=weights[weights.length-1];const change=(latest.weight-weights[0].weight).toFixed(1);document.getElementById('stat-weight').textContent=latest.weight;document.getElementById('stat-change').textContent=(change>0?'+':'')+change;const dir=document.getElementById('stat-change-dir');dir.textContent=change<0?'▼ losing':'▲ gaining';dir.className='stat-change '+(change<0?'down':'up');}
   const now=new Date();const ws=new Date(now);ws.setDate(now.getDate()-now.getDay());
   document.getElementById('stat-streak').textContent=logs.filter(l=>new Date(l.date)>=ws).length;
   const lv=logs.filter(l=>l.volume);
-  if(lv.length){
-    document.getElementById('stat-volume').textContent=lv[0].volume.toLocaleString();
-    document.getElementById('stat-volume-total').textContent=(lv.reduce((s,l)=>s+l.volume,0)/1000).toFixed(1)+'t';
-  }
+  if(lv.length){document.getElementById('stat-volume').textContent=lv[0].volume.toLocaleString();document.getElementById('stat-volume-total').textContent=(lv.reduce((s,l)=>s+l.volume,0)/1000).toFixed(1)+'t';}
   drawChart();drawVolumeChart();
 }
 
 function drawChart(){
-  const canvas=document.getElementById('weightChart');const ctx=canvas.getContext('2d');
-  const W=canvas.offsetWidth;const H=120;canvas.width=W;canvas.height=H;
+  const canvas=document.getElementById('weightChart');const ctx=canvas.getContext('2d');const W=canvas.offsetWidth;const H=120;canvas.width=W;canvas.height=H;
   if(weights.length<2){ctx.fillStyle='#444';ctx.font='13px sans-serif';ctx.fillText('Log more weigh-ins to see chart',20,60);return;}
-  const vals=weights.map(w=>w.weight);const min=Math.min(...vals)-1;const max=Math.max(...vals)+1;
-  const pad={l:40,r:10,t:10,b:20};
-  const x=i=>pad.l+(i/(weights.length-1))*(W-pad.l-pad.r);
-  const y=v=>pad.t+(1-(v-min)/(max-min))*(H-pad.t-pad.b);
-  ctx.strokeStyle='#2a2a2a';ctx.lineWidth=1;
-  [min+1,(min+max)/2,max-1].forEach(v=>{ctx.beginPath();ctx.moveTo(pad.l,y(v));ctx.lineTo(W-pad.r,y(v));ctx.stroke();ctx.fillStyle='#555';ctx.font='10px sans-serif';ctx.fillText(v.toFixed(1),0,y(v)+4);});
-  ctx.beginPath();ctx.strokeStyle='#e8ff3c';ctx.lineWidth=2;
-  weights.forEach((w,i)=>i===0?ctx.moveTo(x(i),y(w.weight)):ctx.lineTo(x(i),y(w.weight)));ctx.stroke();
+  const vals=weights.map(w=>w.weight);const min=Math.min(...vals)-1;const max=Math.max(...vals)+1;const pad={l:40,r:10,t:10,b:20};
+  const x=i=>pad.l+(i/(weights.length-1))*(W-pad.l-pad.r);const y=v=>pad.t+(1-(v-min)/(max-min))*(H-pad.t-pad.b);
+  ctx.strokeStyle='#2a2a2a';ctx.lineWidth=1;[min+1,(min+max)/2,max-1].forEach(v=>{ctx.beginPath();ctx.moveTo(pad.l,y(v));ctx.lineTo(W-pad.r,y(v));ctx.stroke();ctx.fillStyle='#555';ctx.font='10px sans-serif';ctx.fillText(v.toFixed(1),0,y(v)+4);});
+  ctx.beginPath();ctx.strokeStyle='#e8ff3c';ctx.lineWidth=2;weights.forEach((w,i)=>i===0?ctx.moveTo(x(i),y(w.weight)):ctx.lineTo(x(i),y(w.weight)));ctx.stroke();
   weights.forEach((w,i)=>{ctx.beginPath();ctx.arc(x(i),y(w.weight),4,0,Math.PI*2);ctx.fillStyle='#e8ff3c';ctx.fill();});
 }
 
 function drawVolumeChart(){
-  const canvas=document.getElementById('volumeChart');if(!canvas)return;
-  const ctx=canvas.getContext('2d');const W=canvas.offsetWidth;const H=120;canvas.width=W;canvas.height=H;
+  const canvas=document.getElementById('volumeChart');if(!canvas)return;const ctx=canvas.getContext('2d');const W=canvas.offsetWidth;const H=120;canvas.width=W;canvas.height=H;
   const data=[...logs].filter(l=>l.volume).reverse();
-  if(data.length<2){ctx.fillStyle='#444';ctx.font='13px sans-serif';ctx.fillText('Log volume to see chart',20,60);return;}
-  const vals=data.map(l=>l.volume);const min=Math.min(...vals)*0.9;const max=Math.max(...vals)*1.1;
-  const pad={l:45,r:10,t:10,b:20};
-  const x=i=>pad.l+(i/(data.length-1))*(W-pad.l-pad.r);
-  const y=v=>pad.t+(1-(v-min)/(max-min))*(H-pad.t-pad.b);
-  ctx.strokeStyle='#2a2a2a';ctx.lineWidth=1;
-  [min,(min+max)/2,max].forEach(v=>{ctx.beginPath();ctx.moveTo(pad.l,y(v));ctx.lineTo(W-pad.r,y(v));ctx.stroke();ctx.fillStyle='#555';ctx.font='10px sans-serif';ctx.fillText((v/1000).toFixed(1)+'t',0,y(v)+4);});
-  ctx.beginPath();
-  data.forEach((l,i)=>i===0?ctx.moveTo(x(i),y(l.volume)):ctx.lineTo(x(i),y(l.volume)));
-  ctx.lineTo(x(data.length-1),H-pad.b);ctx.lineTo(x(0),H-pad.b);ctx.closePath();
-  ctx.fillStyle='rgba(255,107,43,0.1)';ctx.fill();
-  ctx.beginPath();ctx.strokeStyle='#ff6b2b';ctx.lineWidth=2;
-  data.forEach((l,i)=>i===0?ctx.moveTo(x(i),y(l.volume)):ctx.lineTo(x(i),y(l.volume)));ctx.stroke();
+  if(data.length<2){ctx.fillStyle='#444';ctx.font='13px sans-serif';ctx.fillText('Log workouts to see volume chart',10,60);return;}
+  const vals=data.map(l=>l.volume);const min=Math.min(...vals)*0.9;const max=Math.max(...vals)*1.1;const pad={l:45,r:10,t:10,b:20};
+  const x=i=>pad.l+(i/(data.length-1))*(W-pad.l-pad.r);const y=v=>pad.t+(1-(v-min)/(max-min))*(H-pad.t-pad.b);
+  ctx.strokeStyle='#2a2a2a';ctx.lineWidth=1;[min,(min+max)/2,max].forEach(v=>{ctx.beginPath();ctx.moveTo(pad.l,y(v));ctx.lineTo(W-pad.r,y(v));ctx.stroke();ctx.fillStyle='#555';ctx.font='10px sans-serif';ctx.fillText((v/1000).toFixed(1)+'t',0,y(v)+4);});
+  ctx.beginPath();data.forEach((l,i)=>i===0?ctx.moveTo(x(i),y(l.volume)):ctx.lineTo(x(i),y(l.volume)));ctx.lineTo(x(data.length-1),H-pad.b);ctx.lineTo(x(0),H-pad.b);ctx.closePath();ctx.fillStyle='rgba(255,107,43,0.1)';ctx.fill();
+  ctx.beginPath();ctx.strokeStyle='#ff6b2b';ctx.lineWidth=2;data.forEach((l,i)=>i===0?ctx.moveTo(x(i),y(l.volume)):ctx.lineTo(x(i),y(l.volume)));ctx.stroke();
   data.forEach((l,i)=>{ctx.beginPath();ctx.arc(x(i),y(l.volume),4,0,Math.PI*2);ctx.fillStyle='#ff6b2b';ctx.fill();});
 }
 
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 function showWeightModal(){renderWeightHistory();openModal('weightModal');}
-
-function saveWeight(){
-  const val=parseFloat(document.getElementById('weight-input').value);if(!val)return;
-  const today=new Date().toISOString().split('T')[0];
-  weights.push({date:today,weight:val});weights.sort((a,b)=>a.date.localeCompare(b.date));
-  setData('weight_log',weights);updateCurrentWeight();
-  document.getElementById('weight-input').value='';renderWeightHistory();
-}
-
+function saveWeight(){const val=parseFloat(document.getElementById('weight-input').value);if(!val)return;const today=new Date().toISOString().split('T')[0];weights.push({date:today,weight:val});weights.sort((a,b)=>a.date.localeCompare(b.date));setData('weight_log',weights);updateCurrentWeight();document.getElementById('weight-input').value='';renderWeightHistory();}
 function updateCurrentWeight(){if(weights.length)document.getElementById('currentWeight').textContent=weights[weights.length-1].weight;}
-
-function renderWeightHistory(){
-  document.getElementById('weight-history-list').innerHTML=[...weights].reverse().slice(0,10).map(w=>`
-    <div class="weight-row">
-      <div style="font-size:13px;color:var(--muted)">${formatDate(w.date)}</div>
-      <div style="font-family:'Bebas Neue';font-size:24px;color:var(--accent)">${w.weight} <span style="font-size:14px">kg</span></div>
-    </div>`).join('');
-}
-
+function renderWeightHistory(){document.getElementById('weight-history-list').innerHTML=[...weights].reverse().slice(0,10).map(w=>`<div class="weight-row"><div style="font-size:13px;color:var(--muted)">${formatDate(w.date)}</div><div style="font-family:'Bebas Neue';font-size:24px;color:var(--accent)">${w.weight} <span style="font-size:14px">kg</span></div></div>`).join('');}
 function formatDate(d){return new Date(d+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});}
 
 document.getElementById('log-date').value=new Date().toISOString().split('T')[0];
-updateCurrentWeight();
-renderWorkout(1);
+updateCurrentWeight();renderWorkout(1);
 </script>
 </body>
 </html>
