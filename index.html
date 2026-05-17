@@ -29,10 +29,14 @@
   .pin-error{margin-top:24px;font-size:13px;color:var(--danger);height:20px;text-align:center;}
   .header{position:sticky;top:0;z-index:100;background:var(--bg);border-bottom:1px solid var(--border);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;}
   .header-title{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px;color:var(--accent);}
-  .header-sub{font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;}
+  .header-sub{font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;display:flex;align-items:center;gap:4px;}
   .weight-badge{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;text-align:right;cursor:pointer;}
   .weight-badge .val{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--accent);line-height:1;}
   .weight-badge .lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
+  .agent-status{display:inline-flex;align-items:center;margin-left:4px;}
+  .agent-dot{width:7px;height:7px;border-radius:50%;background:var(--border);transition:background 0.3s;flex-shrink:0;cursor:pointer;}
+  .agent-dot.up{background:#3cffa0;box-shadow:0 0 5px rgba(60,255,160,0.6);}
+  .agent-dot.down{background:#ff3c3c;box-shadow:0 0 5px rgba(255,60,60,0.5);}
   .nav{display:flex;background:var(--surface);border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none;}
   .nav::-webkit-scrollbar{display:none;}
   .nav-btn{flex:0 0 auto;padding:12px 18px;background:none;border:none;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s;white-space:nowrap;}
@@ -123,7 +127,7 @@
 <div class="header">
   <div>
     <div class="header-title">HENRIK'S TRAINING</div>
-    <div class="header-sub">5-Day Program &nbsp;·&nbsp; <span style="color:var(--accent);font-weight:600">v1.11</span></div>
+    <div class="header-sub">5-Day &nbsp;·&nbsp; <span style="color:var(--accent);font-weight:600">v1.12</span><span class="agent-status" title="Agent status"><span class="agent-dot" id="agent-dot" onclick="checkAgentStatus()"></span></span></div>
   </div>
   <div class="weight-badge" onclick="showWeightModal()">
     <div class="val" id="currentWeight">—</div>
@@ -164,7 +168,7 @@
       <div class="form-label">Body Weight (kg)</div>
       <div class="form-row"><div class="form-group"><input type="number" id="log-weight" placeholder="93.0" step="0.1"></div></div>
       <div class="form-label">Key Lifts &amp; Sets</div>
-      <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Pre-filled from program — edit weights/reps as needed. Volume auto-calculated.</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Pre-filled from program — edit weights/reps as needed.</div>
       <textarea id="log-notes" placeholder="Squat 120kg 5-5-5&#10;Pull-ups 10-8-9&#10;Row 85kg 10-10-10"></textarea>
       <div style="margin-top:12px"><button class="btn btn-primary" onclick="saveLog()">SAVE WORKOUT</button></div>
     </div>
@@ -205,7 +209,7 @@
       <div class="warmup-phase"><div class="phase-title">Phase 2 — Rotator Cuff (3 min)</div>
         <div class="warmup-item"><div class="warmup-bullet"></div>Band/cable external rotation 3×15 each arm</div>
         <div class="warmup-item"><div class="warmup-bullet"></div>Band pull-apart 3×20</div>
-        <div class="warmup-item"><div class="warmup-bullet"></div>Wall slides 2×10 — keep contact throughout</div>
+        <div class="warmup-item"><div class="warmup-bullet"></div>Wall slides 2×10</div>
       </div>
       <div class="warmup-phase"><div class="phase-title">Phase 3 — Scapular (3 min)</div>
         <div class="warmup-item"><div class="warmup-bullet"></div>Scapular push-ups 2×15</div>
@@ -214,7 +218,7 @@
       </div>
       <div class="warmup-phase"><div class="phase-title">Phase 4 — Specific Warm-up</div>
         <div class="warmup-item"><div class="warmup-bullet"></div>2 warm-up sets before any press</div>
-        <div class="warmup-item"><div class="warmup-bullet"></div>Empty bar ×15 → 50% weight ×10 → working weight</div>
+        <div class="warmup-item"><div class="warmup-bullet"></div>Empty bar ×15 → 50% ×10 → working weight</div>
         <div class="warmup-item"><div class="warmup-bullet"></div>⚠️ Sharp pain = skip pressing, rehab only</div>
       </div>
     </div>
@@ -249,6 +253,7 @@ const DAY_TEMPLATES={
 function hashPin(p){let h=0;for(let i=0;i<p.length;i++)h=(Math.imul(31,h)+p.charCodeAt(i))|0;return h.toString(36);}
 const HARDCODED_PIN=hashPin('8538');
 const WEIGHTS_TOKEN=hashPin('8538');
+const AGENT_URL="https://api.henriks-agent.uk";
 let pinBuffer='';
 function pinPress(d){if(pinBuffer.length>=4)return;pinBuffer+=d;updateDots();if(pinBuffer.length===4)setTimeout(handlePinComplete,120);}
 function pinDel(){pinBuffer=pinBuffer.slice(0,-1);updateDots();document.getElementById('pin-error').textContent='';}
@@ -261,6 +266,7 @@ let logs=getData('workout_logs',[]);
 let weights=getData('weight_log',[]);
 function calcVolume(notes){let total=0;for(const line of notes.split('\n')){const wm=line.match(/(\d+(?:\.\d+)?)\s*kg/i);if(!wm)continue;const w=parseFloat(wm[1]);const dm=line.match(/\b(\d+(?:-\d+){1,5})\b/);if(dm){total+=dm[1].split('-').reduce((s,r)=>s+parseInt(r),0)*w;continue;}const mm=line.match(/(\d+)\s*[x×]\s*(\d+)/i);if(mm){total+=parseInt(mm[1])*parseInt(mm[2])*w;continue;}const sm=line.match(/[x×]\s*(\d+)/i);if(sm){total+=parseInt(sm[1])*w;}}return total>0?Math.round(total):null;}
 function ensureVolumes(){let changed=false;logs=logs.map(l=>{if(l.volume==null&&l.notes){const v=calcVolume(l.notes);if(v){l.volume=v;changed=true;}}return l;});if(changed)setData('workout_logs',logs);}
+async function checkAgentStatus(){const dot=document.getElementById('agent-dot');if(!dot)return;try{const ctrl=new AbortController();setTimeout(()=>ctrl.abort(),5000);const r=await fetch(AGENT_URL+"/weights",{headers:{"x-app-token":WEIGHTS_TOKEN},signal:ctrl.signal});dot.className='agent-dot '+(r.ok?'up':'down');}catch(e){dot.className='agent-dot down';}}
 function selectDay(num,el){document.querySelectorAll('.day-card').forEach(c=>c.classList.remove('active'));el.classList.add('active');renderWorkout(num);}
 function renderWorkout(num){const day=DAYS[num];const tc={strength:'tag-strength',volume:'tag-volume',rehab:'tag-rehab'};const tl={strength:'Strength',volume:'Volume',rehab:'🔧 Rehab'};let html=`<div class="workout-detail"><div class="workout-header"><div class="workout-title">${day.name}</div>${day.warmup?`<button class="warmup-btn" onclick="openModal('warmupModal')">🔥 Warm-up</button>`:''}</div>`;day.exercises.forEach(ex=>{html+=`<div class="exercise-row"><div class="ex-info"><div class="ex-name">${ex.name}</div><div class="ex-scheme">${ex.scheme}</div></div><span class="ex-tag ${tc[ex.tag]}">${tl[ex.tag]}</span></div>`;});html+='</div>';document.getElementById('workout-display').innerHTML=html;}
 function showPage(name,btn){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));document.getElementById('page-'+name).classList.add('active');btn.classList.add('active');if(name==='history')renderHistory();if(name==='progress')renderProgress();if(name==='log')prefillLog(document.getElementById('log-day').value);}
@@ -280,12 +286,11 @@ function updateCurrentWeight(){if(weights.length)document.getElementById('curren
 function deleteWeight(date){weights=weights.filter(w=>w.date!==date);setData('weight_log',weights);updateCurrentWeight();renderWeightHistory();deleteWeightFromAgent(date);}
 function renderWeightHistory(){document.getElementById('weight-history-list').innerHTML=[...weights].reverse().slice(0,20).map(w=>`<div class="weight-row"><div style="font-size:13px;color:var(--muted)">${formatDate(w.date)}</div><div style="display:flex;align-items:center;gap:10px"><div style="font-family:'Bebas Neue';font-size:24px;color:var(--accent)">${w.weight} <span style="font-size:14px">kg</span></div><button onclick="deleteWeight('${w.date}')" style="background:none;border:none;color:var(--danger);font-size:18px;cursor:pointer;padding:4px;">✕</button></div></div>`).join('');}
 function formatDate(d){return new Date(d+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});}
-const AGENT_URL="https://api.henriks-agent.uk";
 async function syncWeightsFromAgent(){try{const r=await fetch(AGENT_URL+"/weights",{headers:{"x-app-token":WEIGHTS_TOKEN}});if(!r.ok)return;const remote=await r.json();const local=getData('weight_log',[]);const remoteDates=new Set(remote.map(w=>w.date));const merged=[...remote];for(const w of local){if(!remoteDates.has(w.date))merged.push(w);}merged.sort((a,b)=>a.date.localeCompare(b.date));weights=merged;setData('weight_log',merged);updateCurrentWeight();}catch(e){}}
 async function pushWeightToAgent(date,weightVal){try{await fetch(AGENT_URL+"/weights",{method:"POST",headers:{"Content-Type":"application/json","x-app-token":WEIGHTS_TOKEN},body:JSON.stringify({date:date,weight:weightVal})});}catch(e){}}
 async function deleteWeightFromAgent(date){try{await fetch(AGENT_URL+"/weights/"+date,{method:"DELETE",headers:{"x-app-token":WEIGHTS_TOKEN}});}catch(e){}}
 document.getElementById('log-date').value=new Date().toISOString().split('T')[0];
-updateCurrentWeight();renderWorkout(1);prefillLog(1);syncWeightsFromAgent();
+updateCurrentWeight();renderWorkout(1);prefillLog(1);syncWeightsFromAgent();checkAgentStatus();
 </script>
 </body>
 </html>
