@@ -127,7 +127,7 @@
 <div class="header">
   <div>
     <div class="header-title">HENRIK'S TRAINING</div>
-    <div class="header-sub">5-Day &nbsp;·&nbsp; <span style="color:var(--accent);font-weight:600">v1.25</span><span class="agent-status"><span class="agent-dot" id="agent-dot" onclick="checkAgentStatus()"></span></span></div>
+    <div class="header-sub">5-Day &nbsp;·&nbsp; <span style="color:var(--accent);font-weight:600">v1.26</span><span class="agent-status"><span class="agent-dot" id="agent-dot" onclick="checkAgentStatus()"></span></span></div>
   </div>
   <div class="weight-badge" onclick="showWeightModal()">
     <div class="val" id="currentWeight">—</div>
@@ -319,6 +319,7 @@ function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 function showWeightModal(){renderWeightHistory();openModal('weightModal');}
 function saveWeight(){const val=parseFloat(document.getElementById('weight-input').value);if(!val)return;const today=new Date().toISOString().split('T')[0];weights.push({date:today,weight:val});weights.sort((a,b)=>a.date.localeCompare(b.date));setData('weight_log',weights);updateCurrentWeight();document.getElementById('weight-input').value='';renderWeightHistory();pushWeightToAgent(today,val);}
+async function checkAppVersion(){try{const r=await fetch('https://henrikschaub.github.io/workout/version.json?t='+Date.now());if(!r.ok)return;const {version}=await r.json();const current='1.26';if(version!==current){const b=document.createElement('div');b.style.cssText='position:fixed;bottom:0;left:0;right:0;background:#1c1c1c;border-top:1px solid var(--accent4);padding:12px 20px;display:flex;justify-content:space-between;align-items:center;z-index:400;font-size:13px;';b.innerHTML='<span style="color:var(--text)">New version <strong style="color:var(--accent4)">v'+version+'</strong> available</span><button onclick="window.location.reload(true)" style="background:var(--accent4);color:#000;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif">Update</button>';document.body.appendChild(b);}}catch(e){}}
 function updateCurrentWeight(){if(weights.length)document.getElementById('currentWeight').textContent=weights[weights.length-1].weight;}
 function deleteWeight(date){weights=weights.filter(w=>w.date!==date);setData('weight_log',weights);updateCurrentWeight();renderWeightHistory();deleteWeightFromAgent(date);}
 function renderWeightHistory(){document.getElementById('weight-history-list').innerHTML=[...weights].reverse().slice(0,20).map(w=>`<div class="weight-row"><div style="font-size:13px;color:var(--muted)">${formatDate(w.date)}</div><div style="display:flex;align-items:center;gap:10px"><div style="font-family:'Bebas Neue';font-size:24px;color:var(--accent)">${w.weight} <span style="font-size:14px">kg</span></div><button onclick="deleteWeight('${w.date}')" style="background:none;border:none;color:var(--danger);font-size:18px;cursor:pointer;padding:4px;">✕</button></div></div>`).join('');}
@@ -327,7 +328,7 @@ async function syncWeightsFromAgent(){try{const r=await fetch(AGENT_URL+"/weight
 async function pushWeightToAgent(date,weightVal){try{await fetch(AGENT_URL+"/weights",{method:"POST",headers:{"Content-Type":"application/json","x-app-token":WEIGHTS_TOKEN},body:JSON.stringify({date:date,weight:weightVal})});}catch(e){}}
 async function deleteWeightFromAgent(date){try{await fetch(AGENT_URL+"/weights/"+date,{method:"DELETE",headers:{"x-app-token":WEIGHTS_TOKEN}});}catch(e){}}
 document.getElementById('log-date').value=new Date().toISOString().split('T')[0];
-updateCurrentWeight();renderWorkout(1);prefillLog(1);syncWeightsFromAgent();checkAgentStatus();
+updateCurrentWeight();renderWorkout(1);prefillLog(1);syncWeightsFromAgent();checkAgentStatus();checkAppVersion();
 </script>
 </body>
 </html>
