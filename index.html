@@ -127,7 +127,7 @@
 <div class="header">
   <div>
     <div class="header-title">HENRIK'S TRAINING</div>
-    <div class="header-sub">5-Day &nbsp;·&nbsp; <span style="color:var(--accent);font-weight:600">v1.21</span><span class="agent-status"><span class="agent-dot" id="agent-dot" onclick="checkAgentStatus()"></span></span></div>
+    <div class="header-sub">5-Day &nbsp;·&nbsp; <span style="color:var(--accent);font-weight:600">v1.22</span><span class="agent-status"><span class="agent-dot" id="agent-dot" onclick="checkAgentStatus()"></span></span></div>
   </div>
   <div class="weight-badge" onclick="showWeightModal()">
     <div class="val" id="currentWeight">—</div>
@@ -287,7 +287,7 @@ async function checkAgentStatus(){const dot=document.getElementById('agent-dot')
 const MUSCLE_MAP=[["legs",["squat","deadlift","leg press","leg curl","leg extension","lunge","bulgarian","romanian","rdl","calf","hack squat"]],["back",["pull-up","pullup","chin-up","chinup","pull up","chin up","barbell row","cable row","lat pulldown","pulldown","face pull","rear delt","shrug","t-bar"]],["chest",["bench","incline","decline","chest press","chest fly","cable fly","cable crossover","pec","push-up","pushup"]],["shoulders",["landmine press","shoulder press","overhead press","ohp","lateral raise","front raise","y-raise","y raise","upright row","arnold"]],["arms",["curl","tricep","overhead tricep","pushdown","push-down","skullcrusher","close grip","hammer","preacher"]],["chest",["dip","fly","chest machine","machine press","cable chest"]],["back",["row"]],["chest",["press"]]];
 const GROUP_COLORS={legs:"#e8ff3c",back:"#3cffa0",chest:"#ff6b2b",shoulders:"#c084fc",arms:"#3b9eff"};
 function getExGroup(line){const n=line.toLowerCase();for(const[g,kws]of MUSCLE_MAP){for(const kw of kws){if(n.includes(kw))return g;}}return null;}
-function calcLineVol(line){const n=line.toLowerCase();const isPushup=n.includes('push-up')||n.includes('pushup')||n.includes('push up');const wm=line.match(/(\d+(?:\.\d+)?)\s*kg/i);const w=isPushup&&!wm?25:wm?parseFloat(wm[1]):0;if(!w)return 0;const dm=line.match(/\b(\d+(?:-\d+){1,7})\b/);return dm?dm[1].split('-').reduce((s,r)=>s+parseInt(r),0)*w:0;}
+function calcLineVol(line){const n=line.toLowerCase();const isPushup=n.includes('push-up')||n.includes('pushup')||n.includes('push up');const dbm=line.match(/(\d+)\s*[x×]\s*(\d+(?:\.\d+)?)\s*kg/i);const wm=dbm?null:line.match(/(\d+(?:\.\d+)?)\s*kg/i);const w=isPushup&&!wm&&!dbm?25:dbm?parseFloat(dbm[1])*parseFloat(dbm[2]):wm?parseFloat(wm[1]):0;if(!w)return 0;const dm=line.match(/\b(\d+(?:-\d+){1,7})\b/);return dm?dm[1].split('-').reduce((s,r)=>s+parseInt(r),0)*w:0;}
 function getWeekKey(dateStr){const d=new Date(dateStr+'T12:00:00');const mon=new Date(d);mon.setDate(d.getDate()-((d.getDay()+6)%7));return mon.toISOString().split('T')[0];}
 function buildWeeklyGroupVol(){
   const weeks={};
