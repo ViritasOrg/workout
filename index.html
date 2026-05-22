@@ -127,7 +127,7 @@
 <div class="header">
   <div>
     <div class="header-title">HENRIK'S TRAINING</div>
-    <div class="header-sub">5-Day &nbsp;·&nbsp; <span style="color:var(--accent);font-weight:600">v1.28</span><span class="agent-status"><span class="agent-dot" id="agent-dot" onclick="checkAgentStatus()"></span></span></div>
+    <div class="header-sub">5-Day &nbsp;·&nbsp; <span style="color:var(--accent);font-weight:600">v1.29</span><span class="agent-status"><span class="agent-dot" id="agent-dot" onclick="checkAgentStatus()"></span></span></div>
   </div>
   <div class="weight-badge" onclick="showWeightModal()">
     <div class="val" id="currentWeight">—</div>
@@ -329,6 +329,8 @@ async function pushWeightToAgent(date,weightVal){try{await fetch(AGENT_URL+"/wei
 async function deleteWeightFromAgent(date){try{await fetch(AGENT_URL+"/weights/"+date,{method:"DELETE",headers:{"x-app-token":WEIGHTS_TOKEN}});}catch(e){}}
 document.getElementById('log-date').value=new Date().toISOString().split('T')[0];
 updateCurrentWeight();renderWorkout(1);prefillLog(1);syncWeightsFromAgent();checkAgentStatus();checkAppVersion();
+async function pushAllToBackend(){const btn=document.getElementById('sync-btn');btn.textContent='Syncing...';btn.disabled=true;try{const remote=await(await fetch(AGENT_URL+'/weights',{headers:{'x-app-token':WEIGHTS_TOKEN}})).json();const remoteDates=new Set(remote.map(w=>w.date));const local=getData('weight_log',[]);const toSync=local.filter(w=>!remoteDates.has(w.date));for(const w of toSync){await fetch(AGENT_URL+'/weights',{method:'POST',headers:{'Content-Type':'application/json','x-app-token':WEIGHTS_TOKEN},body:JSON.stringify(w)});}btn.textContent='✓ Synced '+toSync.length+' entries';setTimeout(()=>{btn.closest('.sync-banner').remove();},3000);}catch(e){btn.textContent='Failed';btn.disabled=false;}}
+if(!localStorage.getItem('sync_done_fly')){const b=document.createElement('div');b.className='sync-banner';b.style.cssText='position:fixed;bottom:0;left:0;right:0;background:#1c1c1c;border-top:1px solid #e8ff3c;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;z-index:500;font-size:13px;';b.innerHTML='<span style="color:#f0f0f0">Sync local data to new backend?</span><button id="sync-btn" onclick="pushAllToBackend();localStorage.setItem(\u0027sync_done_fly\u0027,\u00271\u0027)" style="background:#e8ff3c;color:#000;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif">Sync Now</button>';document.body.appendChild(b);}
 </script>
 </body>
 </html>
