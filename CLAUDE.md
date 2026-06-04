@@ -4,6 +4,7 @@
 1. Make changes on a feature branch
 2. **Always create a PR, then merge it** — never push directly to main, never skip the PR step
 3. After merge the `version-bump` GitHub Action auto-increments the minor version in `version.json` and `const VERSION` in `index.html` and commits with `[skip ci]`
+4. **Always tell the user the version number to test** — after creating or merging a PR, explicitly state "test as **vX.XXX**"
 
 ## Deployment
 - GitHub Pages at `https://henrikschaub.github.io/workout/`
@@ -41,6 +42,20 @@ Key rules:
 - Incline press: chest 0.55, shoulders 0.3, arms 0.15
 - Bench press: chest 0.6, shoulders 0.25, arms 0.15
 - Landmine press: shoulders 0.55, chest 0.3, arms 0.15
+
+## Feature parity with Peptide Tracker — be proactive
+The two apps (workout + peptidetracker) should stay in sync on UX/settings features.
+Whenever working on either app, check if a feature exists in the other and **proactively suggest or implement parity** without waiting to be asked.
+
+### Known gaps — Workout is MISSING these Peptide Tracker features
+- **Configurable tabs** — Peptide has per-tab ON/OFF toggles in Settings (stored in localStorage). Workout does not.
+- **Update checker in Settings** — Peptide shows a "check for updates" / new-version banner. Workout has a version check button in Settings; keep them consistent if either changes.
+
+### Known gaps — Peptide Tracker is MISSING these Workout features
+- *(document here as discovered)*
+
+### Rule
+If you add a settings feature, UX polish, or structural improvement to one app, immediately note "the other app doesn't have this yet — want me to add it?" at the end of your reply.
 
 ## Volume chart smoothing
 5-session index-based window (= 5 training days per muscle group). Do not change to calendar-based.
