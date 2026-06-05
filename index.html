@@ -438,10 +438,13 @@ function closeProgramOverlay(){var ov=document.getElementById('prog-overlay');ov
 function _exOpts(di,ei,cur){
   var groups={'Legs':['Squat','Romanian Deadlift','Deadlift','Leg Press','Bilateral Leg Press','Smith Machine Squat','Leg Curl','Leg Extension','Calf Raises','Lunges','Bulgarian Split Squat','Hip Thrust'],'Back':['Pull-ups','Weighted Pull-ups','Chin-ups','Barbell Row','Barbell Row (heavy)','Cable Row','Lat Pulldown','T-Bar Row','Face Pulls','Rear Delt Fly','Rear Delt Cable Fly','Shrug'],'Chest':['Chest Machine Press','Bench Press','Incline Bench Press','Incline DB Press','Cable Fly','Push-ups','Push-ups (weighted/elevated)','Dips'],'Shoulders':['Landmine Press','Overhead Press','Arnold Press','Lateral Raise','Cable Lateral Raise','Y-Raise','Front Raise','Upright Row'],'Arms':['Barbell Curl','Hammer Curl','EZ Bar Curl','Preacher Curl','Overhead Tricep Cable','Tricep Pushdown','Skull Crushers','Close Grip Press','Curl variation']};
   var allEx=[];Object.values(groups).forEach(function(g){g.forEach(function(e){allEx.push(e);});});
+  var curGroup=null;Object.keys(groups).forEach(function(grp){if(groups[grp].includes(cur))curGroup=grp;});
+  var orderedKeys=curGroup?[curGroup].concat(Object.keys(groups).filter(function(g){return g!==curGroup;})):Object.keys(groups);
   var opts='<option value="">— pick exercise —</option>';
   if(cur&&!allEx.includes(cur))opts='<option value="'+_escP(cur)+'" selected>'+_escP(cur)+'</option>'+opts;
-  Object.keys(groups).forEach(function(grp){
-    opts+='<optgroup label="'+grp+'">';
+  orderedKeys.forEach(function(grp){
+    var label=curGroup&&grp===curGroup?'✦ '+grp+' — same muscle':grp;
+    opts+='<optgroup label="'+label+'">';
     groups[grp].forEach(function(ex){opts+='<option value="'+_escP(ex)+'"'+(ex===cur?' selected':'')+'>'+_escP(ex)+'</option>';});
     opts+='</optgroup>';
   });
