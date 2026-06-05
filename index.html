@@ -413,7 +413,7 @@ function buildProgramSettingsCard(){
   for(var i=0;i<Math.min(_programs.length,SLOTS);i++){
     var prog=_programs[i];var isActive=i===_activeProgramIndex;
     html+='<div class="prog-card'+(isActive?' active':'')+'" onclick="viewProgram('+i+')">';
-    html+='<button onclick="event.stopPropagation();_activateProg('+i+')" style="background:'+(isActive?'var(--accent)':'transparent')+';color:'+(isActive?'#000':'var(--muted)')+';border:'+(isActive?'none':'1px solid var(--border)')+';padding:2px 8px;border-radius:20px;font-size:9px;font-weight:700;text-transform:uppercase;cursor:pointer;font-family:DM Sans,sans-serif;display:inline-block;margin-bottom:4px;letter-spacing:0.5px;">'+(isActive?'● Active':'Set Active')+'</button>';
+    html+='<button onclick="event.stopPropagation();_activateProg('+i+')" style="background:'+(isActive?'var(--accent)':'#444')+';color:'+(isActive?'#000':'#aaa')+';border:none;padding:2px 8px;border-radius:20px;font-size:9px;font-weight:700;text-transform:uppercase;cursor:pointer;font-family:DM Sans,sans-serif;display:inline-block;margin-bottom:4px;letter-spacing:0.5px;">'+(isActive?'Active':'Inactive')+'</button>';
     html+='<div class="prog-card-name">'+_escP(prog.name)+'</div>';
     html+='<div class="prog-card-meta">'+prog.days.length+' day'+(prog.days.length!==1?'s':'')+'</div>';
     html+='</div>';
