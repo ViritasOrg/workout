@@ -407,7 +407,7 @@ function _ensurePrograms(){
   var hasHyp=_programs.some(function(p){return p.name==='6-Day Hypertrophy — Upper';});
   if(!hasHyp){_programs.unshift(_seedHypertrophyProgram());_activeProgramIndex=0;changed=true;}
   var hasSplit=_programs.some(function(p){return p.name==='6-Day Split'||p.name==='5-Day Split';});
-  if(!hasSplit&&_programs.length<2){_programs.push(_seedDefaultProgram());changed=true;}
+  if(!hasSplit&&_programs.length<4){_programs.push(_seedDefaultProgram());changed=true;}
   return changed;
 }
 function initPrograms(){
