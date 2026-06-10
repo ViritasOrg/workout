@@ -290,8 +290,7 @@
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
       <div style="padding:10px 16px;border-bottom:1px solid var(--border);font-size:10px;font-weight:600;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;">App</div>
       <div style="padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)"><span style="font-size:13px;color:var(--muted)">Version</span><span style="display:flex;align-items:center;gap:8px;"><span style="font-size:13px;color:var(--accent);" id="s-version">—</span><button id="s-update-btn" onclick="checkForUpdate()" style="background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:20px;padding:3px 12px;font-size:11px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif">Check</button></span></div>
-      <div style="padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)"><span style="font-size:13px;color:var(--muted)">Setup Wizard</span><button onclick="openOnboarding()" style="background:var(--accent);color:#000;border:none;border-radius:20px;padding:3px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:DM Sans,sans-serif">Re-run</button></div>
-      <div style="padding:12px 16px;display:flex;justify-content:space-between;align-items:center;"><span style="font-size:13px;color:var(--muted)">Tests</span><button onclick="runOnboardingTests()" style="background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:20px;padding:3px 12px;font-size:11px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif">Run</button></div>
+      <div style="padding:12px 16px;display:flex;justify-content:space-between;align-items:center;"><span style="font-size:13px;color:var(--muted)">Setup Wizard</span><button onclick="openOnboarding()" style="background:var(--accent);color:#000;border:none;border-radius:20px;padding:3px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:DM Sans,sans-serif">Re-run</button></div>
     </div>
     <div id="s-profile-card"></div>
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
@@ -850,39 +849,6 @@ function buildProfileCard(){
     +'</div>'+rowsHtml+'</div>';
 }
 var _obStep=0;var _obData={gender:null,age:'',height:'',weight:'',neck:'',waist:'',hips:'',theme:1};
-function runOnboardingTests(){
-  var pass=0,fail=0,out=[];
-  function ok(desc,got,exp){var p=typeof exp==='number'?Math.abs(got-exp)<0.6:got===exp;p?pass++:fail++;out.push((p?'✓ ':'✗ ')+desc+(p?'':' — got '+got+', expected '+exp));}
-  var saved=JSON.parse(JSON.stringify(_obData));
-  // BF formula — male (Hodgdon-Beckett, cm)
-  // h=182, neck=38, waist=90 → expected ~19.6%
-  _obData={gender:'male',height:'182',neck:'38',waist:'90',hips:''};
-  ok('Male BF% (h=182 n=38 w=90) ≈ 19.6',calcNavyBF(),19.6);
-  // BF formula — female
-  // h=165, neck=33, waist=71, hips=94 → expected ~24.4%
-  _obData={gender:'female',height:'165',neck:'33',waist:'71',hips:'94'};
-  ok('Female BF% (h=165 n=33 w=71 hip=94) ≈ 24.4',calcNavyBF(),24.4);
-  // Missing values → null
-  _obData={gender:'male',height:'',neck:'',waist:'',hips:''};
-  ok('BF% null on empty inputs',calcNavyBF(),null);
-  // Invalid neck ≥ waist → null
-  _obData={gender:'male',height:'180',neck:'90',waist:'90',hips:''};
-  ok('BF% null when waist-neck ≤ 0',calcNavyBF(),null);
-  // THEMES structure
-  var validThemes=THEMES.length===4&&THEMES.every(function(t){return t.id&&t.name&&t.vars&&t.vars.accent&&t.vars.bg&&t.preview;});
-  validThemes?pass++:fail++;out.push((validThemes?'✓ ':'✗ ')+'THEMES has 4 valid entries');
-  // applyTheme sets --accent CSS variable
-  var prevTheme=getData('wkt-theme',1);
-  applyTheme(2);
-  var gotAccent=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
-  var wantAccent=THEMES[1].vars.accent;
-  ok('applyTheme(2) sets --accent='+wantAccent,gotAccent,wantAccent);
-  applyTheme(prevTheme);
-  // Restore
-  _obData=saved;
-  var summary=(fail===0?'✓ All '+pass+' tests passed':'✗ '+fail+' failed / '+pass+' passed');
-  alert(summary+'\n\n'+out.join('\n'));
-}
 function obInit(){
   var savedTheme=getData('wkt-theme',1);_obData.theme=savedTheme;
   var profile=getData('wkt-profile',null);
