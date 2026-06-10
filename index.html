@@ -441,19 +441,21 @@ function getActiveProgramDay(num){
   if(!prog||num<1||num>prog.days.length)return null;
   return prog.days[num-1];
 }
+function _nextTrainingDay(){var prog=getActiveProgram();if(!prog||!prog.days.length)return 1;if(!logs.length)return 1;var last=logs[0].day;if(!last||last<1)return 1;return(last%prog.days.length)+1;}
 function rebuildDayGrid(){
   var prog=getActiveProgram();var grid=document.getElementById('day-grid-container');
   if(!grid||!prog)return;
+  var next=_nextTrainingDay();
   var html='';
   prog.days.forEach(function(day,i){
     var num=i+1;var parts=day.name.split('—');var label=parts[1]?parts[1].trim():'Day '+num;
     var words=label.split(' ');var shortName=words[0]||'Day';var focus=words.slice(1).join(' ');
-    html+='<div class="day-card'+(i===0?' active':'')+'" onclick="selectDay('+num+',this)">';
+    html+='<div class="day-card'+(num===next?' active':'')+'" onclick="selectDay('+num+',this)">';
     html+='<div class="day-num">'+num+'</div><div class="day-name">'+shortName+'</div>';
     if(focus)html+='<div class="day-focus">'+focus+'</div>';
     html+='</div>';
   });
-  grid.innerHTML=html;renderWorkout(1);
+  grid.innerHTML=html;renderWorkout(next);
 }
 function rebuildLogDaySelect(){
   var prog=getActiveProgram();var sel=document.getElementById('log-day');if(!sel||!prog)return;
