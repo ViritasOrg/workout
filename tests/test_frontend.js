@@ -217,8 +217,8 @@ check('theme 2 is ROSE',             G.THEMES?.[1]?.name === 'ROSE');
 check('theme 2 accent is blush',     G.THEMES?.[1]?.vars?.accent === '#D7A9BC');
 check('theme 3 is FOREST',           G.THEMES?.[2]?.name === 'FOREST');
 check('theme 3 accent is sage',      G.THEMES?.[2]?.vars?.accent === '#4A6B57');
-check('theme 4 is NEON',             G.THEMES?.[3]?.name === 'NEON');
-check('theme 4 accent is cyan',      G.THEMES?.[3]?.vars?.accent === '#00f5ff');
+check('theme 4 is EARTH',            G.THEMES?.[3]?.name === 'EARTH');
+check('theme 4 accent is terracotta',G.THEMES?.[3]?.vars?.accent === '#7A5C48');
 
 // ── 11. applyTheme ────────────────────────────────────────────────────────────
 console.log('\n── applyTheme ─────────────────────────────────────────────');
@@ -241,8 +241,8 @@ check('applyTheme(3) sets --accent to FOREST sage',
   _cssVars['--accent'] === '#4A6B57', `got "${_cssVars['--accent']}"`);
 
 G.applyTheme(4);
-check('applyTheme(4) sets --accent to NEON cyan',
-  _cssVars['--accent'] === '#00f5ff', `got "${_cssVars['--accent']}"`);
+check('applyTheme(4) sets --accent to EARTH terracotta',
+  _cssVars['--accent'] === '#7A5C48', `got "${_cssVars['--accent']}"`);
 
 G.applyTheme(99); // invalid id → falls back to first theme
 check('applyTheme(invalid) falls back to THEMES[0]',
