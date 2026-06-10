@@ -380,12 +380,19 @@ function _seedDefaultProgram(){
     var exs=di.exercises.map(function(ex,i){var t=ti[i]||{};return{name:ex.name,scheme:ex.scheme,tag:ex.tag,sets:t.sets||'3-3-3',kg:t.kg!==undefined?t.kg:0};});
     days.push({name:di.name,warmup:di.warmup,exercises:exs});
   }
-  return{name:'5-Day Split',days:days};
+  var t6=DAY_TEMPLATES[6];
+  days.push({name:'Day 6 — Full Body',warmup:false,exercises:t6.map(function(ex){return{name:ex.name,scheme:ex.sets,tag:'strength',sets:ex.sets,kg:ex.kg};})});
+  return{name:'6-Day Split',days:days};
 }
 function initPrograms(){
   var saved=getData('workout_programs',null);
-  if(saved&&saved.programs&&saved.programs.length){_programs=saved.programs;_activeProgramIndex=Math.min(saved.active_index||0,_programs.length-1);}
-  else{_programs=[_seedDefaultProgram()];_activeProgramIndex=0;savePrograms();}
+  if(saved&&saved.programs&&saved.programs.length){
+    _programs=saved.programs;_activeProgramIndex=Math.min(saved.active_index||0,_programs.length-1);
+    // Upgrade any 5-day split named "5-Day Split" to a 6-day split
+    var changed=false;
+    _programs.forEach(function(p){if(p.days&&p.days.length===5&&p.name==='5-Day Split'){p.days.push({name:'Day 6 — Full Body',warmup:false,exercises:DAY_TEMPLATES[6].map(function(ex){return{name:ex.name,scheme:ex.sets,tag:'strength',sets:ex.sets,kg:ex.kg};})});p.name='6-Day Split';changed=true;}});
+    if(changed)savePrograms();
+  }else{_programs=[_seedDefaultProgram()];_activeProgramIndex=0;savePrograms();}
   rebuildDayGrid();rebuildLogDaySelect();
 }
 function savePrograms(){setData('workout_programs',{programs:_programs,active_index:_activeProgramIndex});pushProgramsToAgent();}
@@ -393,7 +400,6 @@ async function pushProgramsToAgent(){try{await fetch(AGENT_URL+'/workout-program
 async function syncProgramsFromAgent(){try{const r=await fetch(AGENT_URL+'/workout-programs',{headers:authHeaders()});if(!r.ok)return;const remote=await r.json();if(!remote||!remote.programs||!remote.programs.length)return;_programs=remote.programs;_activeProgramIndex=Math.min(remote.active_index||0,_programs.length-1);setData('workout_programs',{programs:_programs,active_index:_activeProgramIndex});rebuildDayGrid();rebuildLogDaySelect();buildProgramSettingsCard();}catch(e){}}
 function getActiveProgram(){return _programs[_activeProgramIndex]||_programs[0]||null;}
 function getActiveProgramDay(num){
-  if(num===6){return{name:'Day 6 — Full Body',warmup:false,exercises:DAY_TEMPLATES[6].map(function(ex){return{name:ex.name,scheme:ex.sets,tag:'strength',sets:ex.sets,kg:ex.kg};})};}
   var prog=getActiveProgram();
   if(!prog||num<1||num>prog.days.length)return null;
   return prog.days[num-1];
@@ -415,7 +421,7 @@ function rebuildDayGrid(){
 function rebuildLogDaySelect(){
   var prog=getActiveProgram();var sel=document.getElementById('log-day');if(!sel||!prog)return;
   var html='';prog.days.forEach(function(day,i){html+='<option value="'+(i+1)+'">'+day.name+'</option>';});
-  html+='<option value="6">Day 6 — Full Body</option>';sel.innerHTML=html;
+  sel.innerHTML=html;
 }
 function buildProgramSettingsCard(){
   var card=document.getElementById('s-programs-card');if(!card)return;
