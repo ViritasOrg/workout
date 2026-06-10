@@ -425,7 +425,7 @@ function selectDay(num,el){document.querySelectorAll('.day-card').forEach(c=>c.c
 function renderWorkout(num){var day=getActiveProgramDay(num);if(!day)return;var prog=getActiveProgram();var tc={strength:'tag-strength',volume:'tag-volume',rehab:'tag-rehab'};var tl={strength:'Strength',volume:'Volume',rehab:'🔧 Rehab'};var savedW=getData('template_weights_day'+num,{});var html='<div class="workout-detail"><div class="workout-header"><div class="workout-title">'+day.name+'</div>'+'</div>';var effExs=_applyRehabSubs(day.exercises,prog);effExs.forEach(function(ex){var lastKg=savedW[ex.name];if((lastKg==null||lastKg===0)&&ex._rehabOrig)lastKg=savedW[ex._rehabOrig];if((lastKg==null||lastKg===0)&&logs.length){var _fl=getBestKgFromLogs(ex.name)||(ex._rehabOrig?getBestKgFromLogs(ex._rehabOrig):null);if(_fl)lastKg=_fl;}var kgStr=lastKg!=null&&lastKg>0?'<span style="color:var(--accent);font-weight:600;margin-left:6px">'+lastKg+'kg</span>':'';var nameHtml=_escP(ex.name)+(ex._rehabOrig?'<span style="color:#ff9b3c;font-size:10px;margin-left:6px" title="Rehab sub for '+_escP(ex._rehabOrig)+'">↺ rehab</span>':'');html+='<div class="exercise-row"><div class="ex-info"><div class="ex-name">'+nameHtml+'</div><div class="ex-scheme">'+_escP(ex.scheme)+kgStr+'</div></div><span class="ex-tag '+(tc[ex.tag]||'tag-volume')+'">'+(tl[ex.tag]||ex.tag)+'</span></div>';});html+='</div>';document.getElementById('workout-display').innerHTML=html;}
 function showPage(name,btn){localStorage.setItem('wkt-last-page',name);document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));document.getElementById('page-'+name).classList.add('active');btn.classList.add('active');if(name==='history')renderHistory();if(name==='progress')renderProgress();if(name==='settings')loadSettings();if(name==='log'){var _lc=document.getElementById('structured-log');if(!_lc||!_lc.querySelectorAll('.ex-card').length)prefillLog(document.getElementById('log-day').value);}}
 // ── Program Management ───────────────────────────────────────────────────────
-let _programs=[],_activeProgramIndex=0,_progReadOnly=false,_progEditBuf=null,_progEditIdx=-1,_progWiz=null;
+let _programs=[],_activeProgramIndex=0,_progReadOnly=false,_progEditBuf=null,_progEditIdx=-1,_progWiz=null,_progIsNew=false;
 function _escP(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function _seedDefaultProgram(){
   var days=[];
@@ -535,7 +535,7 @@ function createNewProgram(){
   _openProgOverlay();
 }
 function _openProgOverlay(){var ov=document.getElementById('prog-overlay');ov.classList.add('open');document.body.classList.add('locked');_renderProgOverlay();}
-function closeProgramOverlay(){var ov=document.getElementById('prog-overlay');ov.classList.remove('open');document.body.classList.remove('locked');_progWiz=null;}
+function closeProgramOverlay(){if(_progIsNew){_programs.splice(_progEditIdx,1);if(_activeProgramIndex>=_programs.length)_activeProgramIndex=Math.max(0,_programs.length-1);savePrograms();buildProgramSettingsCard();}_progIsNew=false;var ov=document.getElementById('prog-overlay');ov.classList.remove('open');document.body.classList.remove('locked');_progWiz=null;}
 function _exOpts(di,ei,cur){
   var groups={'Legs':['Squat','Romanian Deadlift','Deadlift','Leg Press','Bilateral Leg Press','Smith Machine Squat','Leg Curl','Leg Extension','Calf Raises','Lunges','Bulgarian Split Squat','Hip Thrust'],'Back':['Pull-ups','Weighted Pull-ups','Chin-ups','Barbell Row','Barbell Row (heavy)','Cable Row','Lat Pulldown','T-Bar Row','Face Pulls','Rear Delt Fly','Rear Delt Cable Fly','Shrug'],'Chest':['Chest Machine Press','Bench Press','Incline Bench Press','Incline DB Press','Cable Fly','Push-ups','Push-ups (weighted/elevated)','Dips'],'Shoulders':['Landmine Press','Overhead Press','Arnold Press','Lateral Raise','Cable Lateral Raise','Y-Raise','Front Raise','Upright Row'],'Arms':['Barbell Curl','Hammer Curl','EZ Bar Curl','Preacher Curl','Overhead Tricep Cable','Tricep Pushdown','Skull Crushers','Close Grip Press','Curl variation']};
   var allEx=[];Object.values(groups).forEach(function(g){g.forEach(function(e){allEx.push(e);});});
@@ -627,7 +627,7 @@ function _progRmDay(di){if(_progEditBuf.days.length<=1){alert('Program needs at 
 function _progAddDay(){_progEditBuf.days.push({name:'Day '+(_progEditBuf.days.length+1)+' — New Day',warmup:false,exercises:[{name:'Squat',scheme:'3×10',tag:'strength',sets:'10-10-10',kg:60}]});_renderProgOverlay();}
 function _progRmEx(di,ei){_progEditBuf.days[di].exercises.splice(ei,1);_renderProgOverlay();}
 function _progAddEx(di){_progEditBuf.days[di].exercises.push({name:'',scheme:'3×10',tag:'volume',sets:'10-10-10',kg:0});_renderProgOverlay();}
-function _saveProgEdit(){_programs[_progEditIdx]=_progEditBuf;savePrograms();if(_progEditIdx===_activeProgramIndex){rebuildDayGrid();rebuildLogDaySelect();}buildProgramSettingsCard();closeProgramOverlay();}
+function _saveProgEdit(){_progIsNew=false;_programs[_progEditIdx]=_progEditBuf;savePrograms();if(_progEditIdx===_activeProgramIndex){rebuildDayGrid();rebuildLogDaySelect();}buildProgramSettingsCard();closeProgramOverlay();}
 function _applyRehabSubs(exercises,prog){var subs=(prog||{}).rehabSubs||{};if(!Object.keys(subs).length)return exercises;return exercises.map(function(ex){var eff=subs[ex.name];return eff?Object.assign({},ex,{name:eff,_rehabOrig:ex.name}):ex;});}
 function _rehabSetSub(orig,val){if(!_progEditBuf.rehabSubs)_progEditBuf.rehabSubs={};_progEditBuf.rehabSubs[orig]=val;}
 function _rehabRemoveSub(orig){if(_progEditBuf.rehabSubs)delete _progEditBuf.rehabSubs[orig];_renderProgOverlay();}
@@ -691,7 +691,7 @@ function _progWizGenerate(){
   var wiz=_progWiz;var name=(wiz.name&&wiz.name.trim())||_progWizDefaultName();
   var prog=_generateWorkoutProgram(wiz.goal,wiz.sub,wiz.nDays,name);
   _programs.push(prog);savePrograms();buildProgramSettingsCard();
-  _progWiz=null;_progReadOnly=false;_progEditIdx=_programs.length-1;_progEditBuf=JSON.parse(JSON.stringify(_programs[_progEditIdx]));_renderProgOverlay();
+  _progWiz=null;_progReadOnly=false;_progEditIdx=_programs.length-1;_progEditBuf=JSON.parse(JSON.stringify(_programs[_progEditIdx]));_progIsNew=true;_renderProgOverlay();
 }
 function _generateWorkoutProgram(goal,sub,nDays,name){
   function pw(n,s,t,r,k){return{name:n,scheme:s,tag:t,sets:r,kg:k};}
