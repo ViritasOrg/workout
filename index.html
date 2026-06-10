@@ -55,7 +55,6 @@
   .workout-detail{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px;}
   .workout-header{background:var(--surface2);padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
   .workout-title{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;color:var(--accent);}
-  .warmup-btn{background:var(--accent2);color:white;border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;}
   .exercise-row{border-bottom:1px solid var(--border);padding:14px 16px;display:flex;align-items:center;gap:12px;}
   .exercise-row:last-child{border-bottom:none;}
   .ex-info{flex:1;}
@@ -77,11 +76,7 @@
   .modal-title{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;color:var(--accent2);}
   .modal-close{background:none;border:none;color:var(--muted);font-size:24px;cursor:pointer;line-height:1;padding:0;}
   .modal-body{padding:20px;}
-  .warmup-phase{margin-bottom:20px;}
   .phase-title{font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--accent2);font-weight:600;margin-bottom:10px;}
-  .warmup-item{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;}
-  .warmup-item:last-child{border-bottom:none;}
-  .warmup-bullet{width:6px;height:6px;border-radius:50%;background:var(--accent2);margin-top:5px;flex-shrink:0;}
   .log-form{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;}
   .form-row{display:flex;gap:10px;margin-bottom:12px;}
   .form-label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
@@ -252,34 +247,6 @@
   <div class="prog-body" id="prog-body"></div>
   <div class="prog-footer" id="prog-footer"></div>
 </div>
-<div class="modal-overlay" id="warmupModal">
-  <div class="modal">
-    <div class="modal-header"><div class="modal-title">🔥 SHOULDER WARM-UP</div><button class="modal-close" onclick="closeModal('warmupModal')">×</button></div>
-    <div class="modal-body">
-      <div class="warmup-phase"><div class="phase-title">Phase 1 — Blood Flow (2 min)</div>
-        <div class="warmup-item"><div class="warmup-bullet"></div>Arm circles forward × 20</div>
-        <div class="warmup-item"><div class="warmup-bullet"></div>Arm circles backward × 20</div>
-        <div class="warmup-item"><div class="warmup-bullet"></div>Cross-body arm swings × 20</div>
-        <div class="warmup-item"><div class="warmup-bullet"></div>Shoulder shrugs × 20</div>
-      </div>
-      <div class="warmup-phase"><div class="phase-title">Phase 2 — Rotator Cuff (3 min)</div>
-        <div class="warmup-item"><div class="warmup-bullet"></div>Band/cable external rotation 3×15 each arm</div>
-        <div class="warmup-item"><div class="warmup-bullet"></div>Band pull-apart 3×20</div>
-        <div class="warmup-item"><div class="warmup-bullet"></div>Wall slides 2×10</div>
-      </div>
-      <div class="warmup-phase"><div class="phase-title">Phase 3 — Scapular (3 min)</div>
-        <div class="warmup-item"><div class="warmup-bullet"></div>Scapular push-ups 2×15</div>
-        <div class="warmup-item"><div class="warmup-bullet"></div>Prone Y-T-W raises 2.5kg × 10 each</div>
-        <div class="warmup-item"><div class="warmup-bullet"></div>Dead hang 2×20-30 sec</div>
-      </div>
-      <div class="warmup-phase"><div class="phase-title">Phase 4 — Specific Warm-up</div>
-        <div class="warmup-item"><div class="warmup-bullet"></div>2 warm-up sets before any press</div>
-        <div class="warmup-item"><div class="warmup-bullet"></div>Empty bar ×15 → 50% ×10 → working weight</div>
-        <div class="warmup-item"><div class="warmup-bullet"></div>⚠️ Sharp pain = skip pressing, rehab only</div>
-      </div>
-    </div>
-  </div>
-</div>
 <div class="modal-overlay" id="weightModal">
   <div class="modal">
     <div class="modal-header"><div class="modal-title">LOG WEIGHT</div><button class="modal-close" onclick="closeModal('weightModal')">×</button></div>
@@ -357,7 +324,7 @@ function drawGroupChart(canvasId,sessions,color,xDomain,milestones,showLabels){c
 function buildSessionGroupVol(group,cutoffDays){const cutoff=new Date();cutoff.setDate(cutoff.getDate()-cutoffDays);const cutoffStr=cutoff.toISOString().split('T')[0];const sessions=[];const sorted=[...logs].sort((a,b)=>a.date.localeCompare(b.date));for(const log of sorted){if(log.date<cutoffStr)continue;let vol=0;if(log.exercises&&log.exercises.length){for(const ex of log.exercises){const splits=getExSplits(ex.name);const frac=splits[group]||0;if(!frac)continue;const ef=splits.factor||1;for(const s of(ex.sets||[])){if(s.reps>0&&s.kg>0)vol+=s.kg*s.reps*frac*ef;}}}else if(log.notes){const bw=getBWForDate(log.date);for(const line of log.notes.split('\n')){const sp=getExSplits(line);const fr=sp[group]||0;if(!fr)continue;const ef2=sp.factor||1;vol+=calcLineVol(line,bw)*fr*ef2;}}if(vol>0)sessions.push({date:log.date,vol});}return sessions;}
 async function drawVolumeChart(){ensureVolumes();const days=volWindow||90;const cutoff=new Date();cutoff.setDate(cutoff.getDate()-days);const minDate=cutoff.toISOString().split('T')[0];const maxDate=new Date().toISOString().split('T')[0];const xDomain={minDate,maxDate};const groups=['legs','back','chest','shoulders','arms'];const allSessions={};groups.forEach(g=>{allSessions[g]=buildSessionGroupVol(g,days);});const milestones=await fetchPeptideMilestones();const visMs=milestones.filter(m=>m.date>=minDate&&m.date<=maxDate);const legend=document.getElementById('milestone-legend');if(legend)legend.innerHTML=visMs.length?visMs.map(m=>'<span style="color:'+m.color+';white-space:nowrap">● '+m.label+'</span>').join('<span style="color:var(--border)"> · </span>'):'&nbsp;';groups.forEach((g,i)=>{if(!allSessions[g].length)return;drawGroupChart('vol-chart-'+g,allSessions[g],GROUP_COLORS[g],xDomain,visMs,i===0);});const sortedL=[...logs].sort((a,b)=>b.date.localeCompare(a.date));const lastLog=sortedL.find(l=>l.exercises&&l.exercises.length);const lastVol=lastLog?(lastLog.volume||0):0;const allTotal=logs.reduce((s,l)=>s+(l.volume||0),0);document.getElementById('stat-volume').textContent=lastVol?(lastVol/1000).toFixed(1)+'t':'—';document.getElementById('stat-volume-total').textContent=allTotal?(allTotal/1000).toFixed(1)+'t':'—';}
 function selectDay(num,el){document.querySelectorAll('.day-card').forEach(c=>c.classList.remove('active'));el.classList.add('active');renderWorkout(num);}
-function renderWorkout(num){var day=getActiveProgramDay(num);if(!day)return;var tc={strength:'tag-strength',volume:'tag-volume',rehab:'tag-rehab'};var tl={strength:'Strength',volume:'Volume',rehab:'🔧 Rehab'};var savedW=getData('template_weights_day'+num,{});var html='<div class="workout-detail"><div class="workout-header"><div class="workout-title">'+day.name+'</div>'+(day.warmup?'<button class="warmup-btn" onclick="openModal(\'warmupModal\')">🔥 Warm-up</button>':'')+'</div>';day.exercises.forEach(function(ex){var lastKg=savedW[ex.name];var kgStr=lastKg!=null&&lastKg>0?'<span style="color:var(--accent);font-weight:600;margin-left:6px">'+lastKg+'kg</span>':'';html+='<div class="exercise-row"><div class="ex-info"><div class="ex-name">'+ex.name+'</div><div class="ex-scheme">'+ex.scheme+kgStr+'</div></div><span class="ex-tag '+(tc[ex.tag]||'tag-volume')+'">'+(tl[ex.tag]||ex.tag)+'</span></div>';});html+='</div>';document.getElementById('workout-display').innerHTML=html;}
+function renderWorkout(num){var day=getActiveProgramDay(num);if(!day)return;var tc={strength:'tag-strength',volume:'tag-volume',rehab:'tag-rehab'};var tl={strength:'Strength',volume:'Volume',rehab:'🔧 Rehab'};var savedW=getData('template_weights_day'+num,{});var html='<div class="workout-detail"><div class="workout-header"><div class="workout-title">'+day.name+'</div>'+'</div>';day.exercises.forEach(function(ex){var lastKg=savedW[ex.name];var kgStr=lastKg!=null&&lastKg>0?'<span style="color:var(--accent);font-weight:600;margin-left:6px">'+lastKg+'kg</span>':'';html+='<div class="exercise-row"><div class="ex-info"><div class="ex-name">'+ex.name+'</div><div class="ex-scheme">'+ex.scheme+kgStr+'</div></div><span class="ex-tag '+(tc[ex.tag]||'tag-volume')+'">'+(tl[ex.tag]||ex.tag)+'</span></div>';});html+='</div>';document.getElementById('workout-display').innerHTML=html;}
 function showPage(name,btn){localStorage.setItem('wkt-last-page',name);document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));document.getElementById('page-'+name).classList.add('active');btn.classList.add('active');if(name==='history')renderHistory();if(name==='progress')renderProgress();if(name==='settings')loadSettings();if(name==='log'){var ei=document.getElementById('log-edit-id');if(ei)ei.value='';prefillLog(document.getElementById('log-day').value);}}
 // ── Program Management ───────────────────────────────────────────────────────
 let _programs=[],_activeProgramIndex=0,_progReadOnly=false,_progEditBuf=null,_progEditIdx=-1,_progWiz=null;
@@ -479,7 +446,6 @@ function _renderProgOverlay(){
     html+='<input type="text" value="'+_escP(day.name)+'" oninput="_progEditBuf.days['+di+'].name=this.value" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-size:13px;font-weight:600;font-family:DM Sans,sans-serif;outline:none;width:100%;box-sizing:border-box;">';
     html+='</div>';
     html+='<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;margin-left:10px;flex-shrink:0;">';
-    html+='<button onclick="_progWarmup('+di+')" style="background:'+(day.warmup?'var(--accent)':'var(--surface2)')+';color:'+(day.warmup?'#000':'var(--muted)')+';border:1px solid '+(day.warmup?'transparent':'var(--border)')+';border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:DM Sans,sans-serif;">🔥 '+(day.warmup?'ON':'OFF')+'</button>';
     if(buf.days.length>1)html+='<button onclick="_progRmDay('+di+')" style="background:none;border:none;color:var(--danger);font-size:12px;cursor:pointer;font-family:DM Sans,sans-serif;opacity:0.7;">Remove</button>';
     html+='</div></div>';
     html+='<div class="prog-day-body">';
@@ -502,7 +468,6 @@ function _renderProgOverlay(){
   body.innerHTML=html;
   footer.innerHTML='<button onclick="_saveProgEdit()" style="width:100%;background:var(--accent);border:none;color:#000;border-radius:50px;padding:16px 24px;font-size:15px;font-weight:700;cursor:pointer;font-family:DM Sans,sans-serif;">Save Program</button>';
 }
-function _progWarmup(di){_progEditBuf.days[di].warmup=!_progEditBuf.days[di].warmup;_renderProgOverlay();}
 function _progRmDay(di){if(_progEditBuf.days.length<=1){alert('Program needs at least 1 day');return;}_progEditBuf.days.splice(di,1);_renderProgOverlay();}
 function _progAddDay(){_progEditBuf.days.push({name:'Day '+(_progEditBuf.days.length+1)+' — New Day',warmup:false,exercises:[{name:'Squat',scheme:'3×10',tag:'strength',sets:'10-10-10',kg:60}]});_renderProgOverlay();}
 function _progRmEx(di,ei){_progEditBuf.days[di].exercises.splice(ei,1);_renderProgOverlay();}
