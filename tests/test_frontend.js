@@ -214,7 +214,7 @@ check('all themes have preview array', G.THEMES?.every(t => Array.isArray(t.prev
 check('theme 1 is VOLTAGE (default)', G.THEMES?.[0]?.name === 'VOLTAGE');
 check('theme 1 accent is yellow',    G.THEMES?.[0]?.vars?.accent === '#e8ff3c');
 check('theme 2 is ROSE',             G.THEMES?.[1]?.name === 'ROSE');
-check('theme 2 accent is pink',      G.THEMES?.[1]?.vars?.accent === '#f472b6');
+check('theme 2 accent is blush',     G.THEMES?.[1]?.vars?.accent === '#D7A9BC');
 check('theme 3 is FOREST',           G.THEMES?.[2]?.name === 'FOREST');
 check('theme 3 accent is green',     G.THEMES?.[2]?.vars?.accent === '#22c55e');
 check('theme 4 is NEON',             G.THEMES?.[3]?.name === 'NEON');
@@ -233,8 +233,8 @@ check('applyTheme(1) persists to localStorage',
   sandbox.localStorage._s['wkt-theme'] === 1 || sandbox.localStorage._s['wkt-theme'] === '1');
 
 G.applyTheme(2);
-check('applyTheme(2) sets --accent to ROSE pink',
-  _cssVars['--accent'] === '#f472b6', `got "${_cssVars['--accent']}"`);
+check('applyTheme(2) sets --accent to ROSE blush',
+  _cssVars['--accent'] === '#D7A9BC', `got "${_cssVars['--accent']}"`);
 
 G.applyTheme(3);
 check('applyTheme(3) sets --accent to FOREST green',
