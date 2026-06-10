@@ -357,7 +357,7 @@ function getData(k,d){try{return JSON.parse(localStorage.getItem(k))||d;}catch{r
 function setData(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
 const THEMES=[
   {id:1,name:'VOLTAGE',label:'Dark Yellow',vars:{bg:'#0a0a0a',surface:'#131313',surface2:'#1c1c1c',border:'#2a2a2a',accent:'#e8ff3c',accent2:'#ff6b2b',text:'#f0f0f0',muted:'#999',success:'#3cffa0',danger:'#ff3c3c'},preview:['#e8ff3c','#ff6b2b','#3cffa0']},
-  {id:2,name:'ROSE',label:'Pink & Purple',vars:{bg:'#0d0818',surface:'#160d28',surface2:'#1e1238',border:'#2d1a52',accent:'#f472b6',accent2:'#c084fc',text:'#fdf4ff',muted:'#b49cc8',success:'#e879f9',danger:'#fb7185'},preview:['#f472b6','#c084fc','#e879f9']},
+  {id:2,name:'ROSE',label:'Pink & Blush',vars:{bg:'#FDFBFC',surface:'#FFFFFF',surface2:'#F4E8EE',border:'#E9E1E5',accent:'#D7A9BC',accent2:'#C492A7',text:'#433D42',muted:'#726A70',success:'#5B8C6E',danger:'#C4627A'},preview:['#D7A9BC','#C492A7','#E6C8D4']},
   {id:3,name:'FOREST',label:'Bright Green',vars:{bg:'#030f07',surface:'#0a1f10',surface2:'#102a18',border:'#1a4228',accent:'#22c55e',accent2:'#4ade80',text:'#f0fdf4',muted:'#86a892',success:'#4ade80',danger:'#f87171'},preview:['#22c55e','#4ade80','#f87171']},
   {id:4,name:'NEON',label:'Cyberpunk',vars:{bg:'#020212',surface:'#07071f',surface2:'#0d0d2e',border:'#1a1a4d',accent:'#00f5ff',accent2:'#ff0055',text:'#d0e8ff',muted:'#5070a0',success:'#00ff9d',danger:'#ff0055'},preview:['#00f5ff','#ff0055','#00ff9d']}
 ];
