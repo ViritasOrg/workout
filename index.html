@@ -380,9 +380,7 @@ function _seedDefaultProgram(){
     var exs=di.exercises.map(function(ex,i){var t=ti[i]||{};return{name:ex.name,scheme:ex.scheme,tag:ex.tag,sets:t.sets||'3-3-3',kg:t.kg!==undefined?t.kg:0};});
     days.push({name:di.name,warmup:di.warmup,exercises:exs});
   }
-  var t6=DAY_TEMPLATES[6];
-  days.push({name:'Day 6 — Full Body',warmup:false,exercises:t6.map(function(ex){return{name:ex.name,scheme:ex.sets,tag:'strength',sets:ex.sets,kg:ex.kg};})});
-  return{name:'6-Day Split',days:days};
+  return{name:'5-Day Split',days:days};
 }
 function _seedHypertrophyProgram(){
   return{name:'6-Day Hypertrophy — Upper',days:[
@@ -396,18 +394,10 @@ function _seedHypertrophyProgram(){
 }
 function _ensurePrograms(){
   var changed=false;
-  _programs.forEach(function(p){
-    if(p.days&&p.days.length===5){
-      var t6=DAY_TEMPLATES[6];
-      p.days.push({name:'Day 6 — Full Body',warmup:false,exercises:t6.map(function(ex){return{name:ex.name,scheme:ex.sets,tag:'strength',sets:ex.sets,kg:ex.kg};})});
-      if(p.name==='5-Day Split')p.name='6-Day Split';
-      changed=true;
-    }
-  });
   var hasHyp=_programs.some(function(p){return p.name==='6-Day Hypertrophy — Upper';});
   if(!hasHyp){_programs.unshift(_seedHypertrophyProgram());_activeProgramIndex=0;changed=true;}
-  var hasSplit=_programs.some(function(p){return p.name==='6-Day Split'||p.name==='5-Day Split';});
-  if(!hasSplit&&_programs.length<4){_programs.push(_seedDefaultProgram());changed=true;}
+  var has5Day=_programs.some(function(p){return p.name==='5-Day Split';});
+  if(!has5Day&&_programs.length<4){_programs.push(_seedDefaultProgram());changed=true;}
   return changed;
 }
 function initPrograms(){
