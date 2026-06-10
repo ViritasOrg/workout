@@ -384,20 +384,56 @@ function _seedDefaultProgram(){
   days.push({name:'Day 6 — Full Body',warmup:false,exercises:t6.map(function(ex){return{name:ex.name,scheme:ex.sets,tag:'strength',sets:ex.sets,kg:ex.kg};})});
   return{name:'6-Day Split',days:days};
 }
+function _seedHypertrophyProgram(){
+  return{name:'6-Day Hypertrophy — Upper',days:[
+    {name:'Day 1 — Push A',warmup:false,exercises:[{name:'Chest Machine Press',scheme:'4×8-12',tag:'volume',sets:'8-8-8-8',kg:57},{name:'Incline Bench Press',scheme:'4×8-12',tag:'volume',sets:'8-8-8-8',kg:20},{name:'Landmine Press',scheme:'3×10-15',tag:'rehab',sets:'10-10-10',kg:25},{name:'Cable Fly',scheme:'3×12-15',tag:'volume',sets:'12-12-12',kg:20},{name:'Tricep Pushdown',scheme:'3×12-20',tag:'volume',sets:'12-12-12',kg:35}]},
+    {name:'Day 2 — Pull A',warmup:false,exercises:[{name:'Barbell Row',scheme:'4×8-12',tag:'strength',sets:'8-8-8-8',kg:80},{name:'Pull-ups',scheme:'4×max',tag:'strength',sets:'max-max-max-max',kg:0},{name:'Lat Pulldown',scheme:'3×10-15',tag:'volume',sets:'10-10-10',kg:65},{name:'Face Pulls',scheme:'3×15-20',tag:'rehab',sets:'15-15-15',kg:20},{name:'Barbell Curl',scheme:'3×10-15',tag:'volume',sets:'10-10-10',kg:30}]},
+    {name:'Day 3 — Legs',warmup:false,exercises:[{name:'Squat',scheme:'4×8-12',tag:'strength',sets:'8-8-8-8',kg:100},{name:'Romanian Deadlift',scheme:'3×10-15',tag:'volume',sets:'10-10-10',kg:80},{name:'Leg Press',scheme:'4×10-15',tag:'volume',sets:'10-10-10-10',kg:100},{name:'Leg Curl',scheme:'3×10-15',tag:'volume',sets:'10-10-10',kg:40},{name:'Calf Raises',scheme:'4×15-20',tag:'volume',sets:'15-15-15-15',kg:60}]},
+    {name:'Day 4 — Push B',warmup:false,exercises:[{name:'Landmine Press',scheme:'4×10-15',tag:'rehab',sets:'10-10-10-10',kg:25},{name:'Incline Bench Press',scheme:'3×8-12',tag:'volume',sets:'8-8-8',kg:20},{name:'Lateral Raise',scheme:'4×15-20',tag:'rehab',sets:'15-15-15-15',kg:10},{name:'Y-Raise',scheme:'3×12-15',tag:'rehab',sets:'12-12-12',kg:15},{name:'Overhead Tricep Cable',scheme:'3×10-15',tag:'volume',sets:'10-10-10',kg:32},{name:'Chest Machine Press',scheme:'5×8-12',tag:'volume',sets:'8-8-8-8-8',kg:57}]},
+    {name:'Day 5 — Pull B',warmup:false,exercises:[{name:'Weighted Pull-ups',scheme:'4×6-10',tag:'strength',sets:'6-6-6-6',kg:10},{name:'Cable Row',scheme:'4×8-12',tag:'volume',sets:'8-8-8-8',kg:60},{name:'Lat Pulldown',scheme:'3×10-15',tag:'volume',sets:'10-10-10',kg:65},{name:'Rear Delt Fly',scheme:'3×12-20',tag:'rehab',sets:'12-12-12',kg:12},{name:'Hammer Curl',scheme:'3×10-15',tag:'volume',sets:'10-10-10',kg:16}]},
+    {name:'Day 6 — Arms & Delts',warmup:false,exercises:[{name:'Barbell Curl',scheme:'4×10-15',tag:'volume',sets:'10-10-10-10',kg:30},{name:'Hammer Curl',scheme:'3×10-15',tag:'volume',sets:'10-10-10',kg:16},{name:'Tricep Pushdown',scheme:'4×10-15',tag:'volume',sets:'10-10-10-10',kg:35},{name:'Overhead Tricep Cable',scheme:'3×10-15',tag:'volume',sets:'10-10-10',kg:32},{name:'Lateral Raise',scheme:'3×15-20',tag:'rehab',sets:'15-15-15',kg:10},{name:'Face Pulls',scheme:'3×15-20',tag:'rehab',sets:'15-15-15',kg:20}]}
+  ]};
+}
+function _ensurePrograms(){
+  var changed=false;
+  _programs.forEach(function(p){
+    if(p.days&&p.days.length===5){
+      var t6=DAY_TEMPLATES[6];
+      p.days.push({name:'Day 6 — Full Body',warmup:false,exercises:t6.map(function(ex){return{name:ex.name,scheme:ex.sets,tag:'strength',sets:ex.sets,kg:ex.kg};})});
+      if(p.name==='5-Day Split')p.name='6-Day Split';
+      changed=true;
+    }
+  });
+  var hasHyp=_programs.some(function(p){return p.name==='6-Day Hypertrophy — Upper';});
+  if(!hasHyp){_programs.unshift(_seedHypertrophyProgram());_activeProgramIndex=0;changed=true;}
+  var hasSplit=_programs.some(function(p){return p.name==='6-Day Split'||p.name==='5-Day Split';});
+  if(!hasSplit&&_programs.length<2){_programs.push(_seedDefaultProgram());changed=true;}
+  return changed;
+}
 function initPrograms(){
   var saved=getData('workout_programs',null);
-  if(saved&&saved.programs&&saved.programs.length){
-    _programs=saved.programs;_activeProgramIndex=Math.min(saved.active_index||0,_programs.length-1);
-    // Upgrade any 5-day split named "5-Day Split" to a 6-day split
-    var changed=false;
-    _programs.forEach(function(p){if(p.days&&p.days.length===5&&p.name==='5-Day Split'){p.days.push({name:'Day 6 — Full Body',warmup:false,exercises:DAY_TEMPLATES[6].map(function(ex){return{name:ex.name,scheme:ex.sets,tag:'strength',sets:ex.sets,kg:ex.kg};})});p.name='6-Day Split';changed=true;}});
-    if(changed)savePrograms();
-  }else{_programs=[_seedDefaultProgram()];_activeProgramIndex=0;savePrograms();}
+  if(saved&&saved.programs&&saved.programs.length){_programs=saved.programs;_activeProgramIndex=Math.min(saved.active_index||0,_programs.length-1);}
+  else{_programs=[];_activeProgramIndex=0;}
+  if(_ensurePrograms())savePrograms();
   rebuildDayGrid();rebuildLogDaySelect();
 }
 function savePrograms(){setData('workout_programs',{programs:_programs,active_index:_activeProgramIndex});pushProgramsToAgent();}
 async function pushProgramsToAgent(){try{await fetch(AGENT_URL+'/workout-programs',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({programs:_programs,active_index:_activeProgramIndex})});}catch(e){}}
-async function syncProgramsFromAgent(){try{const r=await fetch(AGENT_URL+'/workout-programs',{headers:authHeaders()});if(!r.ok)return;const remote=await r.json();if(!remote||!remote.programs||!remote.programs.length)return;_programs=remote.programs;_activeProgramIndex=Math.min(remote.active_index||0,_programs.length-1);setData('workout_programs',{programs:_programs,active_index:_activeProgramIndex});rebuildDayGrid();rebuildLogDaySelect();buildProgramSettingsCard();}catch(e){}}
+async function syncProgramsFromAgent(){
+  try{
+    const r=await fetch(AGENT_URL+'/workout-programs',{headers:authHeaders()});
+    if(!r.ok)return;
+    const remote=await r.json();
+    if(remote&&remote.programs&&remote.programs.length){
+      _programs=remote.programs;
+      _activeProgramIndex=Math.min(remote.active_index||0,_programs.length-1);
+    }
+    _ensurePrograms();
+    setData('workout_programs',{programs:_programs,active_index:_activeProgramIndex});
+    pushProgramsToAgent();
+    rebuildDayGrid();rebuildLogDaySelect();buildProgramSettingsCard();
+  }catch(e){}
+}
 function getActiveProgram(){return _programs[_activeProgramIndex]||_programs[0]||null;}
 function getActiveProgramDay(num){
   var prog=getActiveProgram();
