@@ -289,7 +289,9 @@
     </div>
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
       <div style="padding:10px 16px;border-bottom:1px solid var(--border);font-size:10px;font-weight:600;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;">App</div>
-      <div style="padding:12px 16px;display:flex;justify-content:space-between;align-items:center;"><span style="font-size:13px;color:var(--muted)">Version</span><span style="display:flex;align-items:center;gap:8px;"><span style="font-size:13px;color:var(--accent);" id="s-version">—</span><button id="s-update-btn" onclick="checkForUpdate()" style="background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:20px;padding:3px 12px;font-size:11px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif">Check</button></span></div>
+      <div style="padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)"><span style="font-size:13px;color:var(--muted)">Version</span><span style="display:flex;align-items:center;gap:8px;"><span style="font-size:13px;color:var(--accent);" id="s-version">—</span><button id="s-update-btn" onclick="checkForUpdate()" style="background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:20px;padding:3px 12px;font-size:11px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif">Check</button></span></div>
+      <div style="padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)"><span style="font-size:13px;color:var(--muted)">Setup Wizard</span><button onclick="openOnboarding()" style="background:var(--accent);color:#000;border:none;border-radius:20px;padding:3px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:DM Sans,sans-serif">Re-run</button></div>
+      <div style="padding:12px 16px;display:flex;justify-content:space-between;align-items:center;"><span style="font-size:13px;color:var(--muted)">Tests</span><button onclick="runOnboardingTests()" style="background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:20px;padding:3px 12px;font-size:11px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif">Run</button></div>
     </div>
     <div id="s-profile-card"></div>
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
@@ -351,7 +353,7 @@ const REHAB_CONDITIONS=[
    detect:function(n){return(/\bsquat\b|\blunge\b/i.test(n))&&!/\b(leg press|leg curl|leg extension|machine)\b/i.test(n);},
    suggest:function(n){return/lunge/i.test(n)?'Leg Extension':'Leg Press';}}
 ];
-const GOOGLE_CLIENT_ID='580935445116-sovhqu5i940pjvb3co63af3tm0ekjds8.apps.googleusercontent.com';const AGENT_URL="https://claude-agent-api-aged-sun-3616.fly.dev";const WEIGHTS_TOKEN=hashPin('8538');let _googleToken=localStorage.getItem('google_token')||'';function hashPin(p){let h=0;for(let i=0;i<p.length;i++)h=(Math.imul(31,h)+p.charCodeAt(i))|0;return h.toString(36);}function authHeaders(extra){const h={'x-app-token':WEIGHTS_TOKEN};if(_googleToken)h['Authorization']='Bearer '+_googleToken;return extra?Object.assign({},h,extra):h;}function unlockApp(){document.getElementById('pin-screen').classList.add('hidden');document.body.classList.remove('pin-locked');obInit();}function onGoogleSignIn(resp){_googleToken=resp.credential;localStorage.setItem('google_token',_googleToken);unlockApp();}function initGoogleAuth(){google.accounts.id.initialize({client_id:GOOGLE_CLIENT_ID,callback:onGoogleSignIn,auto_select:true,cancel_on_tap_outside:false,locale:'en'});google.accounts.id.renderButton(document.getElementById('g_signin_container'),{theme:'filled_black',size:'large',shape:'pill',text:'sign_in_with',width:260});google.accounts.id.prompt();}if(_googleToken){unlockApp();}else{const _gsiScript=document.createElement('script');_gsiScript.src='https://accounts.google.com/gsi/client?hl=en';_gsiScript.onload=initGoogleAuth;document.head.appendChild(_gsiScript);}
+const GOOGLE_CLIENT_ID='580935445116-sovhqu5i940pjvb3co63af3tm0ekjds8.apps.googleusercontent.com';const AGENT_URL="https://claude-agent-api-aged-sun-3616.fly.dev";const WEIGHTS_TOKEN=hashPin('8538');let _googleToken=localStorage.getItem('google_token')||'';function hashPin(p){let h=0;for(let i=0;i<p.length;i++)h=(Math.imul(31,h)+p.charCodeAt(i))|0;return h.toString(36);}function authHeaders(extra){const h={'x-app-token':WEIGHTS_TOKEN};if(_googleToken)h['Authorization']='Bearer '+_googleToken;return extra?Object.assign({},h,extra):h;}function unlockApp(){document.getElementById('pin-screen').classList.add('hidden');document.body.classList.remove('pin-locked');}function onGoogleSignIn(resp){_googleToken=resp.credential;localStorage.setItem('google_token',_googleToken);unlockApp();obInit();}function initGoogleAuth(){google.accounts.id.initialize({client_id:GOOGLE_CLIENT_ID,callback:onGoogleSignIn,auto_select:true,cancel_on_tap_outside:false,locale:'en'});google.accounts.id.renderButton(document.getElementById('g_signin_container'),{theme:'filled_black',size:'large',shape:'pill',text:'sign_in_with',width:260});google.accounts.id.prompt();}if(_googleToken){unlockApp();}else{const _gsiScript=document.createElement('script');_gsiScript.src='https://accounts.google.com/gsi/client?hl=en';_gsiScript.onload=initGoogleAuth;document.head.appendChild(_gsiScript);}
 function getData(k,d){try{return JSON.parse(localStorage.getItem(k))||d;}catch{return d;}}
 function setData(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
 const THEMES=[
@@ -848,6 +850,39 @@ function buildProfileCard(){
     +'</div>'+rowsHtml+'</div>';
 }
 var _obStep=0;var _obData={gender:null,age:'',height:'',weight:'',neck:'',waist:'',hips:'',theme:1};
+function runOnboardingTests(){
+  var pass=0,fail=0,out=[];
+  function ok(desc,got,exp){var p=typeof exp==='number'?Math.abs(got-exp)<0.6:got===exp;p?pass++:fail++;out.push((p?'✓ ':'✗ ')+desc+(p?'':' — got '+got+', expected '+exp));}
+  var saved=JSON.parse(JSON.stringify(_obData));
+  // BF formula — male (Hodgdon-Beckett, cm)
+  // h=182, neck=38, waist=90 → expected ~19.6%
+  _obData={gender:'male',height:'182',neck:'38',waist:'90',hips:''};
+  ok('Male BF% (h=182 n=38 w=90) ≈ 19.6',calcNavyBF(),19.6);
+  // BF formula — female
+  // h=165, neck=33, waist=71, hips=94 → expected ~24.4%
+  _obData={gender:'female',height:'165',neck:'33',waist:'71',hips:'94'};
+  ok('Female BF% (h=165 n=33 w=71 hip=94) ≈ 24.4',calcNavyBF(),24.4);
+  // Missing values → null
+  _obData={gender:'male',height:'',neck:'',waist:'',hips:''};
+  ok('BF% null on empty inputs',calcNavyBF(),null);
+  // Invalid neck ≥ waist → null
+  _obData={gender:'male',height:'180',neck:'90',waist:'90',hips:''};
+  ok('BF% null when waist-neck ≤ 0',calcNavyBF(),null);
+  // THEMES structure
+  var validThemes=THEMES.length===4&&THEMES.every(function(t){return t.id&&t.name&&t.vars&&t.vars.accent&&t.vars.bg&&t.preview;});
+  validThemes?pass++:fail++;out.push((validThemes?'✓ ':'✗ ')+'THEMES has 4 valid entries');
+  // applyTheme sets --accent CSS variable
+  var prevTheme=getData('wkt-theme',1);
+  applyTheme(2);
+  var gotAccent=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+  var wantAccent=THEMES[1].vars.accent;
+  ok('applyTheme(2) sets --accent='+wantAccent,gotAccent,wantAccent);
+  applyTheme(prevTheme);
+  // Restore
+  _obData=saved;
+  var summary=(fail===0?'✓ All '+pass+' tests passed':'✗ '+fail+' failed / '+pass+' passed');
+  alert(summary+'\n\n'+out.join('\n'));
+}
 function obInit(){
   var savedTheme=getData('wkt-theme',1);_obData.theme=savedTheme;
   var profile=getData('wkt-profile',null);
@@ -980,8 +1015,13 @@ function calcNavyBF(){
   if(_obData.gender==='female'){
     if(!hips||hips<=0)return null;
     var v=waist+hips-neck;if(v<=0)return null;
-    bf=163.205*Math.log10(v)-97.684*Math.log10(h)-78.387;
-  }else{var v=waist-neck;if(v<=0)return null;bf=86.010*Math.log10(v)-70.041*Math.log10(h)+36.76;}
+    // Hodgdon-Beckett formula for females (cm)
+    bf=495/(1.29579-0.35004*Math.log10(v)+0.22100*Math.log10(h))-450;
+  }else{
+    var v=waist-neck;if(v<=0)return null;
+    // Hodgdon-Beckett formula for males (cm)
+    bf=495/(1.0324-0.19077*Math.log10(v)+0.15456*Math.log10(h))-450;
+  }
   return Math.max(1,Math.min(60,Math.round(bf*10)/10));
 }
 function obUpdateBF(){
@@ -1001,7 +1041,7 @@ function obFinish(){
   buildAppearanceCard();buildProfileCard();
 }
 document.getElementById('log-date').value=new Date().toISOString().split('T')[0];document.getElementById('log-date').addEventListener('input',scheduleDraft);document.getElementById('log-weight').addEventListener('input',scheduleDraft);document.addEventListener('visibilitychange',function(){if(document.hidden)saveDraft();});
-updateCurrentWeight();initPrograms();(function(){var _id=getData('wkt-draft',null);var _dd=_id&&_id.day?parseInt(_id.day):1;var _ds=document.getElementById('log-day');if(_ds&&_dd>1)_ds.value=_dd;prefillLog(_dd);})();document.getElementById('pin-version').textContent='v'+VERSION;document.getElementById('header-version').textContent='v'+VERSION;(function(){if(!localStorage.getItem('workout_dedup_v1')){const seen={};const dupes=[];logs.forEach(function(l){if(seen[l.date]){if(l.id>seen[l.date].id){dupes.push(seen[l.date]);seen[l.date]=l;}else dupes.push(l);}else seen[l.date]=l;});if(dupes.length){logs=Object.values(seen).sort(function(a,b){return b.date.localeCompare(a.date);});setData('workout_logs',logs);dupes.forEach(function(l){fetch(AGENT_URL+'/workout-logs/'+l.id,{method:'DELETE',headers:{'x-app-token':WEIGHTS_TOKEN}}).catch(function(){});});console.log('Deduped',dupes.length,'duplicate workout log(s)');}localStorage.setItem('workout_dedup_v1','2');}})();(function(){if(!localStorage.getItem('bw_kg_migration_v1')){var bwNames=new Set();Object.values(DAY_TEMPLATES).forEach(function(day){day.forEach(function(ex){if(ex.kg===0)bwNames.add(ex.name);});});var migrated=0;logs.forEach(function(log){if(!log.exercises||!log.exercises.length)return;var relW=weights.filter(function(w){return w.date<=log.date;});if(!relW.length)return;var bw=relW[relW.length-1].weight;var changed=false;log.exercises.forEach(function(ex){if(!bwNames.has(ex.name))return;(ex.sets||[]).forEach(function(s){if(s.reps>0&&s.kg===0){s.kg=bw;changed=true;}});});if(changed){migrated++;pushWorkoutLogToAgent(log);}});if(migrated>0)setData('workout_logs',logs);localStorage.setItem('bw_kg_migration_v1','1');}})();syncWeightsFromAgent();syncWorkoutLogsFromAgent();syncProgramsFromAgent();syncSettingsFromAgent();checkAgentStatus();checkAppVersion();checkSyncStatus();initTabVis();buildAppearanceCard();buildProfileCard();(function(){const _lp=localStorage.getItem('wkt-last-page');if(_lp&&_lp!=='settings'){const _nb=document.getElementById('nav-btn-'+_lp);if(_nb&&_pageVis[_lp]!==false)showPage(_lp,_nb);}})();
+updateCurrentWeight();initPrograms();(function(){var _id=getData('wkt-draft',null);var _dd=_id&&_id.day?parseInt(_id.day):1;var _ds=document.getElementById('log-day');if(_ds&&_dd>1)_ds.value=_dd;prefillLog(_dd);})();document.getElementById('pin-version').textContent='v'+VERSION;document.getElementById('header-version').textContent='v'+VERSION;(function(){if(!localStorage.getItem('workout_dedup_v1')){const seen={};const dupes=[];logs.forEach(function(l){if(seen[l.date]){if(l.id>seen[l.date].id){dupes.push(seen[l.date]);seen[l.date]=l;}else dupes.push(l);}else seen[l.date]=l;});if(dupes.length){logs=Object.values(seen).sort(function(a,b){return b.date.localeCompare(a.date);});setData('workout_logs',logs);dupes.forEach(function(l){fetch(AGENT_URL+'/workout-logs/'+l.id,{method:'DELETE',headers:{'x-app-token':WEIGHTS_TOKEN}}).catch(function(){});});console.log('Deduped',dupes.length,'duplicate workout log(s)');}localStorage.setItem('workout_dedup_v1','2');}})();(function(){if(!localStorage.getItem('bw_kg_migration_v1')){var bwNames=new Set();Object.values(DAY_TEMPLATES).forEach(function(day){day.forEach(function(ex){if(ex.kg===0)bwNames.add(ex.name);});});var migrated=0;logs.forEach(function(log){if(!log.exercises||!log.exercises.length)return;var relW=weights.filter(function(w){return w.date<=log.date;});if(!relW.length)return;var bw=relW[relW.length-1].weight;var changed=false;log.exercises.forEach(function(ex){if(!bwNames.has(ex.name))return;(ex.sets||[]).forEach(function(s){if(s.reps>0&&s.kg===0){s.kg=bw;changed=true;}});});if(changed){migrated++;pushWorkoutLogToAgent(log);}});if(migrated>0)setData('workout_logs',logs);localStorage.setItem('bw_kg_migration_v1','1');}})();syncWeightsFromAgent();syncWorkoutLogsFromAgent();syncProgramsFromAgent();syncSettingsFromAgent();checkAgentStatus();checkAppVersion();checkSyncStatus();initTabVis();buildAppearanceCard();buildProfileCard();obInit();(function(){const _lp=localStorage.getItem('wkt-last-page');if(_lp&&_lp!=='settings'){const _nb=document.getElementById('nav-btn-'+_lp);if(_nb&&_pageVis[_lp]!==false)showPage(_lp,_nb);}})();
 async function pushAllToBackend(){const btn=document.getElementById('sync-btn');btn.textContent='Syncing...';btn.disabled=true;try{const remote=await(await fetch(AGENT_URL+'/weights',{headers:{'x-app-token':WEIGHTS_TOKEN}})).json();const remoteDates=new Set(remote.map(w=>w.date));const local=getData('weight_log',[]);const toSync=local.filter(w=>!remoteDates.has(w.date));for(const w of toSync){await fetch(AGENT_URL+'/weights',{method:'POST',headers:{'Content-Type':'application/json','x-app-token':WEIGHTS_TOKEN},body:JSON.stringify(w)});}btn.textContent='✓ Synced '+toSync.length+' entries';setTimeout(()=>{btn.closest('.sync-banner').remove();},3000);}catch(e){btn.textContent='Failed';btn.disabled=false;}}
 if(!localStorage.getItem('sync_done_fly')){const b=document.createElement('div');b.className='sync-banner';b.style.cssText='position:fixed;bottom:0;left:0;right:0;background:#1c1c1c;border-top:1px solid #e8ff3c;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;z-index:500;font-size:13px;';b.innerHTML='<span style="color:#f0f0f0">Sync local data to new backend?</span><button id="sync-btn" onclick="pushAllToBackend();localStorage.setItem(\u0027sync_done_fly\u0027,\u00271\u0027)" style="background:#e8ff3c;color:#000;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif">Sync Now</button>';document.body.appendChild(b);}
 if(!localStorage.getItem('workout_logs_synced_fly')){const b2=document.createElement('div');b2.className='sync-banner';b2.style.cssText='position:fixed;bottom:0;left:0;right:0;background:#1c1c1c;border-top:1px solid #e8ff3c;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;z-index:500;font-size:13px;';b2.innerHTML='<span style="color:#f0f0f0">Backup workout logs to backend?</span><button id="wl-sync-btn" onclick="pushAllWorkoutLogsToBackend()" style="background:#e8ff3c;color:#000;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif">Backup Now</button>';document.body.appendChild(b2);}
