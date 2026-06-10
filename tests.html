@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Workout Tracker — Tests</title>
+<style>
+  body{font-family:'DM Sans',monospace,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;max-width:640px;margin:0 auto;}
+  h1{font-size:18px;letter-spacing:2px;color:#e8ff3c;text-transform:uppercase;margin-bottom:20px;}
+  .suite{margin-bottom:24px;}
+  .suite-name{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#888;margin-bottom:8px;}
+  .test{display:flex;align-items:flex-start;gap:10px;padding:7px 0;border-bottom:1px solid #1a1a1a;font-size:13px;}
+  .pass{color:#3cffa0;}
+  .fail{color:#ff4444;}
+  .badge{font-size:10px;font-weight:700;letter-spacing:1px;flex-shrink:0;padding:2px 7px;border-radius:10px;}
+  .badge-pass{background:#3cffa011;border:1px solid #3cffa044;color:#3cffa0;}
+  .badge-fail{background:#ff444411;border:1px solid #ff444444;color:#ff4444;}
+  .err{font-size:11px;color:#ff6b6b;margin-top:3px;font-family:monospace;}
+  .summary{margin-top:20px;padding:14px;border-radius:8px;font-size:13px;font-weight:600;}
+  .summary.all-pass{background:#3cffa011;border:1px solid #3cffa044;color:#3cffa0;}
+  .summary.has-fail{background:#ff444411;border:1px solid #ff444444;color:#ff4444;}
+</style>
+</head>
+<body>
+<h1>Workout Tracker Tests</h1>
+<div id="results"></div>
+<script>
+// ── Pure functions under test (extracted from index.html) ─────────────────────
+
+function getBestKgFromLogs(exName, logs) {
+  for (const log of logs) {
+    const ex = (log.exercises || []).find(e => e.name === exName);
+    if (ex) {
+      const best = Math.max(0, ...(ex.sets || []).map(s => s.kg || 0));
+      if (best > 0) return best;
+    }
+  }
+  return null;
+}
+
+function isValidWeight(val) {
+  return typeof val === 'number' && isFinite(val) && val > 0;
+}
+
+function filterChartWeights(weights, cutoffStr) {
+  return weights.filter(w => w.date >= cutoffStr && w.weight > 0 && isFinite(w.weight));
+}
+
+function msOf(d) {
+  const p = d.split('-');
+  return new Date(p[0] + '-' + p[1].padStart(2, '0') + '-' + p[2].padStart(2, '0') + 'T12:00:00').getTime();
+}
+
+// ── Test runner ───────────────────────────────────────────────────────────────
+
+const suites = [];
+let currentSuite = null;
+
+function describe(name, fn) {
+  currentSuite = { name, tests: [] };
+  suites.push(currentSuite);
+  fn();
+}
+
+function it(name, fn) {
+  try { fn(); currentSuite.tests.push({ name, pass: true }); }
+  catch (e) { currentSuite.tests.push({ name, pass: false, err: e.message }); }
+}
+
+function expect(actual) {
+  return {
+    toBe(expected) {
+      if (actual !== expected) throw new Error(`Expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+    },
+    toBeFalsy() {
+      if (actual) throw new Error(`Expected falsy, got ${JSON.stringify(actual)}`);
+    },
+    toBeTruthy() {
+      if (!actual) throw new Error(`Expected truthy, got ${JSON.stringify(actual)}`);
+    },
+    toBeNull() {
+      if (actual !== null) throw new Error(`Expected null, got ${JSON.stringify(actual)}`);
+    },
+    toEqual(expected) {
+      if (JSON.stringify(actual) !== JSON.stringify(expected))
+        throw new Error(`Expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+    },
+    toHaveLength(n) {
+      if (actual.length !== n) throw new Error(`Expected length ${n}, got ${actual.length}`);
+    },
+    toBeGreaterThan(n) {
+      if (actual <= n) throw new Error(`Expected > ${n}, got ${actual}`);
+    },
+  };
+}
+
+// ── Test suites ───────────────────────────────────────────────────────────────
+
+describe('isValidWeight — weight entry validation', () => {
+  it('valid weight 91 passes', () => {
+    expect(isValidWeight(91)).toBeTruthy();
+  });
+  it('valid weight 120.5 passes', () => {
+    expect(isValidWeight(120.5)).toBeTruthy();
+  });
+  it('zero is rejected', () => {
+    expect(isValidWeight(0)).toBeFalsy();
+  });
+  it('negative weight is rejected', () => {
+    expect(isValidWeight(-5)).toBeFalsy();
+  });
+  it('NaN is rejected', () => {
+    expect(isValidWeight(NaN)).toBeFalsy();
+  });
+  it('Infinity is rejected', () => {
+    expect(isValidWeight(Infinity)).toBeFalsy();
+  });
+  it('null is rejected', () => {
+    expect(isValidWeight(null)).toBeFalsy();
+  });
+  it('undefined is rejected', () => {
+    expect(isValidWeight(undefined)).toBeFalsy();
+  });
+});
+
+describe('filterChartWeights — guards drawChart from blank canvas', () => {
+  const cutoff = '2026-03-11';
+  const weights = [
+    { date: '2026-03-12', weight: 91 },
+    { date: '2026-03-14', weight: null },
+    { date: '2026-03-16', weight: NaN },
+    { date: '2026-03-18', weight: 0 },
+    { date: '2026-03-20', weight: -1 },
+    { date: '2026-03-22', weight: 92.5 },
+    { date: '2026-02-01', weight: 93 },  // before cutoff
+  ];
+
+  it('filters out null weight entries', () => {
+    const filtered = filterChartWeights(weights, cutoff);
+    expect(filtered.every(w => w.weight !== null)).toBeTruthy();
+  });
+  it('filters out NaN weight entries', () => {
+    const filtered = filterChartWeights(weights, cutoff);
+    expect(filtered.every(w => !isNaN(w.weight))).toBeTruthy();
+  });
+  it('filters out zero weight entries', () => {
+    const filtered = filterChartWeights(weights, cutoff);
+    expect(filtered.every(w => w.weight > 0)).toBeTruthy();
+  });
+  it('filters out negative weight entries', () => {
+    const filtered = filterChartWeights(weights, cutoff);
+    expect(filtered.every(w => w.weight > 0)).toBeTruthy();
+  });
+  it('filters out entries before cutoff', () => {
+    const filtered = filterChartWeights(weights, cutoff);
+    expect(filtered.every(w => w.date >= cutoff)).toBeTruthy();
+  });
+  it('retains only 91 and 92.5 from the set', () => {
+    const filtered = filterChartWeights(weights, cutoff);
+    expect(filtered).toHaveLength(2);
+    expect(filtered[0].weight).toBe(91);
+    expect(filtered[1].weight).toBe(92.5);
+  });
+  it('Math.min on filtered weights is finite (chart will not blank)', () => {
+    const filtered = filterChartWeights(weights, cutoff);
+    const min = Math.min(...filtered.map(w => w.weight));
+    expect(isFinite(min)).toBeTruthy();
+  });
+});
+
+describe('msOf — date string to milliseconds (zero-padding)', () => {
+  it('parses zero-padded date correctly', () => {
+    const ms = msOf('2026-06-10');
+    expect(isFinite(ms)).toBeTruthy();
+  });
+  it('parses non-padded date (peptide format) correctly', () => {
+    const ms = msOf('2026-6-10');
+    expect(isFinite(ms)).toBeTruthy();
+  });
+  it('zero-padded and non-padded give same timestamp', () => {
+    expect(msOf('2026-06-10')).toBe(msOf('2026-6-10'));
+  });
+  it('earlier date has smaller timestamp', () => {
+    expect(msOf('2026-03-01')).toBeGreaterThan(msOf('2026-01-01') - 1);
+  });
+  it('later date has greater timestamp', () => {
+    const earlier = msOf('2026-03-01');
+    const later = msOf('2026-06-01');
+    expect(later).toBeGreaterThan(earlier);
+  });
+});
+
+describe('getBestKgFromLogs — prefill from training history', () => {
+  const logs = [
+    { date: '2026-06-08', exercises: [{ name: 'Squat', sets: [{ kg: 120, reps: 5 }, { kg: 125, reps: 5 }] }] },
+    { date: '2026-06-06', exercises: [{ name: 'Squat', sets: [{ kg: 110, reps: 5 }] }, { name: 'Deadlift', sets: [{ kg: 140, reps: 5 }] }] },
+    { date: '2026-06-04', exercises: [{ name: 'Pull-ups', sets: [{ kg: 0, reps: 10 }] }] },
+  ];
+
+  it('returns highest set kg for a found exercise', () => {
+    expect(getBestKgFromLogs('Squat', logs)).toBe(125);
+  });
+  it('returns kg from first log that has the exercise (newest first)', () => {
+    // Squat appears in first log with 125, not second with 110
+    expect(getBestKgFromLogs('Squat', logs)).toBe(125);
+  });
+  it('finds exercise in second log if not in first', () => {
+    expect(getBestKgFromLogs('Deadlift', logs)).toBe(140);
+  });
+  it('returns null for bodyweight exercise (kg=0)', () => {
+    expect(getBestKgFromLogs('Pull-ups', logs)).toBeNull();
+  });
+  it('returns null for exercise not in any log', () => {
+    expect(getBestKgFromLogs('Bench Press', logs)).toBeNull();
+  });
+  it('returns null for empty logs array', () => {
+    expect(getBestKgFromLogs('Squat', [])).toBeNull();
+  });
+});
+
+// ── Render results ────────────────────────────────────────────────────────────
+
+let totalPass = 0, totalFail = 0;
+const container = document.getElementById('results');
+suites.forEach(suite => {
+  const div = document.createElement('div');
+  div.className = 'suite';
+  div.innerHTML = `<div class="suite-name">${suite.name}</div>`;
+  suite.tests.forEach(t => {
+    totalPass += t.pass ? 1 : 0;
+    totalFail += t.pass ? 0 : 1;
+    div.innerHTML += `
+      <div class="test">
+        <span class="badge ${t.pass ? 'badge-pass' : 'badge-fail'}">${t.pass ? 'PASS' : 'FAIL'}</span>
+        <div><span class="${t.pass ? 'pass' : 'fail'}">${t.name}</span>${t.err ? `<div class="err">${t.err}</div>` : ''}</div>
+      </div>`;
+  });
+  container.appendChild(div);
+});
+
+const summary = document.createElement('div');
+summary.className = `summary ${totalFail === 0 ? 'all-pass' : 'has-fail'}`;
+summary.textContent = totalFail === 0
+  ? `All ${totalPass} tests passed`
+  : `${totalFail} failed · ${totalPass} passed`;
+container.appendChild(summary);
+</script>
+</body>
+</html>
