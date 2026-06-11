@@ -60,7 +60,10 @@ const patched = rawScript
   .replace('const GOOGLE_CLIENT_ID=','var GOOGLE_CLIENT_ID=')
   .replace('let logs=',              'var logs=')
   .replace('let weights=',           'var weights=')
-  .replace('let volWindow=',         'var volWindow=');
+  .replace('let volWindow=',         'var volWindow=')
+  .replace('let _chartScale=',       'var _chartScale=')
+  .replace('let _programs=',         'var _programs=')
+  .replace('let _pageVis=',          'var _pageVis=');
 
 const noop = () => {};
 
@@ -72,7 +75,7 @@ const _idStore = {};
 const makeTrackingEl = (extraClasses = []) => {
   const cls = new Set(extraClasses);
   const el = {
-    style: { cssText: '' },
+    style: { cssText: '', display: '' },
     dataset: {},
     classList: {
       add(...cs)   { cs.forEach(c => cls.add(c)); },
@@ -104,7 +107,7 @@ const sandbox = vm.createContext({
   window: { addEventListener: noop, removeEventListener: noop, devicePixelRatio: 1, location: { reload: noop, href: '' } },
   localStorage: {
     _s: {},
-    getItem(k)    { return this._s[k] || null; },
+    getItem(k)    { return this._s[k] !== undefined ? this._s[k] : null; },
     setItem(k, v) { this._s[k] = v; },
     removeItem(k) { delete this._s[k]; },
   },
@@ -184,6 +187,13 @@ const s2 = G.smoothArr([10, 20, 30, 40, 50], 3);
 check('window=3 index[2]=(10+20+30)/3', Math.abs(s2[2] - 20) < 0.01, `got ${s2[2]}`);
 check('window=3 index[4]=(30+40+50)/3', Math.abs(s2[4] - 40) < 0.01, `got ${s2[4]}`);
 check('single element → itself',     G.smoothArr([100], 5)[0] === 100);
+// edge cases
+check('empty array → []',            G.smoothArr([], 5).length === 0);
+check('w=1 is identity',             G.smoothArr([10, 20, 30], 1).every((v, i) => v === [10, 20, 30][i]));
+const sOver = G.smoothArr([10, 20], 10);
+check('w > length still works',      sOver.length === 2);
+check('w > length: index[0]=10',     Math.abs(sOver[0] - 10) < 0.01, `got ${sOver[0]}`);
+check('w > length: index[1]=(10+20)/2=15', Math.abs(sOver[1] - 15) < 0.01, `got ${sOver[1]}`);
 
 // ── 8. calcVolume ─────────────────────────────────────────────────────────────
 console.log('\n── calcVolume ─────────────────────────────────────────────');
@@ -252,7 +262,6 @@ check('applyTheme(invalid) falls back to THEMES[0]',
 console.log('\n── calcNavyBF ─────────────────────────────────────────────');
 check('calcNavyBF defined',          typeof G.calcNavyBF === 'function');
 
-// Manipulate _obData via sandbox for direct testing
 const savedObData = JSON.parse(JSON.stringify(G._obData));
 
 // Male: h=182cm, neck=38cm, waist=90cm → Hodgdon-Beckett → ~19.6%
@@ -293,7 +302,6 @@ const extremeBF = G.calcNavyBF();
 check('BF% clamped to max 60',
   extremeBF !== null && extremeBF <= 60, `got ${extremeBF}`);
 
-// Restore
 G._obData = savedObData;
 
 // ── 13. obInit / openOnboarding ───────────────────────────────────────────────
@@ -307,7 +315,6 @@ check('_obData has required fields',
 
 // obInit when already onboarded should not open overlay
 sandbox.localStorage.setItem('wkt-profile', JSON.stringify({ onboarded: true }));
-// Recreate the overlay element as hidden
 delete _idStore['onboarding-overlay'];
 _idStore['onboarding-overlay'] = makeTrackingEl(['hidden']);
 G.obInit();
@@ -327,7 +334,6 @@ try {
   check('openOnboarding removes hidden from overlay', false, 'threw before executing');
 }
 
-// openOnboarding resets step to 0
 check('openOnboarding resets _obStep to 0', G._obStep === 0);
 
 // obInit when NOT onboarded should open overlay
@@ -338,7 +344,6 @@ G.obInit();
 check('obInit opens overlay when not yet onboarded',
   !_idStore['onboarding-overlay']._classes.has('hidden'));
 
-// Restore
 sandbox.localStorage.removeItem('wkt-profile');
 
 // ── 14. Settings cards ────────────────────────────────────────────────────────
@@ -352,14 +357,292 @@ catch(e) { check('buildAppearanceCard() does not throw', false, e.message); }
 try { G.buildProfileCard(); check('buildProfileCard() does not throw', true); }
 catch(e) { check('buildProfileCard() does not throw', false, e.message); }
 
-// ── 15. Key functions ──────────────────────────────────────────────────────────
+// ── 15. _escP / formatDate / getWeekKey ───────────────────────────────────────
+console.log('\n── _escP / formatDate / getWeekKey ───────────────────────');
+check('_escP defined',               typeof G._escP === 'function');
+check('_escP: & → &amp;',           G._escP('A & B') === 'A &amp; B');
+check('_escP: < → &lt;',            G._escP('<tag>') === '&lt;tag&gt;');
+check('_escP: " → &quot;',          G._escP('"hello"') === '&quot;hello&quot;');
+check('_escP: no-op on plain text',  G._escP('hello world') === 'hello world');
+check('_escP: coerces non-string',   G._escP(42) === '42');
+check('_escP: combined chars',       G._escP('<a href="x">&') === '&lt;a href=&quot;x&quot;&gt;&amp;');
+
+check('formatDate defined',          typeof G.formatDate === 'function');
+check('formatDate: 2024-01-15 → "15 Jan 2024"', G.formatDate('2024-01-15') === '15 Jan 2024',
+  `got "${G.formatDate('2024-01-15')}"`);
+check('formatDate: 2023-12-31 → "31 Dec 2023"', G.formatDate('2023-12-31') === '31 Dec 2023',
+  `got "${G.formatDate('2023-12-31')}"`);
+
+check('getWeekKey defined',          typeof G.getWeekKey === 'function');
+// 2024-01-15 is Monday → stays Monday
+check('getWeekKey: Monday stays Monday', G.getWeekKey('2024-01-15') === '2024-01-15',
+  `got "${G.getWeekKey('2024-01-15')}"`);
+// 2024-01-17 is Wednesday → Monday of that week = 2024-01-15
+check('getWeekKey: Wednesday → previous Monday', G.getWeekKey('2024-01-17') === '2024-01-15',
+  `got "${G.getWeekKey('2024-01-17')}"`);
+// 2024-01-21 is Sunday → Monday of that week = 2024-01-15
+check('getWeekKey: Sunday → same-week Monday', G.getWeekKey('2024-01-21') === '2024-01-15',
+  `got "${G.getWeekKey('2024-01-21')}"`);
+// 2024-01-22 is Monday → new week
+check('getWeekKey: next Monday is its own key', G.getWeekKey('2024-01-22') === '2024-01-22',
+  `got "${G.getWeekKey('2024-01-22')}"`);
+
+// ── 16. hashPin ───────────────────────────────────────────────────────────────
+console.log('\n── hashPin ────────────────────────────────────────────────');
+check('hashPin defined',             typeof G.hashPin === 'function');
+check('hashPin returns a string',    typeof G.hashPin('1234') === 'string');
+check('hashPin is deterministic',    G.hashPin('8538') === G.hashPin('8538'));
+check('hashPin differs for different inputs',
+  G.hashPin('1111') !== G.hashPin('2222'));
+check('hashPin matches WEIGHTS_TOKEN for "8538"',
+  G.hashPin('8538') === G.WEIGHTS_TOKEN, `got "${G.hashPin('8538')}" vs "${G.WEIGHTS_TOKEN}"`);
+check('hashPin non-empty for empty string', typeof G.hashPin('') === 'string');
+
+// ── 17. getExSplits ───────────────────────────────────────────────────────────
+console.log('\n── getExSplits ────────────────────────────────────────────');
+check('getExSplits defined',         typeof G.getExSplits === 'function');
+// Exact keyword match
+const dlSplits = G.getExSplits('Deadlift 100kg');
+check('deadlift: legs=0.6',          dlSplits.legs === 0.6, `got ${dlSplits.legs}`);
+check('deadlift: back=0.4',          dlSplits.back === 0.4, `got ${dlSplits.back}`);
+// Case-insensitive
+const dlUpper = G.getExSplits('DEADLIFT 140KG 5-5-5');
+check('getExSplits case-insensitive (DEADLIFT)', dlUpper.legs === 0.6, `got ${dlUpper.legs}`);
+// Earlier keyword wins (barbell row before row)
+const rowSplits = G.getExSplits('Barbell Row 50kg 12-12');
+check('barbell row: back=0.7',       rowSplits.back === 0.7, `got ${rowSplits.back}`);
+check('barbell row: arms=0.3',       rowSplits.arms === 0.3, `got ${rowSplits.arms}`);
+// Squat is pure legs
+const sqSplits = G.getExSplits('Squat 100kg 5');
+check('squat: legs=1',               sqSplits.legs === 1, `got ${sqSplits.legs}`);
+// Unknown exercise: falls back via MUSCLE_MAP or returns {}
+const unkSplits = G.getExSplits('Zork Machine 40kg 10');
+check('unknown exercise returns object (not null/undefined)', typeof unkSplits === 'object' && unkSplits !== null);
+// Fractions of returned splits sum to 1 for known exercises
+const facePullSplits = G.getExSplits('Face Pull 60kg 15');
+const fpSum = Object.entries(facePullSplits).filter(([k]) => k !== 'factor').reduce((a, [, v]) => a + v, 0);
+check('face pull splits sum to 1.0', Math.abs(fpSum - 1.0) < 0.001, `sum=${fpSum}`);
+
+// ── 18. initTabVis / applyTabVis ─────────────────────────────────────────────
+console.log('\n── initTabVis / applyTabVis ───────────────────────────────');
+check('initTabVis defined',          typeof G.initTabVis === 'function');
+check('applyTabVis defined',         typeof G.applyTabVis === 'function');
+
+// Default: all tabs on when no localStorage entry
+sandbox.localStorage.removeItem('wkt-tab-vis');
+try {
+  G.initTabVis();
+  check('initTabVis does not throw with empty localStorage', true);
+} catch(e) {
+  check('initTabVis does not throw with empty localStorage', false, e.message);
+}
+check('initTabVis: program tab on by default',  G._pageVis.program  === true);
+check('initTabVis: log tab on by default',       G._pageVis.log      === true);
+check('initTabVis: history tab on by default',   G._pageVis.history  === true);
+check('initTabVis: progress tab on by default',  G._pageVis.progress === true);
+
+// Partial override: disable one tab
+sandbox.localStorage.setItem('wkt-tab-vis', JSON.stringify({ program: false }));
+G.initTabVis();
+check('initTabVis: stored false overrides default', G._pageVis.program === false);
+check('initTabVis: other tabs still default to true', G._pageVis.log === true);
+
+// applyTabVis doesn't throw
+try { G.applyTabVis(); check('applyTabVis does not throw', true); }
+catch(e) { check('applyTabVis does not throw', false, e.message); }
+
+// Restore
+sandbox.localStorage.removeItem('wkt-tab-vis');
+G.initTabVis();
+
+// ── 19. initPrograms ─────────────────────────────────────────────────────────
+console.log('\n── initPrograms ───────────────────────────────────────────');
+check('initPrograms defined',        typeof G.initPrograms === 'function');
+
+// Clear programs from localStorage and reinit
+sandbox.localStorage.removeItem('workout_programs');
+try {
+  G.initPrograms();
+  check('initPrograms does not throw with empty localStorage', true);
+} catch(e) {
+  check('initPrograms does not throw with empty localStorage', false, e.message);
+}
+check('initPrograms seeds at least one program', Array.isArray(G._programs) && G._programs.length >= 1);
+check('seeded program has name',     typeof G._programs[0]?.name === 'string' && G._programs[0].name.length > 0);
+check('seeded program has days',     Array.isArray(G._programs[0]?.days) && G._programs[0].days.length > 0);
+check('_activeProgramIndex is 0 after init', G._activeProgramIndex === 0);
+
+// Load with saved programs
+const fakePrograms = [
+  { name: 'Test Program', days: [{ name: 'Day A', exercises: [] }] }
+];
+sandbox.localStorage.setItem('workout_programs', JSON.stringify({ programs: fakePrograms, active_index: 0 }));
+G.initPrograms();
+check('initPrograms loads saved programs from localStorage',
+  G._programs.some(p => p.name === 'Test Program'),
+  `programs: ${G._programs.map(p => p.name).join(', ')}`);
+
+// Restore
+sandbox.localStorage.removeItem('workout_programs');
+G.initPrograms();
+
+// ── 20. buildSessionGroupVol / buildSessionGroupStrength ──────────────────────
+console.log('\n── buildSessionGroupVol / buildSessionGroupStrength ────────');
+check('buildSessionGroupVol defined',      typeof G.buildSessionGroupVol === 'function');
+check('buildSessionGroupStrength defined', typeof G.buildSessionGroupStrength === 'function');
+
+// Test volume math with exercises-mode logs
+const _savedLogs = G.logs;
+G.logs = [{
+  date: '2020-01-15',
+  exercises: [{ name: 'Deadlift', sets: [{ kg: 120, reps: 5 }, { kg: 120, reps: 5 }] }]
+}];
+
+const volLegs = G.buildSessionGroupVol('legs', 10000);
+const volBack = G.buildSessionGroupVol('back', 10000);
+// deadlift legs=0.6: 2 × 120 × 5 × 0.6 = 720
+// deadlift back=0.4: 2 × 120 × 5 × 0.4 = 480
+check('buildSessionGroupVol: returns 1 session for 1 log',
+  volLegs.length === 1, `got ${volLegs.length}`);
+check('buildSessionGroupVol: legs vol = 720 for 2×5@120kg deadlift',
+  volLegs.length > 0 && Math.abs(volLegs[0].vol - 720) < 0.01, `got ${volLegs[0]?.vol}`);
+check('buildSessionGroupVol: back vol = 480 for 2×5@120kg deadlift',
+  volBack.length > 0 && Math.abs(volBack[0].vol - 480) < 0.01, `got ${volBack[0]?.vol}`);
+check('buildSessionGroupVol: session has date field',
+  volLegs.length > 0 && volLegs[0].date === '2020-01-15');
+
+// Test zero-reps or zero-kg sets are excluded
+G.logs = [{
+  date: '2020-01-15',
+  exercises: [{ name: 'Squat', sets: [{ kg: 0, reps: 5 }, { kg: 100, reps: 0 }, { kg: 100, reps: 5 }] }]
+}];
+const volZero = G.buildSessionGroupVol('legs', 10000);
+check('buildSessionGroupVol: ignores sets with kg=0 or reps=0',
+  volZero.length > 0 && Math.abs(volZero[0].vol - 100 * 5 * 1) < 0.01, `got ${volZero[0]?.vol}`);
+
+// Test strength math with exercises-mode logs
+G.logs = [{
+  date: '2020-01-15',
+  exercises: [{ name: 'Deadlift', sets: [{ kg: 120, reps: 5 }, { kg: 100, reps: 3 }] }]
+}];
+const strLegs = G.buildSessionGroupStrength('legs', 10000);
+// est1rm = kg * (1 + min(reps,15)/30) * frac
+// set1: 120*(1+5/30)*0.6 = 120*1.1667*0.6 ≈ 84
+// set2: 100*(1+3/30)*0.6 = 100*1.1*0.6 = 66
+// best = 84
+const expectedStr = 120 * (1 + 5 / 30) * 0.6;
+check('buildSessionGroupStrength: returns 1 session for 1 log',
+  strLegs.length === 1, `got ${strLegs.length}`);
+check('buildSessionGroupStrength: picks best est1rm across sets',
+  strLegs.length > 0 && Math.abs(strLegs[0].est1rm - expectedStr) < 0.01,
+  `got ${strLegs[0]?.est1rm}, expected ${expectedStr}`);
+check('buildSessionGroupStrength: session has date field',
+  strLegs.length > 0 && strLegs[0].date === '2020-01-15');
+
+// Caps reps at 15 in 1RM formula
+G.logs = [{
+  date: '2020-01-15',
+  exercises: [{ name: 'Squat', sets: [{ kg: 100, reps: 30 }] }]
+}];
+const strHighReps = G.buildSessionGroupStrength('legs', 10000);
+const expectedHighReps = 100 * (1 + 15 / 30) * 1;  // min(30,15)=15
+check('buildSessionGroupStrength: reps capped at 15 in formula',
+  strHighReps.length > 0 && Math.abs(strHighReps[0].est1rm - expectedHighReps) < 0.01,
+  `got ${strHighReps[0]?.est1rm}, expected ${expectedHighReps}`);
+
+// Logs outside cutoff are excluded
+G.logs = [{
+  date: '2000-01-01',
+  exercises: [{ name: 'Squat', sets: [{ kg: 100, reps: 5 }] }]
+}];
+const strOld = G.buildSessionGroupStrength('legs', 30);
+check('buildSessionGroupStrength: respects cutoffDays (old log excluded)',
+  strOld.length === 0, `got ${strOld.length} sessions`);
+
+G.logs = _savedLogs;
+
+// ── 21. setChartScale routing ─────────────────────────────────────────────────
+console.log('\n── setChartScale routing ──────────────────────────────────');
+check('setChartScale defined',       typeof G.setChartScale === 'function');
+check('_chartScale defined',         typeof G._chartScale === 'string');
+
+// Patch draw functions to record calls
+const _origDC  = G.drawChart;
+const _origDVC = G.drawVolumeChart;
+const _origRSC = G.renderStrengthCharts;
+const _calls = [];
+G.drawChart           = () => { _calls.push('weight'); };
+G.drawVolumeChart     = async () => { _calls.push('volume'); };
+G.renderStrengthCharts = async () => { _calls.push('strength'); };
+
+// weight tab
+_calls.length = 0;
+sandbox.localStorage.setItem('wkt-progress-tab', 'weight');
+G.setChartScale('relative');
+check('setChartScale on weight tab calls drawChart',
+  _calls.includes('weight'), `calls: ${JSON.stringify(_calls)}`);
+check('setChartScale on weight tab does NOT call drawVolumeChart',
+  !_calls.includes('volume'));
+
+// volume tab
+_calls.length = 0;
+sandbox.localStorage.setItem('wkt-progress-tab', 'volume');
+G.setChartScale('absolute');
+check('setChartScale on volume tab calls drawVolumeChart',
+  _calls.includes('volume'), `calls: ${JSON.stringify(_calls)}`);
+check('setChartScale on volume tab does NOT call drawChart',
+  !_calls.includes('weight'));
+
+// strength tab
+_calls.length = 0;
+sandbox.localStorage.setItem('wkt-progress-tab', 'strength');
+G.setChartScale('relative');
+check('setChartScale on strength tab calls renderStrengthCharts',
+  _calls.includes('strength'), `calls: ${JSON.stringify(_calls)}`);
+
+// unknown tab (no draw call)
+_calls.length = 0;
+sandbox.localStorage.setItem('wkt-progress-tab', 'overview');
+G.setChartScale('absolute');
+check('setChartScale on unknown tab calls no draw function',
+  _calls.length === 0, `calls: ${JSON.stringify(_calls)}`);
+
+// null/missing tab (no draw call, no throw)
+_calls.length = 0;
+sandbox.localStorage.removeItem('wkt-progress-tab');
+try {
+  G.setChartScale('relative');
+  check('setChartScale with no tab does not throw', true);
+} catch(e) {
+  check('setChartScale with no tab does not throw', false, e.message);
+}
+check('setChartScale with no tab calls no draw function',
+  _calls.length === 0, `calls: ${JSON.stringify(_calls)}`);
+
+// Mode is persisted to localStorage
+sandbox.localStorage.setItem('wkt-progress-tab', 'weight');
+G.setChartScale('absolute');
+const storedScale = sandbox.localStorage.getItem('wkt-chart-scale');
+check('setChartScale persists mode to localStorage',
+  storedScale === '"absolute"' || storedScale === 'absolute', `got "${storedScale}"`);
+check('setChartScale updates _chartScale var', G._chartScale === 'absolute', `got "${G._chartScale}"`);
+
+// Restore draw functions
+G.drawChart            = _origDC;
+G.drawVolumeChart      = _origDVC;
+G.renderStrengthCharts = _origRSC;
+
+// ── 22. Key functions ──────────────────────────────────────────────────────────
 console.log('\n── Key functions ──────────────────────────────────────────');
 [
-  'drawVolumeChart', 'drawGroupChart', 'buildSessionGroupVol', 'ensureVolumes', 'getExSplits',
+  'drawVolumeChart', 'drawGroupChart', 'buildSessionGroupVol', 'buildSessionGroupStrength',
+  'ensureVolumes', 'getExSplits', 'getWeekKey', 'getExGroup',
   'checkSyncStatus', 'syncUnsyncedNow', 'checkForUpdate', 'checkAppVersion',
   'pushWorkoutLogToAgent', 'pushWeightToAgent', 'syncWorkoutLogsFromAgent', 'syncWeightsFromAgent',
   'saveLog', 'loadSettings', 'renderProgress', 'renderHistory', 'smoothArr', 'calcVolume',
   'applyTheme', 'calcNavyBF', 'obInit', 'openOnboarding', 'buildAppearanceCard', 'buildProfileCard',
+  'setChartScale', 'initTabVis', 'applyTabVis', 'initPrograms', 'buildTabsSettingsCard',
+  'toggleTabVis', 'formatDate', '_escP', 'hashPin',
 ].forEach(fn => check(`${fn} defined`, typeof G[fn] === 'function'));
 
 // ── Summary ───────────────────────────────────────────────────────────────────
