@@ -370,7 +370,7 @@ const THEMES=[
   {id:4,name:'EARTH',label:'Warm Earth',vars:{bg:'#F6F1EC',surface:'#FFFFFF',surface2:'#C9B7A6',border:'#E3D7CE',accent:'#7A5C48',accent2:'#5F4637',text:'#2E2622',muted:'#5E524B',success:'#9C7B63',danger:'#A04040'},preview:['#7A5C48','#9C7B63','#C9B7A6']}
 ];
 function applyTheme(id){var t=THEMES.find(function(x){return x.id===id;})||THEMES[0];var r=document.documentElement.style;Object.entries(t.vars).forEach(function(e){r.setProperty('--'+e[0],e[1]);});setData('wkt-theme',id);}
-(function(){var _st=getData('wkt-theme',1);if(_st!==1)applyTheme(_st);})();
+(function(){var _st=getData('wkt-theme',3);if(_st!==1)applyTheme(_st);})();
 const PAGE_LABELS={program:'Program',log:'Log Workout',history:'History',progress:'Progress'};
 const PAGE_DEFAULTS={program:true,log:true,history:true,progress:true};
 let _pageVis={};
@@ -857,9 +857,9 @@ function buildProfileCard(){
     +'<button onclick="openOnboarding()" style="background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:20px;padding:3px 12px;font-size:11px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif">Edit</button>'
     +'</div>'+rowsHtml+'</div>';
 }
-var _obStep=0;var _obData={gender:null,age:'',height:'',weight:'',neck:'',waist:'',hips:'',theme:1};
+var _obStep=0;var _obData={gender:null,age:'',height:'',weight:'',neck:'',waist:'',hips:'',theme:3};
 function obInit(){
-  var savedTheme=getData('wkt-theme',1);_obData.theme=savedTheme;
+  var savedTheme=getData('wkt-theme',3);_obData.theme=savedTheme;
   var profile=getData('wkt-profile',null);
   if(profile&&profile.onboarded)return;
   var overlay=document.getElementById('onboarding-overlay');
