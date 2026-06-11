@@ -643,7 +643,104 @@ console.log('\n── Key functions ──────────────�
   'applyTheme', 'calcNavyBF', 'obInit', 'openOnboarding', 'buildAppearanceCard', 'buildProfileCard',
   'setChartScale', 'initTabVis', 'applyTabVis', 'initPrograms', 'buildTabsSettingsCard',
   'toggleTabVis', 'formatDate', '_escP', 'hashPin',
+  '_nextTrainingDay', 'rebuildDayGrid', 'rebuildLogDaySelect', 'getDayLabel',
 ].forEach(fn => check(`${fn} defined`, typeof G[fn] === 'function'));
+
+// ── 23. _nextTrainingDay / _selectedProgramDay ────────────────────────────────
+console.log('\n── _nextTrainingDay / _selectedProgramDay ─────────────────');
+check('_nextTrainingDay defined', typeof G._nextTrainingDay === 'function');
+check('_selectedProgramDay defined', G._selectedProgramDay !== undefined);
+check('rebuildDayGrid defined', typeof G.rebuildDayGrid === 'function');
+
+// Ensure 6-day program is active
+sandbox.localStorage.removeItem('workout_programs');
+G.initPrograms();
+const _prog6 = G.getActiveProgram();
+check('active program has 6 days after initPrograms', _prog6 && _prog6.days.length === 6,
+  `got ${_prog6 && _prog6.days.length} days`);
+
+const _savedLogs23 = G.logs;
+
+// No logs → expect day 1
+G.logs = [];
+check('_nextTrainingDay: empty logs → 1', G._nextTrainingDay() === 1, `got ${G._nextTrainingDay()}`);
+
+// Last logged Day 5 in 6-day program → next is Day 6
+G.logs = [{ day: 5, date: '2024-01-10', id: 1, exercises: [] }];
+check('_nextTrainingDay: last=5 in 6-day → 6', G._nextTrainingDay() === 6, `got ${G._nextTrainingDay()}`);
+
+// Last logged Day 6 in 6-day program → wraps to Day 1
+G.logs = [{ day: 6, date: '2024-01-11', id: 2, exercises: [] }];
+check('_nextTrainingDay: last=6 in 6-day → 1 (wraps)', G._nextTrainingDay() === 1, `got ${G._nextTrainingDay()}`);
+
+// Last logged Day 1 in 6-day program → next is Day 2
+G.logs = [{ day: 1, date: '2024-01-12', id: 3, exercises: [] }];
+check('_nextTrainingDay: last=1 in 6-day → 2', G._nextTrainingDay() === 2, `got ${G._nextTrainingDay()}`);
+
+// rebuildDayGrid sets _selectedProgramDay from _nextTrainingDay
+G.logs = [{ day: 5, date: '2024-01-10', id: 1, exercises: [] }];
+G.rebuildDayGrid();
+check('rebuildDayGrid: _selectedProgramDay=6 when last log was day 5',
+  G._selectedProgramDay === 6, `got ${G._selectedProgramDay}`);
+
+// rebuildDayGrid with day 6 logs → _selectedProgramDay wraps to 1
+G.logs = [{ day: 6, date: '2024-01-11', id: 2, exercises: [] }];
+G.rebuildDayGrid();
+check('rebuildDayGrid: _selectedProgramDay=1 when last log was day 6 (wrap)',
+  G._selectedProgramDay === 1, `got ${G._selectedProgramDay}`);
+
+// initPrograms drives _selectedProgramDay through rebuildDayGrid
+G.logs = [{ day: 3, date: '2024-01-08', id: 4, exercises: [] }];
+G.initPrograms();
+check('initPrograms: _selectedProgramDay=4 when last log was day 3',
+  G._selectedProgramDay === 4, `got ${G._selectedProgramDay}`);
+
+// Stale draft day should NOT influence _selectedProgramDay
+// (startup IIFE now always uses _selectedProgramDay, not draft.day)
+G.logs = [{ day: 5, date: '2024-01-10', id: 1, exercises: [] }];
+sandbox.localStorage.setItem('wkt-draft', JSON.stringify({ day: '5', date: '2024-01-10', weight: '', tmpl: {}, custom: [] }));
+G.initPrograms(); // → rebuildDayGrid → _selectedProgramDay = 6
+check('_selectedProgramDay=6 even when stale draft has day=5',
+  G._selectedProgramDay === 6, `got ${G._selectedProgramDay}`);
+sandbox.localStorage.removeItem('wkt-draft');
+
+// Restore
+G.logs = _savedLogs23;
+sandbox.localStorage.removeItem('workout_programs');
+G.initPrograms();
+
+// ── 24. getDayLabel ───────────────────────────────────────────────────────────
+console.log('\n── getDayLabel ────────────────────────────────────────────');
+check('getDayLabel defined', typeof G.getDayLabel === 'function');
+
+// Ensure 6-day hypertrophy program is active
+sandbox.localStorage.removeItem('workout_programs');
+G.initPrograms();
+
+// 6-Day Hypertrophy — Upper day names: 'Day N — <Focus>'
+// getDayLabel extracts the part after '—'
+const dl1 = G.getDayLabel(1);
+check('getDayLabel(1): string returned', typeof dl1 === 'string' && dl1.length > 0, `got "${dl1}"`);
+check('getDayLabel(1): extracts focus after em-dash (Push A)',
+  dl1 === 'Push A', `got "${dl1}"`);
+check('getDayLabel(2): Pull A', G.getDayLabel(2) === 'Pull A', `got "${G.getDayLabel(2)}"`);
+check('getDayLabel(3): Legs',   G.getDayLabel(3) === 'Legs',   `got "${G.getDayLabel(3)}"`);
+check('getDayLabel(4): Push B', G.getDayLabel(4) === 'Push B', `got "${G.getDayLabel(4)}"`);
+check('getDayLabel(5): Pull B', G.getDayLabel(5) === 'Pull B', `got "${G.getDayLabel(5)}"`);
+check('getDayLabel(6): Arms & Delts', G.getDayLabel(6) === 'Arms & Delts', `got "${G.getDayLabel(6)}"`);
+
+// Out-of-range returns a non-empty fallback string
+const dlOob = G.getDayLabel(99);
+check('getDayLabel(99): returns non-empty fallback', typeof dlOob === 'string' && dlOob.length > 0, `got "${dlOob}"`);
+
+// Day number with no em-dash in name → returns full name
+// (5-Day Split days use names like 'Push Day' without em-dash)
+const _savedActiveIdx24 = G._activeProgramIndex;
+G._activeProgramIndex = G._programs.findIndex(function(p){ return p.name === '5-Day Split'; });
+if(G._activeProgramIndex < 0) G._activeProgramIndex = _savedActiveIdx24;
+const dl5day = G.getDayLabel(1);
+check('getDayLabel: no em-dash → returns full day name', typeof dl5day === 'string' && dl5day.length > 0, `got "${dl5day}"`);
+G._activeProgramIndex = 0; // restore to hypertrophy
 
 // ── Summary ───────────────────────────────────────────────────────────────────
 console.log(`\n${'─'.repeat(59)}`);
