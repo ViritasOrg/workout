@@ -61,6 +61,8 @@ const patched = rawScript
   .replace('let logs=',              'var logs=')
   .replace('let weights=',           'var weights=')
   .replace('let volWindow=',         'var volWindow=')
+  .replace('let strWindow=',         'var strWindow=')
+  .replace('let _weightWindow=',     'var _weightWindow=')
   .replace('let _chartScale=',       'var _chartScale=')
   .replace('let _programs=',         'var _programs=')
   .replace('let _pageVis=',          'var _pageVis=');
@@ -741,6 +743,82 @@ if(G._activeProgramIndex < 0) G._activeProgramIndex = _savedActiveIdx24;
 const dl5day = G.getDayLabel(1);
 check('getDayLabel: no em-dash → returns full day name', typeof dl5day === 'string' && dl5day.length > 0, `got "${dl5day}"`);
 G._activeProgramIndex = 0; // restore to hypertrophy
+
+// ── 25. Weight history sort ────────────────────────────────────────────────────
+console.log('\n── Weight history sort (newest first) ─────────────────────');
+check('sortWeightHistory defined', typeof G.sortWeightHistory === 'function');
+check('renderWeightHistory defined', typeof G.renderWeightHistory === 'function');
+check('deleteInvalidWeights defined', typeof G.deleteInvalidWeights === 'function');
+check('setWeightWindow defined', typeof G.setWeightWindow === 'function');
+check('toggleWeightHist defined', typeof G.toggleWeightHist === 'function');
+
+// Valid dates: newest must be first, oldest last
+const _whSorted = G.sortWeightHistory([
+  { date: '2026-06-01', weight: 90 },
+  { date: '2026-06-10', weight: 88 },
+  { date: '2026-05-15', weight: 91 },
+  { date: '2026-06-05', weight: 89 },
+]);
+check('sort: first entry is newest (2026-06-10)',
+  _whSorted[0].date === '2026-06-10', `got "${_whSorted[0].date}"`);
+check('sort: last entry is oldest (2026-05-15)',
+  _whSorted[_whSorted.length - 1].date === '2026-05-15', `got "${_whSorted[_whSorted.length - 1].date}"`);
+check('sort: strictly descending order',
+  _whSorted.every((w, i) => i === 0 || _whSorted[i - 1].date >= w.date),
+  `got ${JSON.stringify(_whSorted.map(w => w.date))}`);
+
+// Does not mutate the input array
+const _whInput = [{ date: '2026-01-01', weight: 80 }, { date: '2026-02-01', weight: 81 }];
+G.sortWeightHistory(_whInput);
+check('sort: does not mutate input array',
+  _whInput[0].date === '2026-01-01', `got "${_whInput[0].date}"`);
+
+// Invalid-date entries float to the TOP (shown as warnings), valid ones still newest-first below
+const _whMixed = G.sortWeightHistory([
+  { date: '2026-06-01', weight: 90 },
+  { date: '2026-6-3', weight: 69 },          // un-padded → invalid
+  { date: '2026-06-10', weight: 88 },
+]);
+check('sort: invalid-date entry is first (top)',
+  !/^\d{4}-\d{2}-\d{2}$/.test(_whMixed[0].date), `got "${_whMixed[0].date}"`);
+check('sort: valid entries below are newest-first',
+  _whMixed[1].date === '2026-06-10' && _whMixed[2].date === '2026-06-01',
+  `got ${JSON.stringify(_whMixed.map(w => w.date))}`);
+
+// Edge cases
+check('sort: empty array → []', G.sortWeightHistory([]).length === 0);
+const _whSingle = G.sortWeightHistory([{ date: '2026-06-01', weight: 90 }]);
+check('sort: single entry preserved', _whSingle.length === 1 && _whSingle[0].weight === 90);
+
+// ── 26. Weight window (30/60/90 filter) ────────────────────────────────────────
+console.log('\n── Weight window (30/60/90d filter) ───────────────────────');
+const _wwOrig = G._weightWindow;
+const _origDrawChart26 = G.drawChart;
+let _drawChartCalls = 0;
+G.drawChart = () => { _drawChartCalls++; };
+
+G.setWeightWindow(30);
+check('setWeightWindow(30) sets _weightWindow=30', G._weightWindow === 30, `got ${G._weightWindow}`);
+check('setWeightWindow(30) triggers drawChart', _drawChartCalls === 1, `got ${_drawChartCalls}`);
+G.setWeightWindow(60);
+check('setWeightWindow(60) sets _weightWindow=60', G._weightWindow === 60, `got ${G._weightWindow}`);
+G.setWeightWindow(90);
+check('setWeightWindow(90) sets _weightWindow=90', G._weightWindow === 90, `got ${G._weightWindow}`);
+check('default _weightWindow is 90', _wwOrig === 90, `got ${_wwOrig}`);
+
+G.drawChart = _origDrawChart26;
+G._weightWindow = _wwOrig;
+
+// toggleWeightHist flips open state without throwing
+const _whOpenBefore = G._wHistOpen;
+try {
+  G.toggleWeightHist();
+  check('toggleWeightHist toggles _wHistOpen', G._wHistOpen === !_whOpenBefore, `got ${G._wHistOpen}`);
+  G.toggleWeightHist();
+  check('toggleWeightHist toggles back', G._wHistOpen === _whOpenBefore, `got ${G._wHistOpen}`);
+} catch(e) {
+  check('toggleWeightHist does not throw', false, e.message);
+}
 
 // ── Summary ───────────────────────────────────────────────────────────────────
 console.log(`\n${'─'.repeat(59)}`);
