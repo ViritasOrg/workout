@@ -563,6 +563,139 @@ check('buildSessionGroupStrength: respects cutoffDays (old log excluded)',
 
 G.logs = _savedLogs;
 
+// ── 20b. isCableEx ────────────────────────────────────────────────────────────
+console.log('\n── isCableEx ──────────────────────────────────────────────');
+check('isCableEx defined', typeof G.isCableEx === 'function');
+// regex matches
+check('isCableEx: "Cable Row" → true',       G.isCableEx('Cable Row'));
+check('isCableEx: "Rope Pushdown" → true',   G.isCableEx('Rope Pushdown'));
+check('isCableEx: "Tricep Pushdown" → true', G.isCableEx('Tricep Pushdown'));
+check('isCableEx: "Push-Down" → true',       G.isCableEx('Push-Down'));
+check('isCableEx: "Lat Pulldown" → true',    G.isCableEx('Lat Pulldown'));
+check('isCableEx: "Pull Down" → true',       G.isCableEx('Pull Down'));
+// cable:1 flag matches
+check('isCableEx: "Face Pull" → true',       G.isCableEx('Face Pull'));
+check('isCableEx: "Lateral Raise" → true',   G.isCableEx('Lateral Raise'));
+check('isCableEx: "Overhead Tricep Extension" → true', G.isCableEx('Overhead Tricep Extension'));
+// non-cable exercises
+check('isCableEx: "Squat" → false',          !G.isCableEx('Squat'));
+check('isCableEx: "Barbell Row" → false',    !G.isCableEx('Barbell Row'));
+check('isCableEx: "Rear Delt Fly" → false',  !G.isCableEx('Rear Delt Fly'));
+check('isCableEx: "Bench Press" → false',    !G.isCableEx('Bench Press'));
+check('isCableEx: "Deadlift" → false',       !G.isCableEx('Deadlift'));
+
+// ── 20c. Gear factor in buildSessionGroupVol ──────────────────────────────────
+console.log('\n── Gear factor — buildSessionGroupVol ─────────────────────');
+const _savedLogsGear = G.logs;
+
+// gear=0.5 halves the volume contribution
+G.logs = [{
+  date: '2020-02-01',
+  exercises: [{ name: 'Face Pull', gear: 0.5, sets: [{ kg: 40, reps: 12 }] }]
+}];
+const _vGearHalf = G.buildSessionGroupVol('shoulders', 10000);
+// shoulders=0.55, gear=0.5 → 40*12*0.55*0.5 = 132
+check('gear=0.5 halves shoulder vol (Face Pull 40kg×12)',
+  _vGearHalf.length > 0 && Math.abs(_vGearHalf[0].vol - 132) < 0.01,
+  `got ${_vGearHalf[0]?.vol}`);
+
+// gear=1.0 keeps full volume
+G.logs = [{
+  date: '2020-02-01',
+  exercises: [{ name: 'Face Pull', gear: 1.0, sets: [{ kg: 40, reps: 12 }] }]
+}];
+const _vGearFull = G.buildSessionGroupVol('shoulders', 10000);
+// shoulders=0.55, gear=1.0 → 40*12*0.55*1.0 = 264
+check('gear=1.0 keeps full shoulder vol (Face Pull 40kg×12)',
+  _vGearFull.length > 0 && Math.abs(_vGearFull[0].vol - 264) < 0.01,
+  `got ${_vGearFull[0]?.vol}`);
+
+// no gear field on a non-cable exercise → ef defaults to 1
+G.logs = [{
+  date: '2020-02-01',
+  exercises: [{ name: 'Squat', sets: [{ kg: 100, reps: 5 }] }]
+}];
+const _vNoGear = G.buildSessionGroupVol('legs', 10000);
+// legs=1, no gear → ef=1 → 100*5*1*1 = 500
+check('no gear field on Squat → ef=1, vol=500',
+  _vNoGear.length > 0 && Math.abs(_vNoGear[0].vol - 500) < 0.01,
+  `got ${_vNoGear[0]?.vol}`);
+
+// gear=0.5 on lateral raise: shoulders=1.0, gear=0.5 → vol halved
+G.logs = [{
+  date: '2020-02-01',
+  exercises: [{ name: 'Lateral Raise', gear: 0.5, sets: [{ kg: 20, reps: 15 }, { kg: 20, reps: 15 }] }]
+}];
+const _vLR = G.buildSessionGroupVol('shoulders', 10000);
+// 2 sets × 20 × 15 × 1.0 × 0.5 = 300
+check('gear=0.5 on Lateral Raise: 2×15@20kg → 300',
+  _vLR.length > 0 && Math.abs(_vLR[0].vol - 300) < 0.01,
+  `got ${_vLR[0]?.vol}`);
+
+// historical log (no gear field) on a cable exercise → ef=1 (no localStorage fallback)
+G.logs = [{
+  date: '2020-02-01',
+  exercises: [{ name: 'Face Pull', sets: [{ kg: 40, reps: 12 }] }]
+}];
+const _vHistorical = G.buildSessionGroupVol('shoulders', 10000);
+// no gear → ef = splits.factor||1 = 1 → 40*12*0.55*1 = 264
+check('historical log (no gear) → ef=1, NOT from localStorage',
+  _vHistorical.length > 0 && Math.abs(_vHistorical[0].vol - 264) < 0.01,
+  `got ${_vHistorical[0]?.vol}`);
+
+// ── 20d. Gear factor in buildSessionGroupStrength ─────────────────────────────
+console.log('\n── Gear factor — buildSessionGroupStrength ─────────────────');
+
+// gear=0.5 halves est1RM
+G.logs = [{
+  date: '2020-02-01',
+  exercises: [{ name: 'Face Pull', gear: 0.5, sets: [{ kg: 40, reps: 12 }] }]
+}];
+const _sGearHalf = G.buildSessionGroupStrength('shoulders', 10000);
+// est = 40 * 0.5 * (1 + min(12,15)/30) * 0.55
+const _expectedSGearHalf = 40 * 0.5 * (1 + Math.min(12, 15) / 30) * 0.55;
+check('gear=0.5 halves est1RM (Face Pull 40kg×12 shoulders)',
+  _sGearHalf.length > 0 && Math.abs(_sGearHalf[0].est1rm - _expectedSGearHalf) < 0.01,
+  `got ${_sGearHalf[0]?.est1rm}, expected ${_expectedSGearHalf}`);
+
+// gear=1.0 → same as no gear
+G.logs = [{
+  date: '2020-02-01',
+  exercises: [{ name: 'Face Pull', gear: 1.0, sets: [{ kg: 40, reps: 12 }] }]
+}];
+const _sGearFull = G.buildSessionGroupStrength('shoulders', 10000);
+const _expectedSGearFull = 40 * 1.0 * (1 + Math.min(12, 15) / 30) * 0.55;
+check('gear=1.0 keeps full est1RM (Face Pull 40kg×12 shoulders)',
+  _sGearFull.length > 0 && Math.abs(_sGearFull[0].est1rm - _expectedSGearFull) < 0.01,
+  `got ${_sGearFull[0]?.est1rm}, expected ${_expectedSGearFull}`);
+
+// gear=0.5 picks the correct best set (gear applied before comparison)
+G.logs = [{
+  date: '2020-02-01',
+  exercises: [{ name: 'Face Pull', gear: 0.5, sets: [
+    { kg: 60, reps: 8 },   // 60*0.5*(1+8/30)*0.55 = ~19.25
+    { kg: 40, reps: 12 },  // 40*0.5*(1+12/30)*0.55 = ~15.4
+  ]}]
+}];
+const _sBest = G.buildSessionGroupStrength('shoulders', 10000);
+const _expectedBest = 60 * 0.5 * (1 + 8 / 30) * 0.55;
+check('gear=0.5: best set selected after gear applied',
+  _sBest.length > 0 && Math.abs(_sBest[0].est1rm - _expectedBest) < 0.01,
+  `got ${_sBest[0]?.est1rm}, expected ${_expectedBest}`);
+
+// ── 20e. syncWorkoutLogsFromAgent — remote wins for existing IDs ───────────────
+console.log('\n── syncWorkoutLogsFromAgent — remote wins ──────────────────');
+// We test the merge logic directly by inspecting the function source
+const _syncSrc = G.syncWorkoutLogsFromAgent.toString();
+check('sync uses byId map (not localIds Set)',
+  _syncSrc.includes('byId') && !_syncSrc.includes('localIds'),
+  'local-wins logic still present — remote updates will never reach client');
+check('sync: remote.forEach overwrites byId entries',
+  _syncSrc.includes('remote.forEach'),
+  'remote entries must overwrite local ones');
+
+G.logs = _savedLogsGear;
+
 // ── 21. setChartScale routing ─────────────────────────────────────────────────
 console.log('\n── setChartScale routing ──────────────────────────────────');
 check('setChartScale defined',       typeof G.setChartScale === 'function');
