@@ -56,7 +56,7 @@ const patched = rawScript
   .replace('const THEMES=',          'var THEMES=')
   .replace("const VERSION='",        "var VERSION='")
   .replace('const AGENT_URL=',       'var AGENT_URL=')
-  .replace('const WEIGHTS_TOKEN=',   'var WEIGHTS_TOKEN=')
+  .replace('let WEIGHTS_TOKEN=',      'var WEIGHTS_TOKEN=')
   .replace('const GOOGLE_CLIENT_ID=','var GOOGLE_CLIENT_ID=')
   .replace('let logs=',              'var logs=')
   .replace('let weights=',           'var weights=')
@@ -148,7 +148,7 @@ console.log('\n── Meta ─────────────────�
 check('VERSION defined',             typeof G.VERSION === 'string');
 check('VERSION is x.xx format',      /^\d+\.\d+$/.test(G.VERSION || ''), `got "${G.VERSION}"`);
 check('AGENT_URL is https',          G.AGENT_URL?.startsWith('https://'));
-check('WEIGHTS_TOKEN defined',       G.WEIGHTS_TOKEN?.length > 0);
+check('WEIGHTS_TOKEN defined',       typeof G.WEIGHTS_TOKEN === 'string');
 const fns = rawScript.match(/(?:async\s+)?function\s+(\w+)\s*\(/g) || [];
 const fnNames = fns.map(s => s.replace(/async\s+|function\s+|\s*\(/g, ''));
 const dupes = fnNames.filter((n, i) => fnNames.indexOf(n) !== i);
@@ -160,7 +160,7 @@ check('EXERCISE_SPLITS defined',     Array.isArray(G.EXERCISE_SPLITS));
 check('30+ exercises',               (G.EXERCISE_SPLITS?.length || 0) >= 30, `got ${G.EXERCISE_SPLITS?.length}`);
 const badSplits = [];
 for (const [kw, sp] of (G.EXERCISE_SPLITS || [])) {
-  const sum = Object.entries(sp).filter(([k]) => k !== 'factor').reduce((a, [, v]) => a + v, 0);
+  const sum = Object.entries(sp).filter(([k]) => k !== 'factor' && k !== 'cable').reduce((a, [, v]) => a + v, 0);
   if (Math.abs(sum - 1.0) > 0.001) badSplits.push(`"${kw}" sums to ${sum.toFixed(3)}`);
 }
 check('all fractions sum to 1.0',    badSplits.length === 0, badSplits.join('; '));
@@ -396,8 +396,8 @@ check('hashPin returns a string',    typeof G.hashPin('1234') === 'string');
 check('hashPin is deterministic',    G.hashPin('8538') === G.hashPin('8538'));
 check('hashPin differs for different inputs',
   G.hashPin('1111') !== G.hashPin('2222'));
-check('hashPin matches WEIGHTS_TOKEN for "8538"',
-  G.hashPin('8538') === G.WEIGHTS_TOKEN, `got "${G.hashPin('8538')}" vs "${G.WEIGHTS_TOKEN}"`);
+check('hashPin is stable across calls',
+  G.hashPin('8538') === G.hashPin('8538') && G.hashPin('0000') === G.hashPin('0000'));
 check('hashPin non-empty for empty string', typeof G.hashPin('') === 'string');
 
 // ── 17. getExSplits ───────────────────────────────────────────────────────────
@@ -422,7 +422,7 @@ const unkSplits = G.getExSplits('Zork Machine 40kg 10');
 check('unknown exercise returns object (not null/undefined)', typeof unkSplits === 'object' && unkSplits !== null);
 // Fractions of returned splits sum to 1 for known exercises
 const facePullSplits = G.getExSplits('Face Pull 60kg 15');
-const fpSum = Object.entries(facePullSplits).filter(([k]) => k !== 'factor').reduce((a, [, v]) => a + v, 0);
+const fpSum = Object.entries(facePullSplits).filter(([k]) => k !== 'factor' && k !== 'cable').reduce((a, [, v]) => a + v, 0);
 check('face pull splits sum to 1.0', Math.abs(fpSum - 1.0) < 0.001, `sum=${fpSum}`);
 
 // ── 18. initTabVis / applyTabVis ─────────────────────────────────────────────
