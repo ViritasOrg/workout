@@ -442,19 +442,6 @@ function getExSplits(name){const n=name.toLowerCase();for(const[kw,sp]of EXERCIS
 function getBWForDate(dateStr){if(!weights.length)return 80;let bw=weights[0].weight;for(const w of weights){if(w.date<=dateStr)bw=w.weight;else break;}return bw;}
 function calcLineVol(line,bw){const n=line.toLowerCase();const isPushup=n.includes('push-up')||n.includes('pushup')||n.includes('push up');const isPullup=!isPushup&&(n.includes('pull-up')||n.includes('pullup')||n.includes('pull up')||n.includes('chin-up')||n.includes('chinup')||n.includes('chin up')||n.includes('dip'));const dbm=line.match(/(\d+)\s*[x×]\s*(\d+(?:\.\d+)?)\s*kg/i);const wm=dbm?null:line.match(/(\d+(?:\.\d+)?)\s*kg/i);if(bw===undefined)bw=weights.length?weights[weights.length-1].weight:80;const w=isPushup&&!wm&&!dbm?25:isPullup&&!wm&&!dbm?bw:dbm?parseFloat(dbm[1])*parseFloat(dbm[2]):wm?parseFloat(wm[1]):0;if(!w)return 0;const dm=line.match(/\b(\d+(?:-\d+){1,7})\b/);return dm?dm[1].split('-').reduce((s,r)=>s+parseInt(r),0)*w:0;}
 function getWeekKey(dateStr){const d=new Date(dateStr+'T12:00:00');const mon=new Date(d);mon.setDate(d.getDate()-((d.getDay()+6)%7));return mon.toISOString().split('T')[0];}
-function buildWeeklyGroupVol(){
-  const weeks={};
-  const cutoff=new Date();cutoff.setDate(cutoff.getDate()-90);
-  const cutoffStr=cutoff.toISOString().split('T')[0];
-  for(const log of logs){
-    if(!log.notes)continue;
-    if(log.date<cutoffStr)continue;
-    const wk=getWeekKey(log.date);
-    if(!weeks[wk])weeks[wk]={legs:0,back:0,chest:0,shoulders:0,arms:0};
-    for(const line of log.notes.split('\n')){const g=getExGroup(line);const v=calcLineVol(line);if(g&&v)weeks[wk][g]+=v;}
-  }
-  return Object.entries(weeks).sort((a,b)=>a[0].localeCompare(b[0]));
-}
 function smoothArr(vals,w=3){return vals.map((_,i)=>{const s=vals.slice(Math.max(0,i-w+1),i+1);return s.reduce((a,b)=>a+b,0)/s.length;});}
 let volWindow=90;function setVolWindow(days){volWindow=days;document.querySelectorAll('.vol-btn').forEach(b=>b.classList.remove('vol-btn-active'));const btn=document.getElementById('vol-btn-'+days);if(btn)btn.classList.add('vol-btn-active');drawVolumeChart();}
 let _chartScale=getData('wkt-chart-scale','relative');function setChartScale(mode){_chartScale=mode;setData('wkt-chart-scale',mode);document.querySelectorAll('.scale-btn').forEach(b=>b.classList.remove('scale-btn-active'));const btn=document.getElementById('scale-btn-'+mode);if(btn)btn.classList.add('scale-btn-active');const tab=localStorage.getItem('wkt-progress-tab');if(tab==='weight')drawChart();else if(tab==='volume')drawVolumeChart();else if(tab==='strength')renderStrengthCharts();}
