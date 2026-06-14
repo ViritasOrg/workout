@@ -827,9 +827,7 @@ trtInjections.forEach(({date,trtType})=>{const xp=xd(date);if(xp<pad.l-2||xp>W-p
 // Weight line
 ctx.beginPath();ctx.strokeStyle='#e8ff3c';ctx.lineWidth=2;ctx.lineJoin='round';recentWeights.forEach((w,i)=>i===0?ctx.moveTo(xd(w.date),y(w.weight)):ctx.lineTo(xd(w.date),y(w.weight)));ctx.stroke();
 // Dots + labels
-const step=Math.max(1,Math.floor(recentWeights.length/4));recentWeights.forEach((w,i)=>{ctx.beginPath();ctx.arc(xd(w.date),y(w.weight),4,0,Math.PI*2);ctx.fillStyle='#e8ff3c';ctx.fill();if(i===0||i===recentWeights.length-1||i%step===0){ctx.fillStyle='#555';ctx.font='9px DM Sans,sans-serif';ctx.textAlign='center';const lbl=new Date(w.date+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'});ctx.fillText(lbl,xd(w.date),H-4);}});
-// Legend
-
+const step=Math.max(1,Math.floor(recentWeights.length/4));recentWeights.forEach((w,i)=>{ctx.beginPath();ctx.arc(xd(w.date),y(w.weight),4,0,Math.PI*2);ctx.fillStyle='#e8ff3c';ctx.fill();if(i===0||i===recentWeights.length-1||i%step===0){ctx.fillStyle='#555';ctx.font='9px DM Sans,sans-serif';ctx.textAlign='center';const lbl=new Date(w.date+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'});ctx.fillText(lbl,xd(w.date),H-4);}});}
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 function showWeightModal(){openModal('weightModal');}
