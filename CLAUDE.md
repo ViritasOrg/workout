@@ -2,9 +2,9 @@
 
 ## Git workflow — ALWAYS follow this
 1. Make changes on a feature branch
-2. **Always create a PR, then merge it** — never push directly to main, never skip the PR step
+2. Create a PR then **immediately merge it yourself** — never stop and ask the user to merge, never push directly to main
 3. After merge the `version-bump` GitHub Action auto-increments the minor version in `version.json` and `const VERSION` in `index.html` and commits with `[skip ci]`
-4. **Always tell the user the version number to test** — after creating or merging a PR, explicitly state "test as **vX.XXX**"
+4. **After merging, poll `https://henrikschaub.github.io/workout/version.json` every 30 s until the new version appears, then tell the user "live as vX.XXX — test now"**
 
 ## Deployment
 - GitHub Pages at `https://henrikschaub.github.io/workout/`
