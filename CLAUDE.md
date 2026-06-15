@@ -12,6 +12,9 @@
 - No Google Drive involved — deployment is entirely via GitHub
 - Monitor live version: `https://henrikschaub.github.io/workout/version.json`
 
+## User environment
+- **Henrik uses Chrome on mobile, never Safari** — when troubleshooting caching/reload issues, give Chrome instructions (3-dot menu → More tools → Hard Reload, or chrome://settings/clearBrowserData)
+
 ## Pushing large files (index.html is ~87KB)
 The GitHub MCP `push_files` tool handles raw content fine. If it fails due to size,
 use the MCP HTTP endpoint directly with the session ingress token:
