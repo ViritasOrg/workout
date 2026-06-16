@@ -46,6 +46,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           BRANCH="version-bump/v${NEW}"
+          git push origin --delete "$BRANCH" || true
           git checkout -b "$BRANCH"
           git add version.json index.html
           git commit -m "chore: bump to v${NEW} [skip ci]"
