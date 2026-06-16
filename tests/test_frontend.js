@@ -33,9 +33,9 @@ try {
 
 // ── 2. No hardcoded versions in HTML elements ─────────────────────────────────
 console.log('\n── No hardcoded version strings in HTML ───────────────────');
-const pinMatch  = html.match(/id="pin-version"[^>]*>([^<]*)</);
+const loginMatch = html.match(/id="login-version"[^>]*>([^<]*)</);
 const headMatch = html.match(/id="header-version"[^>]*>([^<]*)</);
-check('pin-version element is empty',    !pinMatch  || pinMatch[1]  === '', `got "${pinMatch?.[1]}"`);
+check('login-version element is empty',  !loginMatch || loginMatch[1] === '', `got "${loginMatch?.[1]}"`);
 check('header-version element is empty', !headMatch || headMatch[1] === '', `got "${headMatch?.[1]}"`);
 const staleVersions = [...html.matchAll(/v\d+\.\d+/g)]
   .filter(m => !html.slice(Math.max(0, m.index - 30), m.index).includes('VERSION'))
@@ -48,6 +48,15 @@ console.log('\n── No test code in app ────────────�
 check('runOnboardingTests removed from script', !rawScript.includes('runOnboardingTests'));
 check('Tests button removed from HTML',         !html.includes('runOnboardingTests()'));
 
+// ── No PIN auth remnants ───────────────────────────────────────────────────────
+console.log('\n── No PIN auth remnants ────────────────────────────────────');
+check('hashPin removed from script',        !rawScript.includes('hashPin'));
+check('submitPin removed from script',      !rawScript.includes('submitPin'));
+check('app_pin localStorage key removed',   !rawScript.includes('app_pin'));
+check('x-app-token header removed',         !rawScript.includes('x-app-token'));
+check('WEIGHTS_TOKEN removed',              !rawScript.includes('WEIGHTS_TOKEN'));
+check('pin-screen markup removed',          !html.includes('id="pin-screen"'));
+
 // ── Sandbox setup ─────────────────────────────────────────────────────────────
 const patched = rawScript
   .replace('const EXERCISE_SPLITS=', 'var EXERCISE_SPLITS=')
@@ -56,7 +65,7 @@ const patched = rawScript
   .replace('const THEMES=',          'var THEMES=')
   .replace("const VERSION='",        "var VERSION='")
   .replace('const AGENT_URL=',       'var AGENT_URL=')
-  .replace('let WEIGHTS_TOKEN=',      'var WEIGHTS_TOKEN=')
+  .replace('let _googleToken=',      'var _googleToken=')
   .replace('const GOOGLE_CLIENT_ID=','var GOOGLE_CLIENT_ID=')
   .replace('let logs=',              'var logs=')
   .replace('let weights=',           'var weights=')
@@ -148,7 +157,6 @@ console.log('\n── Meta ─────────────────�
 check('VERSION defined',             typeof G.VERSION === 'string');
 check('VERSION is x.xx format',      /^\d+\.\d+$/.test(G.VERSION || ''), `got "${G.VERSION}"`);
 check('AGENT_URL is https',          G.AGENT_URL?.startsWith('https://'));
-check('WEIGHTS_TOKEN defined',       typeof G.WEIGHTS_TOKEN === 'string');
 const fns = rawScript.match(/(?:async\s+)?function\s+(\w+)\s*\(/g) || [];
 const fnNames = fns.map(s => s.replace(/async\s+|function\s+|\s*\(/g, ''));
 const dupes = fnNames.filter((n, i) => fnNames.indexOf(n) !== i);
@@ -389,18 +397,7 @@ check('getWeekKey: Sunday → same-week Monday', G.getWeekKey('2024-01-21') === 
 check('getWeekKey: next Monday is its own key', G.getWeekKey('2024-01-22') === '2024-01-22',
   `got "${G.getWeekKey('2024-01-22')}"`);
 
-// ── 16. hashPin ───────────────────────────────────────────────────────────────
-console.log('\n── hashPin ────────────────────────────────────────────────');
-check('hashPin defined',             typeof G.hashPin === 'function');
-check('hashPin returns a string',    typeof G.hashPin('1234') === 'string');
-check('hashPin is deterministic',    G.hashPin('8538') === G.hashPin('8538'));
-check('hashPin differs for different inputs',
-  G.hashPin('1111') !== G.hashPin('2222'));
-check('hashPin is stable across calls',
-  G.hashPin('8538') === G.hashPin('8538') && G.hashPin('0000') === G.hashPin('0000'));
-check('hashPin non-empty for empty string', typeof G.hashPin('') === 'string');
-
-// ── 17. getExSplits ───────────────────────────────────────────────────────────
+// ── 16. getExSplits ───────────────────────────────────────────────────────────
 console.log('\n── getExSplits ────────────────────────────────────────────');
 check('getExSplits defined',         typeof G.getExSplits === 'function');
 // Exact keyword match
@@ -425,7 +422,7 @@ const facePullSplits = G.getExSplits('Face Pull 60kg 15');
 const fpSum = Object.entries(facePullSplits).filter(([k]) => k !== 'factor' && k !== 'cable').reduce((a, [, v]) => a + v, 0);
 check('face pull splits sum to 1.0', Math.abs(fpSum - 1.0) < 0.001, `sum=${fpSum}`);
 
-// ── 18. initTabVis / applyTabVis ─────────────────────────────────────────────
+// ── 17. initTabVis / applyTabVis ─────────────────────────────────────────────
 console.log('\n── initTabVis / applyTabVis ───────────────────────────────');
 check('initTabVis defined',          typeof G.initTabVis === 'function');
 check('applyTabVis defined',         typeof G.applyTabVis === 'function');
@@ -457,7 +454,7 @@ catch(e) { check('applyTabVis does not throw', false, e.message); }
 sandbox.localStorage.removeItem('wkt-tab-vis');
 G.initTabVis();
 
-// ── 19. initPrograms ─────────────────────────────────────────────────────────
+// ── 18. initPrograms ─────────────────────────────────────────────────────────
 console.log('\n── initPrograms ───────────────────────────────────────────');
 check('initPrograms defined',        typeof G.initPrograms === 'function');
 
@@ -488,7 +485,7 @@ check('initPrograms loads saved programs from localStorage',
 sandbox.localStorage.removeItem('workout_programs');
 G.initPrograms();
 
-// ── 20. buildSessionGroupVol / buildSessionGroupStrength ──────────────────────
+// ── 19. buildSessionGroupVol / buildSessionGroupStrength ──────────────────────
 console.log('\n── buildSessionGroupVol / buildSessionGroupStrength ────────');
 check('buildSessionGroupVol defined',      typeof G.buildSessionGroupVol === 'function');
 check('buildSessionGroupStrength defined', typeof G.buildSessionGroupStrength === 'function');
@@ -563,7 +560,7 @@ check('buildSessionGroupStrength: respects cutoffDays (old log excluded)',
 
 G.logs = _savedLogs;
 
-// ── 20b. isCableEx ────────────────────────────────────────────────────────────
+// ── 19b. isCableEx ────────────────────────────────────────────────────────────
 console.log('\n── isCableEx ──────────────────────────────────────────────');
 check('isCableEx defined', typeof G.isCableEx === 'function');
 // regex matches
@@ -584,7 +581,7 @@ check('isCableEx: "Rear Delt Fly" → false',  !G.isCableEx('Rear Delt Fly'));
 check('isCableEx: "Bench Press" → false',    !G.isCableEx('Bench Press'));
 check('isCableEx: "Deadlift" → false',       !G.isCableEx('Deadlift'));
 
-// ── 20c. Gear factor in buildSessionGroupVol ──────────────────────────────────
+// ── 19c. Gear factor in buildSessionGroupVol ──────────────────────────────────
 console.log('\n── Gear factor — buildSessionGroupVol ─────────────────────');
 const _savedLogsGear = G.logs;
 
@@ -643,7 +640,7 @@ check('historical log (no gear) → ef=1, NOT from localStorage',
   _vHistorical.length > 0 && Math.abs(_vHistorical[0].vol - 264) < 0.01,
   `got ${_vHistorical[0]?.vol}`);
 
-// ── 20d. Gear factor in buildSessionGroupStrength ─────────────────────────────
+// ── 19d. Gear factor in buildSessionGroupStrength ─────────────────────────────
 console.log('\n── Gear factor — buildSessionGroupStrength ─────────────────');
 
 // gear=0.5 halves est1RM
@@ -683,7 +680,7 @@ check('gear=0.5: best set selected after gear applied',
   _sBest.length > 0 && Math.abs(_sBest[0].est1rm - _expectedBest) < 0.01,
   `got ${_sBest[0]?.est1rm}, expected ${_expectedBest}`);
 
-// ── 20e. syncWorkoutLogsFromAgent — remote wins for existing IDs ───────────────
+// ── 19e. syncWorkoutLogsFromAgent — remote wins for existing IDs ───────────────
 console.log('\n── syncWorkoutLogsFromAgent — remote wins ──────────────────');
 // We test the merge logic directly by inspecting the function source
 const _syncSrc = G.syncWorkoutLogsFromAgent.toString();
@@ -696,7 +693,7 @@ check('sync: remote.forEach overwrites byId entries',
 
 G.logs = _savedLogsGear;
 
-// ── 21. setChartScale routing ─────────────────────────────────────────────────
+// ── 20. setChartScale routing ─────────────────────────────────────────────────
 console.log('\n── setChartScale routing ──────────────────────────────────');
 check('setChartScale defined',       typeof G.setChartScale === 'function');
 check('_chartScale defined',         typeof G._chartScale === 'string');
@@ -767,7 +764,7 @@ G.drawChart            = _origDC;
 G.drawVolumeChart      = _origDVC;
 G.renderStrengthCharts = _origRSC;
 
-// ── 22. Key functions ──────────────────────────────────────────────────────────
+// ── 21. Key functions ──────────────────────────────────────────────────────────
 console.log('\n── Key functions ──────────────────────────────────────────');
 [
   'drawVolumeChart', 'drawGroupChart', 'buildSessionGroupVol', 'buildSessionGroupStrength',
@@ -777,11 +774,11 @@ console.log('\n── Key functions ──────────────�
   'saveLog', 'loadSettings', 'renderProgress', 'renderHistory', 'smoothArr', 'calcVolume',
   'applyTheme', 'calcNavyBF', 'obInit', 'openOnboarding', 'buildAppearanceCard', 'buildProfileCard',
   'setChartScale', 'initTabVis', 'applyTabVis', 'initPrograms', 'buildTabsSettingsCard',
-  'toggleTabVis', 'formatDate', '_escP', 'hashPin',
+  'toggleTabVis', 'formatDate', '_escP',
   '_nextTrainingDay', 'rebuildDayGrid', 'rebuildLogDaySelect', 'getDayLabel',
 ].forEach(fn => check(`${fn} defined`, typeof G[fn] === 'function'));
 
-// ── 23. _nextTrainingDay / _selectedProgramDay ────────────────────────────────
+// ── 22. _nextTrainingDay / _selectedProgramDay ────────────────────────────────
 console.log('\n── _nextTrainingDay / _selectedProgramDay ─────────────────');
 check('_nextTrainingDay defined', typeof G._nextTrainingDay === 'function');
 check('_selectedProgramDay defined', G._selectedProgramDay !== undefined);
@@ -844,7 +841,7 @@ G.logs = _savedLogs23;
 sandbox.localStorage.removeItem('workout_programs');
 G.initPrograms();
 
-// ── 24. getDayLabel ───────────────────────────────────────────────────────────
+// ── 23. getDayLabel ───────────────────────────────────────────────────────────
 console.log('\n── getDayLabel ────────────────────────────────────────────');
 check('getDayLabel defined', typeof G.getDayLabel === 'function');
 
@@ -877,7 +874,7 @@ const dl5day = G.getDayLabel(1);
 check('getDayLabel: no em-dash → returns full day name', typeof dl5day === 'string' && dl5day.length > 0, `got "${dl5day}"`);
 G._activeProgramIndex = 0; // restore to hypertrophy
 
-// ── 25. Weight history sort ────────────────────────────────────────────────────
+// ── 24. Weight history sort ────────────────────────────────────────────────────
 console.log('\n── Weight history sort (newest first) ─────────────────────');
 check('sortWeightHistory defined', typeof G.sortWeightHistory === 'function');
 check('renderWeightHistory defined', typeof G.renderWeightHistory === 'function');
@@ -923,7 +920,7 @@ check('sort: empty array → []', G.sortWeightHistory([]).length === 0);
 const _whSingle = G.sortWeightHistory([{ date: '2026-06-01', weight: 90 }]);
 check('sort: single entry preserved', _whSingle.length === 1 && _whSingle[0].weight === 90);
 
-// ── 26. Weight window (30/60/90 filter) ────────────────────────────────────────
+// ── 25. Weight window (30/60/90 filter) ────────────────────────────────────────
 console.log('\n── Weight window (30/60/90d filter) ───────────────────────');
 const _wwOrig = G._weightWindow;
 const _origDrawChart26 = G.drawChart;
