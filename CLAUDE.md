@@ -1,5 +1,15 @@
 # Workout App — Claude Instructions
 
+## ⚠️ AUTH WARNING — READ BEFORE TOUCHING ANY AUTH CODE ⚠️
+**PIN/passcode auth has been PERMANENTLY REMOVED.** Google Sign-In is the ONLY
+end-user authentication method across this entire ecosystem (peptidetracker,
+peptidetracker-staging, workout, workout-staging, claude-agent-backend). The
+whitelist currently contains ONLY `henrik.schaub@gmail.com`. **NEVER
+reintroduce a PIN, passcode, shared-secret, or any non-Google login for end
+users** — not even as a "fallback" or "legacy" path. The only other credential
+in the system is `x-api-secret`, used exclusively by Claude's own backend
+tooling, never by end-user-facing apps.
+
 ## Git workflow — ALWAYS follow this
 1. Make changes on a feature branch
 2. Create a PR then **immediately merge it yourself** — never stop and ask the user to merge, never push directly to main
