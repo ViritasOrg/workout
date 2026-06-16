@@ -1,5 +1,29 @@
 # Workout App — Claude Instructions
 
+## 🔒 PROD IS READ-ONLY — DO NOT TOUCH WITHOUT EXPLICIT PERMISSION
+This repo (`workout`) is **PRODUCTION**. Claude may read, inspect, and
+diagnose anything here freely (view files, check workflow runs, look at commit
+history, etc.) but must **NEVER** create branches, commit, push, open PRs, or
+merge into this repo on its own initiative — not even for "obvious" fixes,
+hotfixes, or anything CI-related.
+
+The **only** repo Claude may freely make changes to in this app pair is
+`workout-staging`.
+
+Changes only reach this repo via:
+1. **Henrik explicitly tells Claude, in that specific conversation turn, to make
+   a change directly to prod.** Authorization does not carry over to future
+   turns or sessions — ask again next time.
+2. **A staging → prod promotion mechanism**, if/when one exists for this repo
+   (mirroring `peptidetracker-staging`'s "Push to Prod" button + promotion
+   workflow). Even then, Claude must still **never merge the resulting PR**
+   without Henrik's explicit go-ahead in the moment.
+
+This rule exists because on 2026-06-16 Claude bypassed the agreed workflow on
+the peptidetracker prod repo by directly hand-editing prod's `index.html`
+locally instead of working through staging. The same rule now applies here
+proactively. Never repeat that.
+
 ## ⚠️ AUTH WARNING — READ BEFORE TOUCHING ANY AUTH CODE ⚠️
 **PIN/passcode auth has been PERMANENTLY REMOVED.** Google Sign-In is the ONLY
 end-user authentication method across this entire ecosystem (peptidetracker,
@@ -9,12 +33,6 @@ reintroduce a PIN, passcode, shared-secret, or any non-Google login for end
 users** — not even as a "fallback" or "legacy" path. The only other credential
 in the system is `x-api-secret`, used exclusively by Claude's own backend
 tooling, never by end-user-facing apps.
-
-## Git workflow — ALWAYS follow this
-1. Make changes on a feature branch
-2. Create a PR then **immediately merge it yourself** — never stop and ask the user to merge, never push directly to main
-3. After merge the `version-bump` GitHub Action auto-increments the minor version in `version.json` and `const VERSION` in `index.html` and commits with `[skip ci]`
-4. **After merging, poll `https://henrikschaub.github.io/workout/version.json` every 30 s until the new version appears, then tell the user "live as vX.XXX — test now"**
 
 ## Deployment
 - GitHub Pages at `https://henrikschaub.github.io/workout/`
