@@ -89,4 +89,4 @@ jobs:
             echo "Attempt $i: no action_required run found yet, waiting 5s..."
             sleep 5
           done
-          echo "No action_urfound run found after 60s — CI may have run normally"
+          echo "No action_required run found after 60s — CI may have run normally"
