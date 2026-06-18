@@ -1336,7 +1336,24 @@ check('pollPromoteStatus shows red after 5 consecutive errors (_pollErrs>=5)',
 check('pollPromoteStatus re-enables button on connection loss',
   /_pollErrs>=5[^}]*btn\.disabled=false/.test(rawScript));
 check('pollPromoteStatus resets _pollErrs on new pushToProd call',
-  rawScript.includes('_pollErrs=0;renderPromoteStatus'));
+  rawScript.includes('_pollErrs=0;_prevProdVer=null'));
+
+// ── 41. pollProdVersion waits for version change ──────────────────────────────
+console.log('\n── pollProdVersion waits for actual version change ─────────');
+// Regression: previously showed first version read (stale pre-promotion value).
+// Fix: snapshot current prod version before push, keep polling until it changes.
+check('_prevProdVer variable declared',
+  rawScript.includes('let _prevProdVer=null'));
+check('pushToProd snapshots current prod version into _prevProdVer',
+  rawScript.includes("_prevProdVer=null;fetch('https://henrikschaub.github.io/workout/version.json'"));
+check('pollProdVersion shows "Pages deploying..." when version unchanged',
+  rawScript.includes('Pages deploying...'));
+check('pollProdVersion only marks success when version has changed (_prevProdVer check)',
+  rawScript.includes('_prevProdVer!==null&&v===_prevProdVer'));
+check('pollProdVersion only starts when a PR was opened (pr_url guard)',
+  rawScript.includes("conclusion==='success'&&data.pr_url"));
+check('pollProdVersion max attempts extended to 40',
+  rawScript.includes('attempt>40') && !rawScript.includes('attempt>20'));
 
 // ── Summary ───────────────────────────────────────────────────────────────────
 console.log(`\n${'─'.repeat(59)}`);
