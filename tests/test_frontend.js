@@ -1316,6 +1316,28 @@ check('drawWeeklyStrengthGroupChart uses min-gap label skip (_xLblLast2)',
   check('weekly chart: 4 weeks in 236px → all 4 labels shown', count===4, `got ${count}`);
 }
 
+// ── 40. pollPromoteStatus error states ───────────────────────────────────────
+console.log('\n── pollPromoteStatus error states ──────────────────────────');
+// Regression: previously attempt>60 caused a silent return with no UI feedback.
+// Now: timeout shows red error and re-enables button; 5 consecutive network
+// errors also show red and re-enable the button.
+check('pollPromoteStatus times out at attempt>100 (not 60 or 200)',
+  rawScript.includes('attempt>100') && !rawScript.includes('attempt>60'));
+check('pollPromoteStatus re-enables button on timeout',
+  /attempt>100\b[^}]*btn\.disabled=false/.test(rawScript));
+check('pollPromoteStatus shows red on timeout (#ef4444)',
+  rawScript.slice(rawScript.indexOf('attempt>100'), rawScript.indexOf('attempt>100')+400).includes('ef4444'));
+check('pollPromoteStatus includes "Timed out" message',
+  rawScript.includes('Timed out'));
+check('pollPromoteStatus resets _pollErrs=0 on successful response',
+  rawScript.includes('_pollErrs=0') && rawScript.includes('.then(data=>{_pollErrs=0'));
+check('pollPromoteStatus shows red after 5 consecutive errors (_pollErrs>=5)',
+  rawScript.includes('_pollErrs>=5'));
+check('pollPromoteStatus re-enables button on connection loss',
+  /_pollErrs>=5[^}]*btn\.disabled=false/.test(rawScript));
+check('pollPromoteStatus resets _pollErrs on new pushToProd call',
+  rawScript.includes('_pollErrs=0;renderPromoteStatus'));
+
 // ── Summary ───────────────────────────────────────────────────────────────────
 console.log(`\n${'─'.repeat(59)}`);
 console.log(`  ${passed} passed  ${failed} failed  ${passed + failed} total`);
