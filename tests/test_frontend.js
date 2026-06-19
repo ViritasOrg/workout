@@ -1365,6 +1365,173 @@ check('pollProdVersion only starts when a PR was opened (pr_url guard)',
 check('pollProdVersion max attempts extended to 40',
   rawScript.includes('attempt>40') && !rawScript.includes('attempt>20'));
 
+// ── 42. Profile backend sync ──────────────────────────────────────────────────
+console.log('\n── Profile backend sync ─────────────────────────────────────');
+
+// 42a. syncSettingsFromAgent reads profile keys
+check('syncSettingsFromAgent reads user_sex from backend',
+  G.syncSettingsFromAgent.toString().includes("user_sex"));
+check('syncSettingsFromAgent reads user_height from backend',
+  G.syncSettingsFromAgent.toString().includes("user_height"));
+check('syncSettingsFromAgent reads user_weight from backend',
+  G.syncSettingsFromAgent.toString().includes("user_weight"));
+check('syncSettingsFromAgent reads user_age from backend',
+  G.syncSettingsFromAgent.toString().includes("user_age"));
+check('syncSettingsFromAgent updates wkt-profile in localStorage',
+  G.syncSettingsFromAgent.toString().includes("wkt-profile"));
+
+// 42b. obFinish pushes profile to backend
+check('obFinish pushes user_sex to backend',
+  G.obFinish.toString().includes("user_sex"));
+check('obFinish pushes user_age to backend',
+  G.obFinish.toString().includes("user_age"));
+check('obFinish pushes user_height to backend',
+  G.obFinish.toString().includes("user_height"));
+check('obFinish pushes user_weight to backend',
+  G.obFinish.toString().includes("user_weight"));
+check('obFinish calls pushSettingsToAgent with profile data',
+  G.obFinish.toString().includes("pushSettingsToAgent"));
+
+// 42c. openOnboarding pre-fills _obData from existing profile when onboarded
+{
+  const _origObData = Object.assign({}, G._obData);
+  sandbox.localStorage.setItem('wkt-profile', JSON.stringify({
+    onboarded: true, gender: 'female', age: 30, height: 165, weight: 62, neck: 32, waist: 70, hips: 95
+  }));
+  delete _idStore['onboarding-overlay'];
+  _idStore['onboarding-overlay'] = makeTrackingEl(['hidden']);
+  try {
+    G.openOnboarding();
+    check('openOnboarding pre-fills gender from profile', G._obData.gender === 'female',  `got "${G._obData.gender}"`);
+    check('openOnboarding pre-fills age from profile',    G._obData.age    === '30',       `got "${G._obData.age}"`);
+    check('openOnboarding pre-fills height from profile', G._obData.height === '165',      `got "${G._obData.height}"`);
+    check('openOnboarding pre-fills weight from profile', G._obData.weight === '62',       `got "${G._obData.weight}"`);
+    check('openOnboarding pre-fills neck from profile',   G._obData.neck   === '32',       `got "${G._obData.neck}"`);
+    check('openOnboarding pre-fills waist from profile',  G._obData.waist  === '70',       `got "${G._obData.waist}"`);
+    check('openOnboarding pre-fills hips from profile',   G._obData.hips   === '95',       `got "${G._obData.hips}"`);
+  } catch(e) {
+    ['gender','age','height','weight','neck','waist','hips'].forEach(f =>
+      check(`openOnboarding pre-fills ${f} from profile`, false, e.message));
+  }
+  Object.assign(G._obData, _origObData);
+  sandbox.localStorage.removeItem('wkt-profile');
+}
+
+// openOnboarding must NOT pre-fill if profile.onboarded is false
+{
+  G._obData = { gender: null, age: '', height: '', weight: '', neck: '', waist: '', hips: '', theme: 3 };
+  sandbox.localStorage.setItem('wkt-profile', JSON.stringify({
+    onboarded: false, gender: 'male', age: 25, height: 180, weight: 80
+  }));
+  delete _idStore['onboarding-overlay'];
+  _idStore['onboarding-overlay'] = makeTrackingEl(['hidden']);
+  G.openOnboarding();
+  check('openOnboarding: does NOT pre-fill when profile.onboarded=false',
+    G._obData.gender === null, `got "${G._obData.gender}"`);
+  sandbox.localStorage.removeItem('wkt-profile');
+}
+
+// 42d. prefillLog pre-fills log-weight from latest weight
+check('prefillLog sets log-weight input',
+  G.prefillLog.toString().includes('log-weight'));
+check('prefillLog uses last weight entry for body-weight pre-fill',
+  G.prefillLog.toString().includes('weights[weights.length-1].weight'));
+
+// ── 43. Overview vol stats populated by renderProgress (regression) ───────────
+console.log('\n── Overview vol stats populated without visiting Volume tab ─');
+check('updateVolStats defined', typeof G.updateVolStats === 'function');
+check('renderProgress calls updateVolStats',
+  G.renderProgress.toString().includes('updateVolStats'));
+check('updateVolStats reads stat-volume element',
+  G.updateVolStats.toString().includes('stat-volume'));
+check('updateVolStats reads stat-volume-total element',
+  G.updateVolStats.toString().includes('stat-volume-total'));
+check('updateVolStats references logs directly',
+  G.updateVolStats.toString().includes('logs'));
+
+
+// ── 44. Weighted pull-up volume uses bodyweight + added weight ─────────────────
+console.log('\n── Weighted pull-up volume fix ─────────────────────────────');
+{
+  // calcLineVol: notes-mode weighted pull-up should use bw + added kg
+  const bw = 90;
+  // "Weighted Pull-ups 10kg 8-8-8-8" → reps = 32, weight should be 90+10=100
+  const lineWPU = 'Weighted Pull-ups 10kg 8-8-8-8';
+  const lineRegPU = 'Pull-ups 8-8-8-8';
+  const lineNonPU = 'Barbell Row 80kg 8-8-8-8';
+  const volWPU = G.calcLineVol(lineWPU, bw);    // expect (90+10)*32 = 3200
+  const volPU  = G.calcLineVol(lineRegPU, bw);  // expect 90*32 = 2880
+  const volRow = G.calcLineVol(lineNonPU, bw);  // expect 80*32 = 2560
+  check('calcLineVol: weighted pull-up uses bw + added kg',
+    Math.abs(volWPU - 100 * 32) < 0.01, `got ${volWPU}, expected ${100 * 32}`);
+  check('calcLineVol: regular pull-up (no kg) still uses bw only',
+    Math.abs(volPU - bw * 32) < 0.01, `got ${volPU}, expected ${bw * 32}`);
+  check('calcLineVol: non-pullup with kg uses kg only (unaffected)',
+    Math.abs(volRow - 80 * 32) < 0.01, `got ${volRow}, expected ${80 * 32}`);
+
+  // buildSessionGroupVol: structured log weighted pull-up should use bw + added kg
+  const _savedLogs44   = G.logs;
+  const _savedWeights44 = G.weights;
+  G.weights = [{ date: '2020-01-01', weight: 90 }];
+  // Weighted Pull-ups: back=0.65, arms=0.35 (same as pull-ups)
+  // 4 sets × 10 added kg, 8 reps. bw=90, so effective kg = 100
+  // back vol = 4 * (90+10) * 8 * 0.65 = 2080
+  G.logs = [{
+    date: '2020-01-15',
+    exercises: [{ name: 'Weighted Pull-ups', sets: [
+      { kg: 10, reps: 8 }, { kg: 10, reps: 8 }, { kg: 10, reps: 8 }, { kg: 10, reps: 8 }
+    ]}]
+  }];
+  const wvBack = G.buildSessionGroupVol('back', 10000);
+  const wvArms = G.buildSessionGroupVol('arms', 10000);
+  // pull-ups split: back=0.65, arms=0.35
+  const puSplit = G.getExSplits('Weighted Pull-ups');
+  const bkFrac  = puSplit.back || 0;
+  const arFrac  = puSplit.arms || 0;
+  const expectedWVBack = (90 + 10) * 8 * 4 * bkFrac;
+  const expectedWVArms = (90 + 10) * 8 * 4 * arFrac;
+  check('buildSessionGroupVol: Weighted Pull-ups back vol includes bw',
+    wvBack.length > 0 && Math.abs(wvBack[0].vol - expectedWVBack) < 0.01,
+    `got ${wvBack[0]?.vol}, expected ${expectedWVBack}`);
+  check('buildSessionGroupVol: Weighted Pull-ups arms vol includes bw',
+    wvArms.length > 0 && Math.abs(wvArms[0].vol - expectedWVArms) < 0.01,
+    `got ${wvArms[0]?.vol}, expected ${expectedWVArms}`);
+
+  // buildSessionGroupStrength: Weighted Pull-ups 1RM estimate should use bw + added kg
+  const wsStr = G.buildSessionGroupStrength('back', 10000);
+  // Epley: (bw+addedKg) * (1 + min(reps,15)/30) * frac
+  const expectedWSStr = (90 + 10) * (1 + Math.min(8, 15) / 30) * bkFrac;
+  check('buildSessionGroupStrength: Weighted Pull-ups est1rm includes bw',
+    wsStr.length > 0 && Math.abs(wsStr[0].est1rm - expectedWSStr) < 0.01,
+    `got ${wsStr[0]?.est1rm}, expected ${expectedWSStr}`);
+
+  // Regular Pull-ups (after bw_kg_migration s.kg = bw) should not double-count bw
+  G.logs = [{
+    date: '2020-01-15',
+    exercises: [{ name: 'Pull-ups', sets: [
+      { kg: 90, reps: 8 }, { kg: 90, reps: 8 }   // s.kg = bodyweight after migration
+    ]}]
+  }];
+  const puVol = G.buildSessionGroupVol('back', 10000);
+  const puSplit2 = G.getExSplits('Pull-ups');
+  const expectedPUVol = 90 * 8 * 2 * (puSplit2.back || 0);
+  check('buildSessionGroupVol: regular Pull-ups (s.kg=bw) not double-counted',
+    puVol.length > 0 && Math.abs(puVol[0].vol - expectedPUVol) < 0.01,
+    `got ${puVol[0]?.vol}, expected ${expectedPUVol}`);
+
+  G.logs    = _savedLogs44;
+  G.weights = _savedWeights44;
+
+  // Weight dedup: saveLog code must update existing entry, not push a duplicate
+  check('saveLog deduplicates weight entries by date (findIndex pattern)',
+    G.saveLog.toString().includes('findIndex') &&
+    G.saveLog.toString().includes('w.date===date'));
+
+  // Migration key must be referenced in syncWorkoutLogsFromAgent
+  check('wk-weighted-pu-vol-v1 migration key present in syncWorkoutLogsFromAgent',
+    G.syncWorkoutLogsFromAgent.toString().includes('wk-weighted-pu-vol-v1'));
+}
+
 // ── Summary ───────────────────────────────────────────────────────────────────
 console.log(`\n${'─'.repeat(59)}`);
 console.log(`  ${passed} passed  ${failed} failed  ${passed + failed} total`);
