@@ -1202,6 +1202,16 @@ check('getProgramRest: null prog → default (hypertrophy)', G.getProgramRest(nu
 check('getProgramRest: no goal → default (hypertrophy)',   G.getProgramRest({}).includes('60'));
 check('getProgramRest: strength label is string', typeof G.getProgramRest({goal:'strength'}) === 'string');
 
+// ── 34b. restSecsForTag — rest preset by exercise tag ────────────────────────
+console.log('\n── restSecsForTag — rest preset by tag ──────────────────────────');
+check('restSecsForTag defined', typeof G.restSecsForTag === 'function');
+check('restSecsForTag: strength → 240', G.restSecsForTag('strength') === 240);
+check('restSecsForTag: rehab → 90',    G.restSecsForTag('rehab') === 90);
+check('restSecsForTag: volume → 120',  G.restSecsForTag('volume') === 120);
+check('restSecsForTag: null → 120',    G.restSecsForTag(null) === 120);
+check('restSecsForTag: unknown tag → 120', G.restSecsForTag('cardio') === 120);
+check('restSecsForTag: returns number', typeof G.restSecsForTag('strength') === 'number');
+
 // ── 35. BF% log — saveBf / deleteBf ──────────────────────────────────────────
 console.log('\n── BF% log — saveBf / deleteBf ─────────────────────────────');
 check('saveBf defined',   typeof G.saveBf   === 'function');
