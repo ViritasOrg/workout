@@ -1812,7 +1812,6 @@ console.log('\n── 48. Program wizard days/sets ─────────�
 // ── Section 52: BF chart shows all entries (no time window filter) ────────────
 {
   const src = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
-  // Extract only the drawBfChart function body (up to drawBmiChart)
   const bfStart = src.indexOf('function drawBfChart(');
   const bfEnd = src.indexOf('function drawBmiChart(');
   const bfBody = bfStart >= 0 && bfEnd > bfStart ? src.slice(bfStart, bfEnd) : '';
@@ -1822,17 +1821,54 @@ console.log('\n── 48. Program wizard days/sets ─────────�
     src.includes("bfLog.filter(function(e){return e.date&&/^\\d{4}-\\d{2}-\\d{2}$/.test(e.date)&&e.bf>0;})"));
 }
 
-// ── Section 52: BF chart shows all entries (no time window filter) ────────────
+// ── Section 53: Weight chart (drawChart) DOES filter by _weightWindow ─────────
 {
   const src = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
-  // Extract only the drawBfChart function body (up to drawBmiChart)
-  const bfStart = src.indexOf('function drawBfChart(');
-  const bfEnd = src.indexOf('function drawBmiChart(');
-  const bfBody = bfStart >= 0 && bfEnd > bfStart ? src.slice(bfStart, bfEnd) : '';
-  check('drawBfChart does not filter by _weightWindow cutoff',
-    !bfBody.includes('cutoffStr') && !bfBody.includes('_weightWindow'));
-  check('drawBfChart filters only on valid date format and bf>0',
-    src.includes("bfLog.filter(function(e){return e.date&&/^\\d{4}-\\d{2}-\\d{2}$/.test(e.date)&&e.bf>0;})"));
+  const wStart = src.indexOf('async function drawChart(');
+  const wEnd = src.indexOf('function saveBf(');
+  const wBody = wStart >= 0 && wEnd > wStart ? src.slice(wStart, wEnd) : '';
+  check('drawChart uses _weightWindow cutoff (intentional for weight)',
+    wBody.includes('_weightWindow') && wBody.includes('cutoffStr'));
+  check('drawChart filters weights by date >= cutoffStr',
+    wBody.includes('w.date>=cutoffStr'));
+}
+
+// ── Section 54: BMI chart uses weight window (BMI derived from weight data) ───
+{
+  const src = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  const bmiStart = src.indexOf('function drawBmiChart(');
+  const bmiEnd = src.indexOf('function drawBmiChart(') >= 0
+    ? src.indexOf('function syncBodyComp', src.indexOf('function drawBmiChart(') + 20)
+    : -1;
+  const bmiBody = bmiStart >= 0 && bmiEnd > bmiStart ? src.slice(bmiStart, bmiEnd) : '';
+  check('drawBmiChart uses _weightWindow cutoff (BMI derives from weight entries)',
+    bmiBody.includes('_weightWindow') && bmiBody.includes('cutoffStr'));
+  check('drawBmiChart filters weight entries by date >= cutoffStr',
+    bmiBody.includes('w.date>=cutoffStr'));
+}
+
+// ── Section 55: Volume chart uses volWindow, not _weightWindow ────────────────
+{
+  const src = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  const vStart = src.indexOf('async function drawVolumeChart(');
+  const vEnd = src.indexOf('let _weightWindow=');
+  const vBody = vStart >= 0 && vEnd > vStart ? src.slice(vStart, vEnd) : src.slice(vStart >= 0 ? vStart : 0, vStart >= 0 ? vStart + 2000 : 2000);
+  check('drawVolumeChart uses volWindow (separate from weight window)',
+    src.includes('async function drawVolumeChart(') && src.includes('const days=volWindow||'));
+  check('volWindow and _weightWindow are independent variables',
+    src.includes('let volWindow=') && src.includes('let _weightWindow='));
+}
+
+// ── Section 56: Weight tab re-syncs body comp from backend on every open ──────
+{
+  const src = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  const ptStart = src.indexOf('function showProgressTab(');
+  const ptEnd = ptStart >= 0 ? src.indexOf('function ', ptStart + 30) : -1;
+  const ptBody = ptStart >= 0 && ptEnd > ptStart ? src.slice(ptStart, ptEnd) : '';
+  check("showProgressTab weight tab calls syncBodyCompFromAgent (fresh BF% data)",
+    ptBody.includes("name==='weight'") && ptBody.includes('syncBodyCompFromAgent()'));
+  check("showProgressTab weight tab calls syncWeightsFromAgent (fresh weight data)",
+    ptBody.includes("name==='weight'") && ptBody.includes('syncWeightsFromAgent()'));
 }
 
 // ── Summary ───────────────────────────────────────────────────────────────────
