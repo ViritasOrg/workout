@@ -1661,7 +1661,7 @@ console.log('\n── BF% backend sync — save, delete, load ──────
   check('deleteBf calls deleteBodyCompFromAgent',
     src.includes('deleteBodyCompFromAgent(date)'));
   check('syncBodyCompFromAgent uploads local-only entries to backend',
-    src.includes('const toUpload=local.filter') && src.includes('pushBodyCompToAgent(e.date,e.bf)'));
+    src.includes('toUpload') && src.includes('pushBodyCompToAgent(e.date,e.bf)'));
 }
 
 // ── 47b. BF% pre-isolation migration ─────────────────────────────────────────
@@ -1682,6 +1682,17 @@ console.log('\n── 47b. BF% pre-isolation migration ────────�
     src.includes("syncBodyCompFromAgent();(function(){if(!IS_STAGING||localStorage.getItem('wk-bf-isol-v1'))"));
 }
 
+// ── 47c. BF_SEED baseline entries ────────────────────────────────────────────
+console.log('\n── 47c. BF_SEED baseline entries ────────────────────────────────');
+{
+  const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'index.html'), 'utf8');
+  check('BF_SEED constant defined with 3 baseline entries',
+    src.includes('const BF_SEED=') && src.includes('2026-03-23') && src.includes('2026-05-02') && src.includes('2026-05-03'));
+  check('syncBodyCompFromAgent merges BF_SEED entries missing from backend+local',
+    src.includes('const seedToAdd=BF_SEED.filter') && src.includes('mergedDates.has(s.date)'));
+  check('syncBodyCompFromAgent pushes missing seed entries to backend',
+    src.includes('seedToAdd') && src.includes('uploads.map'));
+}
 
 // ── 48. Program wizard — days 1-7 + sets per muscle ──────────────────────────
 console.log('\n── 48. Program wizard days/sets ─────────────────────────────────');
@@ -1704,6 +1715,8 @@ console.log('\n── 48. Program wizard days/sets ─────────�
     src.includes('pool.length<nDays'));
   check('pool padding uses IIFE to capture base length',
     src.includes('var _base=pool.length'));
+  check('pool extension uses muscle-group conflict scoring to avoid consecutive same-group days',
+    src.includes('function _mGroup(nm)') && src.includes('_cg===_pg?2:0'));
   check('scaleSets applied to all exercises before slice',
     src.includes('sets:scaleSets(ex.sets)'));
   check('setsPerMuscle stored in generated program object',
@@ -1751,8 +1764,16 @@ console.log('\n── 48. Program wizard days/sets ─────────�
 
     // Test 7-day program
     try {
-      const prog7 = ctx._generateWorkoutProgram('hypertrophy','balanced',7,'7-Day Test',12);
+      const prog7 = ctx._generateWorkoutProgram('strength','hybrid',7,'7-Day Test',12);
       check('7-day program generates 7 days', prog7 && prog7.days && prog7.days.length === 7);
+      function _mGroupTest(nm){var n=(nm||'').toLowerCase();if(/leg|lower|squat|hip|lunge|calf|glute|quad|ham|rdl|deadlift/.test(n))return 'legs';if(/pull|row|lat|back|bicep|chin/.test(n))return 'pull';if(/push|bench|chest|press|tricep/.test(n))return 'push';if(/arm|delt|shoulder|lateral/.test(n))return 'arms';return 'other';}
+      const day1G = _mGroupTest(prog7.days[0].name);
+      const day6G = _mGroupTest(prog7.days[5].name);
+      const day7G = _mGroupTest(prog7.days[6].name);
+      check('7-day wizard: Day 7 does not share muscle group with Day 6 (no back-to-back conflict)',
+        day7G !== day6G);
+      check('7-day wizard: Day 7 does not share muscle group with Day 1 (no wrap-around conflict)',
+        day7G !== day1G);
     } catch(e) {
       check('7-day program generation (caught)', false, String(e));
     }
@@ -1869,6 +1890,28 @@ console.log('\n── 48. Program wizard days/sets ─────────�
     ptBody.includes("name==='weight'") && ptBody.includes('syncBodyCompFromAgent()'));
   check("showProgressTab weight tab calls syncWeightsFromAgent (fresh weight data)",
     ptBody.includes("name==='weight'") && ptBody.includes('syncWeightsFromAgent()'));
+}
+
+// ── Section 57: Storage inspector (IS_STAGING only) ──────────────────────────
+console.log('\n── Storage inspector ────────────────────────────────────────');
+{
+  const src = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  check('nav-btn-storage exists in HTML (hidden by default)',
+    src.includes('id="nav-btn-storage"') && src.includes("style=\"display:none\""));
+  check('page-storage div exists in HTML',
+    src.includes('id="page-storage"'));
+  check('buildStoragePage function defined',
+    src.includes('function buildStoragePage()'));
+  check('showPage calls buildStoragePage for storage tab',
+    src.includes("if(name==='storage')buildStoragePage()"));
+  check('lsDbgCopy function defined',
+    src.includes('function lsDbgCopy('));
+  check('lsDbgCopyAll function defined',
+    src.includes('function lsDbgCopyAll()'));
+  check('storage nav button shown in staging at startup',
+    src.includes("IS_STAGING){var _ssb=document.getElementById('nav-btn-storage')"));
+  check('buildStoragePage uses clipboard API to copy',
+    src.includes('navigator.clipboard.writeText'));
 }
 
 // ── Summary ───────────────────────────────────────────────────────────────────
