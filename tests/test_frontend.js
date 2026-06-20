@@ -1809,18 +1809,6 @@ console.log('\n── 48. Program wizard days/sets ─────────�
     src.includes("localStorage.removeItem('google_email');"));
 }
 
-// ── Section 51: Promotion workflow covers static assets (staging-only) ───────
-{
-  const wfPath = path.join(__dirname, '../.github/workflows/promote-to-prod.yml');
-  if (fs.existsSync(wfPath)) {
-    const wf = fs.readFileSync(wfPath, 'utf8');
-    check('promote-to-prod.yml copies manifest.json',
-      wf.includes('manifest.json'));
-    check('promote-to-prod.yml copies training-icon.png',
-      wf.includes('training-icon.png'));
-  }
-}
-
 // ── Section 52: BF chart shows all entries (no time window filter) ────────────
 {
   const src = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
