@@ -1809,6 +1809,44 @@ console.log('\n── 48. Program wizard days/sets ─────────�
     src.includes("localStorage.removeItem('google_email');"));
 }
 
+// ── Section 51: Promotion workflow covers static assets (staging-only) ───────
+{
+  const wfPath = path.join(__dirname, '../.github/workflows/promote-to-prod.yml');
+  if (fs.existsSync(wfPath)) {
+    const wf = fs.readFileSync(wfPath, 'utf8');
+    check('promote-to-prod.yml copies manifest.json',
+      wf.includes('manifest.json'));
+    check('promote-to-prod.yml copies training-icon.png',
+      wf.includes('training-icon.png'));
+  }
+}
+
+// ── Section 52: BF chart shows all entries (no time window filter) ────────────
+{
+  const src = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  // Extract only the drawBfChart function body (up to drawBmiChart)
+  const bfStart = src.indexOf('function drawBfChart(');
+  const bfEnd = src.indexOf('function drawBmiChart(');
+  const bfBody = bfStart >= 0 && bfEnd > bfStart ? src.slice(bfStart, bfEnd) : '';
+  check('drawBfChart does not filter by _weightWindow cutoff',
+    !bfBody.includes('cutoffStr') && !bfBody.includes('_weightWindow'));
+  check('drawBfChart filters only on valid date format and bf>0',
+    src.includes("bfLog.filter(function(e){return e.date&&/^\\d{4}-\\d{2}-\\d{2}$/.test(e.date)&&e.bf>0;})"));
+}
+
+// ── Section 52: BF chart shows all entries (no time window filter) ────────────
+{
+  const src = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  // Extract only the drawBfChart function body (up to drawBmiChart)
+  const bfStart = src.indexOf('function drawBfChart(');
+  const bfEnd = src.indexOf('function drawBmiChart(');
+  const bfBody = bfStart >= 0 && bfEnd > bfStart ? src.slice(bfStart, bfEnd) : '';
+  check('drawBfChart does not filter by _weightWindow cutoff',
+    !bfBody.includes('cutoffStr') && !bfBody.includes('_weightWindow'));
+  check('drawBfChart filters only on valid date format and bf>0',
+    src.includes("bfLog.filter(function(e){return e.date&&/^\\d{4}-\\d{2}-\\d{2}$/.test(e.date)&&e.bf>0;})"));
+}
+
 // ── Summary ───────────────────────────────────────────────────────────────────
 console.log(`\n${'─'.repeat(59)}`);
 console.log(`  ${passed} passed  ${failed} failed  ${passed + failed} total`);
