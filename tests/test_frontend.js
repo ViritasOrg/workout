@@ -1619,7 +1619,7 @@ console.log('\n── localStorage isolation Proxy ─────────�
   check('localStorage isolation: IS_STAGING proxy present in index.html',
     src.includes("var _S='staging:'") && src.includes('Object.defineProperty(window,\'localStorage\''));
   check('localStorage isolation: google_token passthrough present',
-    src.includes("new Set(['google_token'])") && src.includes('_pk=function(k)'));
+    src.includes("new Set(['google_token','google_email'])") && src.includes('_pk=function(k)'));
 }
 
 // ── 46. Backup status in Settings ────────────────────────────────────────────
@@ -1785,6 +1785,28 @@ console.log('\n── 48. Program wizard days/sets ─────────�
       check('5-day circular check (caught)', false, String(e));
     }
   }
+}
+
+// ── Section 49: BF chart index-based x-spacing ───────────────────────────────
+{
+  const src = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  check('drawBfChart uses index-based xp (not time-based dates)',
+    src.includes('var xp=function(i){return pad.l+(pts.length===1?cW/2:(i/(pts.length-1))*cW);}'));
+  check('drawBfChart draws dots for all entries via forEach',
+    src.includes('pts.forEach(function(p,i){var x=xp(i)'));
+}
+
+// ── Section 50: Auth login_hint + email persistence ──────────────────────────
+{
+  const src = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  check('google_email in staging proxy bypass set',
+    src.includes("new Set(['google_token','google_email'])"));
+  check('onGoogleSignIn stores google_email from JWT payload',
+    src.includes("localStorage.setItem('google_email',_jp.email)"));
+  check('initGoogleAuth uses login_hint when google_email stored',
+    src.includes("var _hl=localStorage.getItem('google_email')||'';if(_hl)_ih.login_hint=_hl;"));
+  check('logout clears google_email',
+    src.includes("localStorage.removeItem('google_email');"));
 }
 
 // ── Summary ───────────────────────────────────────────────────────────────────
