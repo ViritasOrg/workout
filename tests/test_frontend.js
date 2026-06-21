@@ -2032,6 +2032,55 @@ console.log('\n── Storage inspector ─────────────�
     !src.slice(src.indexOf('async function loadSettings('), src.indexOf('async function loadSettings(') + 4000).includes('buildProgramSettingsCard()'));
 }
 
+// ── Section 60a: No rehab tag in non-rehab programs ──────────────────────────
+{
+  const src = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  check('pool.forEach remaps rehab→volume for non-rehab goals',
+    src.includes("_isRehabGoal=key.startsWith('rehab-')") &&
+    src.includes("(!_isRehabGoal&&ex.tag==='rehab')?'volume':ex.tag"));
+  check('_ensurePrograms normalizes rehab tags in non-rehab stored programs',
+    src.includes("(p.goal||'')!=='rehab'") &&
+    src.includes("if(e.tag==='rehab'){e.tag='volume';changed=true;}"));
+}
+
+// ── Section 60: Program card toggle switch ────────────────────────────────────
+{
+  const src = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  const cardStart = src.indexOf('function buildProgramSettingsCard()');
+  const cardEnd = src.indexOf('function viewProgram(');
+  const cardBody = cardStart >= 0 && cardEnd > cardStart ? src.slice(cardStart, cardEnd) : '';
+  check('program card uses toggle switch div (not pill button) for activation',
+    cardBody.includes('_activateProg') && !cardBody.includes('<button onclick="event.stopPropagation();_activateProg'));
+  check('program card toggle switch has knob that shifts position based on isActive',
+    cardBody.includes("left:'+(isActive?'18px':'2px')+'"));
+  check('program card toggle shows Active/Inactive label beside switch',
+    cardBody.includes("isActive?'Active':'Inactive'"));
+  check('program card toggle uses event.stopPropagation to prevent card open',
+    cardBody.includes('event.stopPropagation();_activateProg'));
+}
+
+// ── Section 61: Female Aesthetics core exercises ──────────────────────────────
+{
+  const src = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  const fbStart = src.indexOf("key==='aesthetic-fullbody'");
+  const fbEnd = src.indexOf("key==='aesthetic-upperlower'");
+  const fbBody = fbStart >= 0 && fbEnd > fbStart ? src.slice(fbStart, fbEnd) : '';
+  const ulStart = src.indexOf("key==='aesthetic-upperlower'");
+  const ulEnd = ulStart >= 0 ? src.indexOf('};', ulStart) : -1;
+  const ulBody = ulStart >= 0 && ulEnd > ulStart ? src.slice(ulStart, ulEnd) : '';
+  check('aesthetic-fullbody includes Dead Bug core exercise',
+    fbBody.includes("pw('Dead Bug'"));
+  check('aesthetic-fullbody includes Bird Dog core exercise',
+    fbBody.includes("pw('Bird Dog'"));
+  check('aesthetic-fullbody includes Plank core exercise',
+    fbBody.includes("pw('Plank'"));
+  check('aesthetic-upperlower includes at least two yoga/pilates core exercises',
+    [ulBody.includes("pw('Dead Bug'"), ulBody.includes("pw('Bird Dog'"), ulBody.includes("pw('Plank'"), ulBody.includes("pw('Pallof Press'")].filter(Boolean).length >= 2);
+  check('core exercises in aesthetic pool carry rehab tag (remapped to volume at runtime for non-rehab goals)',
+    fbBody.includes("'Dead Bug','3") && fbBody.includes(",'rehab'") &&
+    fbBody.includes("'Bird Dog','3") && fbBody.includes("'Plank','3"));
+}
+
 // ── Summary ───────────────────────────────────────────────────────────────────
 console.log(`\n${'─'.repeat(59)}`);
 console.log(`  ${passed} passed  ${failed} failed  ${passed + failed} total`);
