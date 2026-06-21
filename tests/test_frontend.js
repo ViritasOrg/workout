@@ -1908,10 +1908,40 @@ console.log('\n── Storage inspector ─────────────�
     src.includes('function lsDbgCopy('));
   check('lsDbgCopyAll function defined',
     src.includes('function lsDbgCopyAll()'));
-  check('storage nav button shown in staging at startup',
-    src.includes("IS_STAGING){var _ssb=document.getElementById('nav-btn-storage')"));
+  check('storage tab included in PAGE_LABELS and PAGE_DEFAULTS via IS_STAGING (toggleable in Settings)',
+    src.includes("IS_STAGING?{storage:'Storage'}:{}") && src.includes('IS_STAGING?{storage:true}:{}'));
   check('buildStoragePage uses clipboard API to copy',
     src.includes('navigator.clipboard.writeText'));
+}
+
+// ── Section 58: syncSettingsFromAgent re-draws BMI chart when weight panel visible ──
+{
+  const src = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  const ssStart = src.indexOf('async function syncSettingsFromAgent()');
+  const ssEnd = ssStart >= 0 ? src.indexOf('async function ', ssStart + 30) : -1;
+  const ssBody = ssStart >= 0 && ssEnd > ssStart ? src.slice(ssStart, ssEnd) : '';
+  check('syncSettingsFromAgent re-draws BMI chart after fetching profile (timing fix)',
+    ssBody.includes('ppanel-weight') && ssBody.includes('drawBmiChart()'));
+  check('syncSettingsFromAgent checks panel visibility before redraw',
+    ssBody.includes("classList.contains('hidden')") && ssBody.includes('drawBmiChart()'));
+}
+
+// ── Section 59: Programs card lives in Program tab, not Settings ──────────────
+{
+  const src = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  const progPageStart = src.indexOf('id="page-program"');
+  const progPageEnd = src.indexOf('id="page-log"');
+  const progPageHtml = progPageStart >= 0 && progPageEnd > progPageStart ? src.slice(progPageStart, progPageEnd) : '';
+  const settingsPageStart = src.indexOf('id="page-settings"');
+  const settingsHtml = settingsPageStart >= 0 ? src.slice(settingsPageStart, settingsPageStart + 2000) : '';
+  check('s-programs-card div is inside page-program',
+    progPageHtml.includes('id="s-programs-card"'));
+  check('s-programs-card div is NOT inside page-settings',
+    !settingsHtml.includes('id="s-programs-card"'));
+  check('showPage calls buildProgramSettingsCard when navigating to program tab',
+    src.includes("name==='program')buildProgramSettingsCard()"));
+  check('loadSettings does not call buildProgramSettingsCard (card is in Program tab)',
+    !src.slice(src.indexOf('async function loadSettings('), src.indexOf('async function loadSettings(') + 4000).includes('buildProgramSettingsCard()'));
 }
 
 // ── Summary ───────────────────────────────────────────────────────────────────
