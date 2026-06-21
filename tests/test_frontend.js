@@ -857,7 +857,7 @@ check('getDayLabel(1): string returned', typeof dl1 === 'string' && dl1.length >
 check('getDayLabel(1): extracts focus after em-dash (Push A)',
   dl1 === 'Push A', `got "${dl1}"`);
 check('getDayLabel(2): Pull A', G.getDayLabel(2) === 'Pull A', `got "${G.getDayLabel(2)}"`);
-check('getDayLabel(3): Legs',   G.getDayLabel(3) === 'Legs',   `got "${G.getDayLabel(3)}"`);
+check('getDayLabel(3): Legs A',  G.getDayLabel(3) === 'Legs A', `got "${G.getDayLabel(3)}"`);
 check('getDayLabel(4): Push B', G.getDayLabel(4) === 'Push B', `got "${G.getDayLabel(4)}"`);
 check('getDayLabel(5): Pull B', G.getDayLabel(5) === 'Pull B', `got "${G.getDayLabel(5)}"`);
 check('getDayLabel(6): Arms & Delts', G.getDayLabel(6) === 'Arms & Delts', `got "${G.getDayLabel(6)}"`);
@@ -1355,7 +1355,19 @@ console.log('\n── pollProdVersion waits for actual version change ───�
 check('_prevProdVer variable declared',
   rawScript.includes('let _prevProdVer=null'));
 check('pushToProd snapshots current prod version into _prevProdVer',
-  rawScript.includes("_prevProdVer=null;fetch('https://henrikschaub.github.io/workout/version.json'"));
+  rawScript.includes("_prevProdVer=null;") && rawScript.includes("fetch('https://henrikschaub.github.io/workout/version.json'"));
+check('pushToProd captures staging version at push time (_stagingVer=VERSION)',
+  rawScript.includes('_stagingVer=VERSION'));
+check('saveLastPush accepts stagingVer parameter',
+  rawScript.includes('function saveLastPush(data,prodVer,stagingVer)'));
+check('saveLastPush stores stagingVer in the push record',
+  rawScript.includes('stagingVer:stagingVer||null'));
+check('pollPromoteStatus passes _stagingVer to saveLastPush',
+  rawScript.includes('saveLastPush(data,null,_stagingVer)'));
+check('pollProdVersion passes _stagingVer to saveLastPush',
+  rawScript.includes('saveLastPush(_lastPushData,v,_stagingVer)'));
+check('buildLastPushDropdown shows staging ver → prod ver in summary when both known',
+  rawScript.includes("rec.stagingVer&&rec.prodVer?' · v'+rec.stagingVer+' → v'+rec.prodVer"));
 check('pollProdVersion shows "Pages deploying..." when version unchanged',
   rawScript.includes('Pages deploying...'));
 check('pollProdVersion only marks success when version has changed (_prevProdVer check)',
@@ -1701,10 +1713,10 @@ console.log('\n── 48. Program wizard days/sets ─────────�
 
   check('wizard init includes setsPerMuscle:12',
     src.includes('setsPerMuscle:12'));
-  check('wizard step 2 has nDays stepper with min 1 max 7',
-    src.includes('Math.max(1,') && src.includes('Math.min(7,'));
-  check('wizard step 2 has setsPerMuscle stepper min 5 max 20',
-    src.includes('Math.max(5,') && src.includes('Math.min(20,'));
+  check('wizard step 2 days shown as 7 selectable cards (loop 1–7)',
+    src.includes('for(var _di=1;_di<=7;_di++)'));
+  check('wizard step 2 sets shown as presets: 9/15/21 odd days, 10/16/20 even days',
+    src.includes('[9,15,21]') && src.includes('[10,16,20]'));
   check('_progWizGenerate passes setsPerMuscle to _generateWorkoutProgram',
     src.includes('wiz.setsPerMuscle||12'));
   check('_generateWorkoutProgram accepts setsPerMuscle param',
@@ -1805,7 +1817,83 @@ console.log('\n── 48. Program wizard days/sets ─────────�
     } catch(e) {
       check('5-day circular check (caught)', false, String(e));
     }
+
+    // Test 7-day hypertrophy-upper produces 5+2 upper/lower split (not 3 pull days)
+    try {
+      function _mGrpU(nm){var n=(nm||'').toLowerCase();if(/leg|lower|squat|hip|lunge|calf|glute|quad|ham|rdl|deadlift/.test(n))return 'legs';if(/pull|row|lat|back|bicep|chin/.test(n))return 'pull';if(/push|bench|chest|press|tricep/.test(n))return 'push';if(/arm|delt|shoulder|lateral/.test(n))return 'arms';return 'other';}
+      const progHU7 = ctx._generateWorkoutProgram('hypertrophy','upper',7,'7-Day Upper',12);
+      check('7-day hypertrophy-upper generates 7 days', progHU7 && progHU7.days && progHU7.days.length === 7,
+        `got ${progHU7 && progHU7.days && progHU7.days.length} days`);
+      if(progHU7 && progHU7.days && progHU7.days.length === 7) {
+        const groups7 = progHU7.days.map(d => _mGrpU(d.name));
+        const legCount  = groups7.filter(g => g === 'legs').length;
+        const pullCount = groups7.filter(g => g === 'pull').length;
+        check('7-day hypertrophy-upper has exactly 2 leg days (5+2 split)',
+          legCount === 2, `got ${legCount} leg days: ${JSON.stringify(progHU7.days.map(d=>d.name))}`);
+        check('7-day hypertrophy-upper has ≤ 2 pull days (not 3)',
+          pullCount <= 2, `got ${pullCount} pull days`);
+        check('7-day hypertrophy-upper day 7 is a legs day',
+          _mGrpU(progHU7.days[6].name) === 'legs',
+          `day 7 = "${progHU7.days[6].name}" (${_mGrpU(progHU7.days[6].name)})`);
+      }
+    } catch(e) {
+      check('7-day hypertrophy-upper 5+2 split (caught)', false, String(e));
+    }
   }
+}
+
+// ── Section 48b: Rehab dropdowns, font sizes, cancel bug ─────────────────────
+{
+  const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'index.html'), 'utf8');
+
+  // Fix 1: rehab-add-orig and rehab-add-sub must be <select> not <input type="text">
+  check('rehab-add-orig is a <select> dropdown (not a text input)',
+    src.includes('id="rehab-add-orig"') &&
+    src.includes('<select id="rehab-add-orig"') &&
+    !src.includes('<input id="rehab-add-orig"'));
+  check('rehab-add-sub is a <select> dropdown (not a text input)',
+    src.includes('id="rehab-add-sub"') &&
+    src.includes('<select id="rehab-add-sub"') &&
+    !src.includes('<input id="rehab-add-sub"'));
+  check('rehab-add-orig select is populated with EX_OPTS_HTML',
+    src.includes('<select id="rehab-add-orig"') &&
+    (function(){var i=src.indexOf('<select id="rehab-add-orig"');return i>=0&&src.slice(i,i+400).includes('EX_OPTS_HTML');})());
+  check('rehab-add-sub select is populated with EX_OPTS_HTML',
+    src.includes('<select id="rehab-add-sub"') &&
+    (function(){var i=src.indexOf('<select id="rehab-add-sub"');return i>=0&&src.slice(i,i+400).includes('EX_OPTS_HTML');})());
+
+  // Fix 2: font sizes in rehab section must be ≥ 13px (20% increase from ≤12px originals)
+  const rehabStart = src.indexOf('🔧 Rehab Substitutions');
+  const rehabEnd   = src.indexOf('body.innerHTML=html;', rehabStart);
+  const rehabBlock = rehabStart >= 0 && rehabEnd > rehabStart ? src.slice(rehabStart, rehabEnd) : '';
+  const fontMatches = [...rehabBlock.matchAll(/font-size:(\d+)px/g)].map(m=>parseInt(m[1]));
+  check('rehab section has font-size declarations to verify',
+    fontMatches.length > 0, `found ${fontMatches.length} font-size declarations`);
+  check('all font-size values in rehab section are ≥ 12px (20% up from 10px min)',
+    fontMatches.every(sz => sz >= 12),
+    `found sizes: ${fontMatches.join(', ')}`);
+  check('no 10px or 11px font-size remains in rehab section',
+    !rehabBlock.match(/font-size:(10|11)px/),
+    'found small font sizes in rehab block');
+
+  // Fix 3: _progWizGenerate must NOT call savePrograms() — only _progIsNew and closeProgramOverlay path should
+  const genStart = src.indexOf('function _progWizGenerate()');
+  const genEnd   = genStart >= 0 ? src.indexOf('\n}', genStart) : -1;
+  const genBody  = genStart >= 0 && genEnd > genStart ? src.slice(genStart, genEnd) : '';
+  check('_progWizGenerate does NOT call savePrograms() (cancel bug fix)',
+    genBody.length > 0 && !genBody.includes('savePrograms()'),
+    `found savePrograms() in _progWizGenerate body: "${genBody.slice(0,200)}"`);
+  check('_progWizGenerate still pushes to _programs array',
+    genBody.includes('_programs.push(prog)'));
+  check('_progWizGenerate still sets _progIsNew=true',
+    genBody.includes('_progIsNew=true'));
+  check('closeProgramOverlay still calls savePrograms() after splice (cancel path cleans up)',
+    (function(){
+      var ci=src.indexOf('function closeProgramOverlay()');
+      var ce=ci>=0?src.indexOf('\n}',ci):-1;
+      var cb=ci>=0&&ce>ci?src.slice(ci,ce):'';
+      return cb.includes('savePrograms()');
+    })());
 }
 
 // ── Section 49: BF chart index-based x-spacing ───────────────────────────────
