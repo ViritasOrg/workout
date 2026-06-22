@@ -966,13 +966,21 @@ check('isPressEx: "Lateral Raise" → true [PR #41]',       G.isPressEx('Lateral
 check('isPressEx: "Cable Lateral Raise" → true [PR #41]', G.isPressEx('Cable Lateral Raise'));
 check('isPressEx: "Y-Raise" → true [PR #41]',             G.isPressEx('Y-Raise'));
 check('isPressEx: "Front Raise" → true [PR #41]',         G.isPressEx('Front Raise'));
-// Non-press/raise exercises must return false
+// Fly variants — DB button also shown for fly exercises
+check('isPressEx: "Rear Delt Fly" → true',  G.isPressEx('Rear Delt Fly'));
+check('isPressEx: "Cable Fly" → true',       G.isPressEx('Cable Fly'));
+check('isPressEx: "Pec Fly" → true',         G.isPressEx('Pec Fly'));
+// Curl variants — DB button also shown for curl exercises
+check('isPressEx: "Barbell Curl" → true',    G.isPressEx('Barbell Curl'));
+check('isPressEx: "EZ Bar Curl" → true',     G.isPressEx('EZ Bar Curl'));
+check('isPressEx: "Hammer Curl" → true',     G.isPressEx('Hammer Curl'));
+check('isPressEx: "Preacher Curl" → true',   G.isPressEx('Preacher Curl'));
+// Non-press/raise/fly/curl exercises must return false
 check('isPressEx: "Squat" → false',        !G.isPressEx('Squat'));
 check('isPressEx: "Deadlift" → false',     !G.isPressEx('Deadlift'));
 check('isPressEx: "Barbell Row" → false',  !G.isPressEx('Barbell Row'));
 check('isPressEx: "Upright Row" → false',  !G.isPressEx('Upright Row'));
 check('isPressEx: "Pull-ups" → false',     !G.isPressEx('Pull-ups'));
-check('isPressEx: "Barbell Curl" → false', !G.isPressEx('Barbell Curl'));
 check('isPressEx: "Face Pulls" → false',   !G.isPressEx('Face Pulls'));
 // Case-insensitive
 check('isPressEx: case-insensitive "lateral raise"', G.isPressEx('lateral raise'));
@@ -1974,10 +1982,10 @@ console.log('\n── 48. Program wizard days/sets ─────────�
   const ptStart = src.indexOf('function showProgressTab(');
   const ptEnd = ptStart >= 0 ? src.indexOf('function ', ptStart + 30) : -1;
   const ptBody = ptStart >= 0 && ptEnd > ptStart ? src.slice(ptStart, ptEnd) : '';
-  check("showProgressTab weight tab calls syncBodyCompFromAgent (fresh BF% data)",
-    ptBody.includes("name==='weight'") && ptBody.includes('syncBodyCompFromAgent()'));
-  check("showProgressTab weight tab calls syncWeightsFromAgent (fresh weight data)",
-    ptBody.includes("name==='weight'") && ptBody.includes('syncWeightsFromAgent()'));
+  check("showProgressTab overview tab calls syncBodyCompFromAgent (fresh BF% data)",
+    ptBody.includes("name==='overview'") && ptBody.includes('syncBodyCompFromAgent()'));
+  check("showProgressTab overview tab calls syncWeightsFromAgent (fresh weight data)",
+    ptBody.includes("name==='overview'") && ptBody.includes('syncWeightsFromAgent()'));
 }
 
 // ── Section 57: Storage inspector (IS_STAGING only) ──────────────────────────
@@ -2009,7 +2017,7 @@ console.log('\n── Storage inspector ─────────────�
   const ssEnd = ssStart >= 0 ? src.indexOf('async function ', ssStart + 30) : -1;
   const ssBody = ssStart >= 0 && ssEnd > ssStart ? src.slice(ssStart, ssEnd) : '';
   check('syncSettingsFromAgent re-draws BMI chart after fetching profile (timing fix)',
-    ssBody.includes('ppanel-weight') && ssBody.includes('drawBmiChart()'));
+    ssBody.includes('ppanel-overview') && ssBody.includes('drawBmiChart()'));
   check('syncSettingsFromAgent checks panel visibility before redraw',
     ssBody.includes("classList.contains('hidden')") && ssBody.includes('drawBmiChart()'));
 }
@@ -2079,6 +2087,80 @@ console.log('\n── Storage inspector ─────────────�
   check('core exercises in aesthetic pool carry rehab tag (remapped to volume at runtime for non-rehab goals)',
     fbBody.includes("'Dead Bug','3") && fbBody.includes(",'rehab'") &&
     fbBody.includes("'Bird Dog','3") && fbBody.includes("'Plank','3"));
+}
+
+// ── Section 62: prefillLog — WPU, reps, scheme label ─────────────────────────
+console.log('\n── prefillLog — WPU / reps / scheme label ────────────────────');
+{
+  const src = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  const fn = G.prefillLog.toString();
+
+  // 62a. WPU detector: _isWPU excludes WPU from isBodyweight
+  check('prefillLog: _isWPU detector present',
+    fn.includes('_isWPU') && fn.includes("weighted\\s*(pull|chin)"));
+  check('prefillLog: isBodyweight excludes WPU (_isWPU gate)',
+    fn.includes('ex.kg===0&&!_isWPU'));
+
+  // 62b. Reps inputs are always empty (never pre-filled from template)
+  check('prefillLog: repsVal is always empty string',
+    fn.includes("repsVal=''") && !fn.includes("repsVal=r==='max'"));
+
+  // 62c. Scheme label uses accent colour, larger font, no weight
+  check('prefillLog: scheme label uses font-size:13px',
+    fn.includes('font-size:13px'));
+  check('prefillLog: scheme label uses var(--accent)',
+    fn.includes('color:var(--accent)') && fn.includes("margin-top:2px"));
+  check('prefillLog: scheme label shows sets only (no weight)',
+    fn.includes(">\'+ex.sets+\'</div>") && !fn.includes("ex.sets+' '+(lastKg?lastKg+'kg'"));
+  check('prefillLog: exercise name is heading above scheme label (not same line)',
+    fn.includes('margin-bottom:10px') && fn.includes("margin-top:2px"));
+  // Regression: must NOT still use the old muted/11px combo for the scheme label
+  check('prefillLog: scheme label no longer uses font-size:11px+var(--muted) combo',
+    !fn.includes('font-size:11px;color:var(--muted)'));
+
+  // 62d. WPU uses saved/history added weight, not bodyweight
+  // Simulate environment: set weights (bodyweight = 90) and logs with WPU
+  {
+    const _savedW62  = G.weights;
+    const _savedL62  = G.logs;
+    const _savedP62  = G._activeProgramIndex;
+    const _savedProg62 = G._programs ? [...G._programs] : [];
+
+    G.weights = [{ date: '2020-01-01', weight: 90 }];
+    // A log where WPU was done with 15 added kg
+    G.logs = [{
+      date: '2020-01-15',
+      exercises: [{ name: 'Weighted Pull-ups', sets: [
+        { kg: 15, reps: 6 }, { kg: 15, reps: 6 }
+      ]}]
+    }];
+
+    // getBestKgFromLogs must return 15 (not 90)
+    check('prefillLog WPU: getBestKgFromLogs returns added weight (15), not bodyweight (90)',
+      G.getBestKgFromLogs('Weighted Pull-ups') === 15,
+      `got ${G.getBestKgFromLogs('Weighted Pull-ups')}`);
+
+    // getBestKgFromLogs for regular pull-ups (kg=0) should return null
+    G.logs = [{
+      date: '2020-01-15',
+      exercises: [{ name: 'Pull-ups', sets: [{ kg: 0, reps: 8 }] }]
+    }];
+    check('prefillLog: regular Pull-ups with kg=0 → getBestKgFromLogs returns null',
+      G.getBestKgFromLogs('Pull-ups') === null);
+
+    G.weights = _savedW62;
+    G.logs    = _savedL62;
+    G._activeProgramIndex = _savedP62;
+  }
+
+  // 62e. Verify WPU is NOT flagged as bodyweight exercise in code path
+  check('prefillLog: isBodyweight check includes !_isWPU exclusion',
+    fn.match(/isBodyweight\s*=\s*ex\.kg===0\s*&&\s*!_isWPU/) !== null ||
+    fn.includes('ex.kg===0&&!_isWPU'));
+
+  // 62f. Regular bodyweight exercises (Pull-ups without "Weighted") still use bodyweight default
+  check('prefillLog: non-WPU bodyweight exercise still hits bwDefault path',
+    fn.includes('isBodyweight?bwDefault'));
 }
 
 // ── Summary ───────────────────────────────────────────────────────────────────
