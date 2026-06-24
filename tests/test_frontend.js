@@ -2306,6 +2306,83 @@ console.log('\n── No standalone Arms day in program pools ──────
   }
 }
 
+// ── propagateWeight — forward-only weight propagation ─────────────────────────
+console.log('\n── propagateWeight — forward-only propagation ──────────────');
+check('propagateWeight defined', typeof G.propagateWeight === 'function');
+
+{
+  // Helper: build a fake kg input with dataset attributes
+  const mkKg = (ex, set, val) => ({ dataset: { ex: String(ex), set: String(set), type: 'kg' }, value: String(val) });
+
+  // Override getElementById for 'structured-log' to return a custom container
+  const _savedGetEl = sandbox.document.getElementById.bind(sandbox.document);
+  const withContainer = (inputs, fn) => {
+    sandbox.document.getElementById = (id) => {
+      if (id === 'structured-log') {
+        return {
+          querySelectorAll: (sel) => {
+            const m = sel.match(/data-ex="(\d+)"/);
+            return m ? inputs.filter(i => i.dataset.ex === m[1]) : [];
+          }
+        };
+      }
+      return _savedGetEl(id);
+    };
+    fn();
+    sandbox.document.getElementById = _savedGetEl;
+  };
+
+  // ── Core regression: 36kg across 4 sets, user changes set 2 to 43kg ──
+  // Expected: sets 0 and 1 stay 36, set 3 becomes 43 (forward-only)
+  const inp4 = [mkKg(0,0,'36'), mkKg(0,1,'36'), mkKg(0,2,'36'), mkKg(0,3,'36')];
+  inp4[2].value = '43';
+  withContainer(inp4, () => G.propagateWeight(inp4[2]));
+  check('regression: set 0 unchanged when set 2 changed to 43kg', inp4[0].value === '36', `got ${inp4[0].value}`);
+  check('regression: set 1 unchanged when set 2 changed to 43kg', inp4[1].value === '36', `got ${inp4[1].value}`);
+  check('regression: set 2 keeps its new value (43kg)',           inp4[2].value === '43', `got ${inp4[2].value}`);
+  check('regression: set 3 updated to 43kg (forward propagation)', inp4[3].value === '43', `got ${inp4[3].value}`);
+
+  // ── Changing set 0 propagates to ALL subsequent sets ──
+  const inp3 = [mkKg(0,0,'80'), mkKg(0,1,'80'), mkKg(0,2,'80')];
+  inp3[0].value = '100';
+  withContainer(inp3, () => G.propagateWeight(inp3[0]));
+  check('set 0 → 100kg propagates to set 1', inp3[1].value === '100', `got ${inp3[1].value}`);
+  check('set 0 → 100kg propagates to set 2', inp3[2].value === '100', `got ${inp3[2].value}`);
+
+  // ── Changing last set does NOT affect any previous set ──
+  const inp3b = [mkKg(0,0,'60'), mkKg(0,1,'60'), mkKg(0,2,'60')];
+  inp3b[2].value = '80';
+  withContainer(inp3b, () => G.propagateWeight(inp3b[2]));
+  check('changing last set: set 0 untouched', inp3b[0].value === '60', `got ${inp3b[0].value}`);
+  check('changing last set: set 1 untouched', inp3b[1].value === '60', `got ${inp3b[1].value}`);
+
+  // ── Changing middle set (1 of 3) only updates set 2 ──
+  const inp3c = [mkKg(0,0,'50'), mkKg(0,1,'50'), mkKg(0,2,'50')];
+  inp3c[1].value = '70';
+  withContainer(inp3c, () => G.propagateWeight(inp3c[1]));
+  check('changing set 1: set 0 untouched',            inp3c[0].value === '50', `got ${inp3c[0].value}`);
+  check('changing set 1: set 2 updated to 70 (forward)', inp3c[2].value === '70', `got ${inp3c[2].value}`);
+
+  // ── Single set — no propagation, no error ──
+  const inp1 = [mkKg(0,0,'90')];
+  inp1[0].value = '95';
+  let singleThrew = false;
+  try { withContainer(inp1, () => G.propagateWeight(inp1[0])); }
+  catch(e) { singleThrew = true; }
+  check('single-set exercise: propagateWeight does not throw', !singleThrew);
+  check('single-set exercise: set 0 keeps its value',          inp1[0].value === '95', `got ${inp1[0].value}`);
+
+  // ── Different exercises are isolated (data-ex scoping) ──
+  const inpEx0 = [mkKg(0,0,'60'), mkKg(0,1,'60')];
+  const inpEx1 = [mkKg(1,0,'80'), mkKg(1,1,'80')];
+  const allInputs = [...inpEx0, ...inpEx1];
+  inpEx0[0].value = '90';
+  withContainer(allInputs, () => G.propagateWeight(inpEx0[0]));
+  check('ex isolation: changing ex0 propagates within ex0', inpEx0[1].value === '90', `got ${inpEx0[1].value}`);
+  check('ex isolation: changing ex0 does NOT touch ex1 set 0', inpEx1[0].value === '80', `got ${inpEx1[0].value}`);
+  check('ex isolation: changing ex0 does NOT touch ex1 set 1', inpEx1[1].value === '80', `got ${inpEx1[1].value}`);
+}
+
 // ── Summary ───────────────────────────────────────────────────────────────────
 console.log(`\n${'─'.repeat(59)}`);
 console.log(`  ${passed} passed  ${failed} failed  ${passed + failed} total`);
