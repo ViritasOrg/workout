@@ -4,7 +4,7 @@
 This repo (`workout`) is **PRODUCTION**. Claude may read, inspect, and
 diagnose anything here freely (view files, check workflow runs, look at commit
 history, etc.) but must **NEVER** create branches, commit, push, open PRs, or
-merge into this repo on its own initiative — not even for “obvious” fixes,
+merge into this repo on its own initiative — not even for "obvious" fixes,
 hotfixes, or anything CI-related.
 
 The **only** repo Claude may freely make changes to in this app pair is
@@ -15,14 +15,25 @@ Changes only reach this repo via:
    a change directly to prod.** Authorization does not carry over to future
    turns or sessions — ask again next time.
 2. **A staging → prod promotion mechanism**, if/when one exists for this repo
-   (mirroring `peptidetracker-staging`’s “Push to Prod” button + promotion
+   (mirroring `peptidetracker-staging`'s "Push to Prod" button + promotion
    workflow). Even then, Claude must still **never merge the resulting PR**
-   without Henrik’s explicit go-ahead in the moment.
+   without Henrik's explicit go-ahead in the moment.
 
 This rule exists because on 2026-06-16 Claude bypassed the agreed workflow on
-the peptidetracker prod repo by directly hand-editing prod’s `index.html`
+the peptidetracker prod repo by directly hand-editing prod's `index.html`
 locally instead of working through staging. The same rule now applies here
 proactively. Never repeat that.
+
+## ⚠️ UI CONSISTENCY — ALL COMPOUND TIERS MUST BE IDENTICAL ⚠️
+Every compound tier (Peptides, TRT, Enhanced) must have **exactly the same UI features**. If one tier shows dose recommendations, all tiers must show dose recommendations. If one shows an info card, all must. If you add a UI element to one tier, immediately add it to all others in the same session.
+
+**Non-negotiable parity rules:**
+- Dose guidance shown in BOTH the add-compound modal AND the edit/configure view for every tier
+- Unit dropdowns must include all units used by any compound in that tier (e.g. `IU/day`, `IU/week` for GH Axis; `mg/week`, `mg/day`, `mg/EOD` for androgens)
+- Info cards (mechanism, side effects) shown consistently across all compound tiers
+- No tier may have a feature that another tier is silently missing
+
+When a new compound tier feature is added, check all other tiers before closing the PR.
 
 ## ⚠️ AUTH WARNING — READ BEFORE TOUCHING ANY AUTH CODE ⚠️
 **PIN/passcode auth has been PERMANENTLY REMOVED.** Google Sign-In is the ONLY
@@ -30,8 +41,8 @@ end-user authentication method across this entire ecosystem (peptidetracker,
 peptidetracker-staging, workout, workout-staging, claude-agent-backend). The
 whitelist currently contains ONLY `henrik.schaub@gmail.com`. **NEVER
 reintroduce a PIN, passcode, shared-secret, or any non-Google login for end
-users** — not even as a “fallback” or “legacy” path. The only other credential
-in the system is `x-api-secret`, used exclusively by Claude’s own backend
+users** — not even as a "fallback" or "legacy" path. The only other credential
+in the system is `x-api-secret`, used exclusively by Claude's own backend
 tooling, never by end-user-facing apps.
 
 ## Deployment
@@ -95,13 +106,13 @@ Whenever working on either app, check if a feature exists in the other and **pro
 
 ### Known gaps — Workout is MISSING these Peptide Tracker features
 - **Configurable tabs** — Peptide has per-tab ON/OFF toggles in Settings (stored in localStorage). Workout does not.
-- **Update checker in Settings** — Peptide shows a “check for updates” / new-version banner. Workout has a version check button in Settings; keep them consistent if either changes.
+- **Update checker in Settings** — Peptide shows a "check for updates" / new-version banner. Workout has a version check button in Settings; keep them consistent if either changes.
 
 ### Known gaps — Peptide Tracker is MISSING these Workout features
 - *(document here as discovered)*
 
 ### Rule
-If you add a settings feature, UX polish, or structural improvement to one app, immediately note “the other app doesn’t have this yet — want me to add it?” at the end of your reply.
+If you add a settings feature, UX polish, or structural improvement to one app, immediately note "the other app doesn't have this yet — want me to add it?" at the end of your reply.
 
 ## Volume chart smoothing
 5-session index-based window (= 5 training days per muscle group). Do not change to calendar-based.
