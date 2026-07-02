@@ -1711,7 +1711,7 @@ console.log('\n── 47b. BF% pre-isolation migration ────────�
   check('migration flag wk-bf-isol-v1 stored to prevent re-run',
     src.includes("localStorage.setItem('wk-bf-isol-v1','1')"));
   check('migration placed in startup sequence (not inside onGoogleSignIn)',
-    src.includes("syncBodyCompFromAgent();(function(){if(!IS_STAGING||localStorage.getItem('wk-bf-isol-v1'))"));
+    src.includes("syncBodyCompFromAgent();syncWorkoutDraftFromAgent();(function(){if(!IS_STAGING||localStorage.getItem('wk-bf-isol-v1'))"));
 }
 
 // ── 47c. BF_SEED baseline entries ────────────────────────────────────────────
