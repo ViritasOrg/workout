@@ -80,7 +80,12 @@ This is the single most common way the rule above gets bypassed — through inte
 - Monitor live version: `https://henrikschaub.github.io/workout/version.json`
 
 ## User environment
-- **Henrik uses Chrome on mobile, never Safari** — when troubleshooting caching/reload issues, give Chrome instructions (3-dot menu → More tools → Hard Reload, or chrome://settings/clearBrowserData)
+- **Henrik runs these apps as installed PWAs on iOS** (added to the home screen, launched
+  standalone — not in a browser tab). Do **NOT** give browser "hard reload" or clear-cache
+  instructions (Chrome 3-dot menu → More tools → Hard Reload, `chrome://settings/clearBrowserData`,
+  etc.) — they do **not** apply to a standalone PWA and are wrong for his setup. To pick up a new
+  version, rely on the app's in-app update checker, or tell him to fully close (swipe away) and
+  reopen the app. Never assume a desktop/Chrome browser context.
 
 ## Pushing large files (index.html is ~87KB)
 The GitHub MCP `push_files` tool handles raw content fine. If it fails due to size,
