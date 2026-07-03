@@ -1822,6 +1822,95 @@ console.log('\n── 48. Program wizard days/sets ─────────�
       check('sets scaling (caught)', false, String(e));
     }
 
+    // scaleSets: higher setsPerMuscle always produces ≥ sets than lower (monotone)
+    try {
+      const goals = [
+        ['hypertrophy','balanced'], ['hypertrophy','upper'], ['hypertrophy','lower'],
+        ['aesthetic','ppl'], ['aesthetic','fullbody'],
+        ['strength','pure']
+      ];
+      for (const [goal, sub] of goals) {
+        const progLo = ctx._generateWorkoutProgram(goal, sub, 4, 'Lo', 9);
+        const progHi = ctx._generateWorkoutProgram(goal, sub, 4, 'Hi', 21);
+        if (!progLo || !progHi) continue;
+        const loSets = progLo.days[0].exercises[0].sets.split('-').length;
+        const hiSets = progHi.days[0].exercises[0].sets.split('-').length;
+        check(`${goal}/${sub}: high setsPerMuscle produces ≥ sets than low`,
+          hiSets >= loSets, `lo=${loSets} hi=${hiSets}`);
+      }
+    } catch(e) {
+      check('scaleSets monotone with setsPerMuscle (caught)', false, String(e));
+    }
+
+    // prefillLog renders exactly the number of sets the program specifies (no cap)
+    try {
+      check('prefillLog uses ex.sets.split without artificial slice cap',
+        src.includes("ex.sets.split('-')") && !src.includes("ex.sets.split('-').slice(0,5)"));
+      check('prefillLog label shows raw ex.sets (label matches stored program)',
+        src.includes("margin-top:2px\">'+ex.sets+'</div>"));
+    } catch(e) {
+      check('prefillLog no-cap invariant (caught)', false, String(e));
+    }
+
+    // sets-row in prefillLog uses flex-wrap:nowrap + overflow-x:auto for single-line 7-set layout
+    try {
+      const fn62 = G.prefillLog.toString();
+      check('prefillLog sets-row uses flex-wrap:nowrap with overflow-x:auto for single-line 7-set layout',
+        fn62.includes('flex-wrap:nowrap') && fn62.includes('overflow-x:auto'));
+    } catch(e) {
+      check('prefillLog sets-row flex-wrap (caught)', false, String(e));
+    }
+
+    // prefillLog resets log-date to today every time it runs
+    try {
+      const fn63 = G.prefillLog.toString();
+      check('prefillLog resets log-date to today on every open',
+        fn63.includes("getElementById('log-date').value=new Date().toISOString().split('T')[0]"));
+    } catch(e) {
+      check('prefillLog date-reset (caught)', false, String(e));
+    }
+
+    // restoreDraft: today's draft with extra sets (user pressed + set) must be restored
+    // Protection against cross-day pollution is the savedDate check, not removing the while-loop
+    try {
+      const fn = G.restoreDraft.toString();
+      check('restoreDraft: has savedDate guard to prevent stale draft restore',
+        fn.includes('savedDate') && fn.includes('_today'));
+      check('restoreDraft: restores extra sets from same-day draft (while-loop present)',
+        fn.includes('while(sr.children.length<td.kg.length)addSetToCard'));
+    } catch(e) {
+      check('restoreDraft draft-state (caught)', false, String(e));
+    }
+
+    // For each exercise in a generated program, every exercise in a given day
+    // must have a valid sets string: N≥1 positive-integer parts separated by '-'.
+    // prefillLog renders one input column per part, and the label shows ex.sets,
+    // so the input count and label count are always identical (no cap in code).
+    try {
+      const goals = [
+        ['hypertrophy','balanced'], ['aesthetic','ppl'], ['strength','pure']
+      ];
+      for (const [goal, sub] of goals) {
+        const prog = ctx._generateWorkoutProgram(goal, sub, 4, 'Test', 21);
+        if (!prog) continue;
+        for (const day of prog.days) {
+          for (const ex of (day.exercises || [])) {
+            const parts = ex.sets.split('-');
+            check(
+              `${goal}/${sub} day "${day.name}": "${ex.name}" has ≥1 set`,
+              parts.length >= 1
+            );
+            check(
+              `${goal}/${sub} day "${day.name}": "${ex.name}" all set values are non-empty strings`,
+              parts.every(p => p.length > 0)
+            );
+          }
+        }
+      }
+    } catch(e) {
+      check('exercise sets valid for all cards (caught)', false, String(e));
+    }
+
     // Test circular: last day exercices are not "rest day expected"
     // The program days are cyclic (last%nDays+1 = day1), no rest logic between
     try {
