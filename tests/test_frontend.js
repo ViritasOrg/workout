@@ -539,14 +539,14 @@ check('buildSessionGroupStrength: picks best est1rm across sets',
 check('buildSessionGroupStrength: session has date field',
   strLegs.length > 0 && strLegs[0].date === '2020-01-15');
 
-// Caps reps at 15 in 1RM formula
+// Caps reps at 10 in 1RM formula (Epley validated ≤10 reps; higher reps overestimate)
 G.logs = [{
   date: '2020-01-15',
   exercises: [{ name: 'Squat', sets: [{ kg: 100, reps: 30 }] }]
 }];
 const strHighReps = G.buildSessionGroupStrength('legs', 10000);
-const expectedHighReps = 100 * (1 + 15 / 30) * 1;  // min(30,15)=15
-check('buildSessionGroupStrength: reps capped at 15 in formula',
+const expectedHighReps = 100 * (1 + 10 / 30) * 1;  // min(30,10)=10
+check('buildSessionGroupStrength: reps capped at 10 in formula',
   strHighReps.length > 0 && Math.abs(strHighReps[0].est1rm - expectedHighReps) < 0.01,
   `got ${strHighReps[0]?.est1rm}, expected ${expectedHighReps}`);
 
@@ -650,8 +650,8 @@ G.logs = [{
   exercises: [{ name: 'Face Pull', gear: 0.5, sets: [{ kg: 40, reps: 12 }] }]
 }];
 const _sGearHalf = G.buildSessionGroupStrength('shoulders', 10000);
-// est = 40 * 0.5 * (1 + min(12,15)/30) * 0.55
-const _expectedSGearHalf = 40 * 0.5 * (1 + Math.min(12, 15) / 30) * 0.55;
+// est = 40 * 0.5 * (1 + min(12,10)/30) * 0.55
+const _expectedSGearHalf = 40 * 0.5 * (1 + Math.min(12, 10) / 30) * 0.55;
 check('gear=0.5 halves est1RM (Face Pull 40kg×12 shoulders)',
   _sGearHalf.length > 0 && Math.abs(_sGearHalf[0].est1rm - _expectedSGearHalf) < 0.01,
   `got ${_sGearHalf[0]?.est1rm}, expected ${_expectedSGearHalf}`);
@@ -662,7 +662,7 @@ G.logs = [{
   exercises: [{ name: 'Face Pull', gear: 1.0, sets: [{ kg: 40, reps: 12 }] }]
 }];
 const _sGearFull = G.buildSessionGroupStrength('shoulders', 10000);
-const _expectedSGearFull = 40 * 1.0 * (1 + Math.min(12, 15) / 30) * 0.55;
+const _expectedSGearFull = 40 * 1.0 * (1 + Math.min(12, 10) / 30) * 0.55;
 check('gear=1.0 keeps full est1RM (Face Pull 40kg×12 shoulders)',
   _sGearFull.length > 0 && Math.abs(_sGearFull[0].est1rm - _expectedSGearFull) < 0.01,
   `got ${_sGearFull[0]?.est1rm}, expected ${_expectedSGearFull}`);
@@ -1016,34 +1016,75 @@ check('toggleDb defined', typeof G.toggleDb === 'function');
   check('toggleDb: no exName param → fallback to btn.dataset.exn', G.localStorage.getItem('wk-db-Front Raise') !== null);
 }
 
-// ── 28. toggleGear ────────────────────────────────────────────────────────────
-console.log('\n── toggleGear ──────────────────────────────────────────────');
-check('toggleGear defined', typeof G.toggleGear === 'function');
+// ── 28. toggleGear / toggleGear2 (½ / 1× / 2× cable) ─────────────────────────
+console.log('\n── toggleGear / toggleGear2 ────────────────────────────────');
+check('toggleGear defined',  typeof G.toggleGear  === 'function');
+check('toggleGear2 defined', typeof G.toggleGear2 === 'function');
+function mkGearCard(exn) {
+  const b1 = { dataset: { gear: '1',  exn }, textContent: '1× cable', style: {} };
+  const b2 = { dataset: { gear2: '1', exn }, textContent: '2× cable', style: {} };
+  const card = { dataset: {}, style: {},
+    querySelector: (sel) => sel === '[data-gear]' ? b1 : (sel === '[data-gear2]' ? b2 : null) };
+  b1.closest = () => card; b2.closest = () => card;
+  return { card, b1, b2 };
+}
 {
-  // Activate: gear=1 → gear=0.5
-  const _card = { dataset: {}, style: {} };
-  const _btn = { dataset: { gear: '1', exn: 'Cable Row' }, textContent: '1× cable',
-                  style: { background: '', color: '' }, closest: () => _card };
-  G.toggleGear(_btn, 'Cable Row');
-  check('toggleGear activate: btn.dataset.gear = 0.5',         parseFloat(_btn.dataset.gear) === 0.5,       `got ${_btn.dataset.gear}`);
-  check('toggleGear activate: btn.textContent = "½ cable"',    _btn.textContent === '½ cable',              `got "${_btn.textContent}"`);
-  check('toggleGear activate: card.dataset.gear = 0.5',        parseFloat(_card.dataset.gear) === 0.5,      `got ${_card.dataset.gear}`);
+  // ½ cable: gear=1 → 0.5 → 1
+  const { card, b1, b2 } = mkGearCard('Cable Row');
+  G.toggleGear(b1, 'Cable Row');
+  check('toggleGear activate: card.dataset.gear = 0.5',        parseFloat(card.dataset.gear) === 0.5,      `got ${card.dataset.gear}`);
+  check('toggleGear activate: btn.textContent = "½ cable"',    b1.textContent === '½ cable',               `got "${b1.textContent}"`);
   check('toggleGear activate: localStorage persisted = 0.5',   parseFloat(G.localStorage.getItem('wk-gear-Cable Row')) === 0.5);
-  check('toggleGear activate: btn.style.color = "#000"',       _btn.style.color === '#000',                 `got "${_btn.style.color}"`);
-
-  // Deactivate: gear=0.5 → gear=1
-  G.toggleGear(_btn, 'Cable Row');
-  check('toggleGear deactivate: btn.dataset.gear = 1',         parseFloat(_btn.dataset.gear) === 1,         `got ${_btn.dataset.gear}`);
-  check('toggleGear deactivate: btn.textContent = "1× cable"', _btn.textContent === '1× cable',             `got "${_btn.textContent}"`);
-  check('toggleGear deactivate: card.dataset.gear = 1',        parseFloat(_card.dataset.gear) === 1,        `got ${_card.dataset.gear}`);
+  check('toggleGear activate: btn.style.color = "#000"',       b1.style.color === '#000',                  `got "${b1.style.color}"`);
+  check('toggleGear activate: 2× button NOT highlighted',      b2.style.background !== 'var(--accent)');
+  G.toggleGear(b1, 'Cable Row');
+  check('toggleGear deactivate: card.dataset.gear = 1',        parseFloat(card.dataset.gear) === 1,        `got ${card.dataset.gear}`);
+  check('toggleGear deactivate: btn.textContent = "1× cable"', b1.textContent === '1× cable',              `got "${b1.textContent}"`);
   check('toggleGear deactivate: localStorage persisted = 1',   parseFloat(G.localStorage.getItem('wk-gear-Cable Row')) === 1);
 }
 {
+  // 2× cable: gear=1 → 2 → 1
+  const { card, b1, b2 } = mkGearCard('Cable Fly');
+  G.toggleGear2(b2, 'Cable Fly');
+  check('toggleGear2 activate: card.dataset.gear = 2',         parseFloat(card.dataset.gear) === 2,        `got ${card.dataset.gear}`);
+  check('toggleGear2 activate: 2× button highlighted',         b2.style.background === 'var(--accent)',    `got "${b2.style.background}"`);
+  check('toggleGear2 activate: ½ button label back to 1×',     b1.textContent === '1× cable',              `got "${b1.textContent}"`);
+  check('toggleGear2 activate: localStorage persisted = 2',    parseFloat(G.localStorage.getItem('wk-gear-Cable Fly')) === 2);
+  G.toggleGear2(b2, 'Cable Fly');
+  check('toggleGear2 deactivate: card.dataset.gear = 1',       parseFloat(card.dataset.gear) === 1,        `got ${card.dataset.gear}`);
+  check('toggleGear2 deactivate: localStorage persisted = 1',  parseFloat(G.localStorage.getItem('wk-gear-Cable Fly')) === 1);
+}
+{
+  // Mutual exclusion: from 2× state, tapping ½ goes straight to 0.5
+  const { card, b1, b2 } = mkGearCard('Tricep Pushdown');
+  G.toggleGear2(b2, 'Tricep Pushdown');
+  G.toggleGear(b1, 'Tricep Pushdown');
+  check('½ after 2×: card.dataset.gear = 0.5',                 parseFloat(card.dataset.gear) === 0.5,      `got ${card.dataset.gear}`);
+  check('½ after 2×: 2× button un-highlighted',                b2.style.background !== 'var(--accent)');
+  G.toggleGear(b1, 'Tricep Pushdown');
+}
+{
   // Fallback to btn.dataset.exn when exName not provided
-  const _card2 = { dataset: {}, style: {} };
-  const _btn2 = { dataset: { gear: '1', exn: 'Lat Pulldown' }, textContent: '1× cable', style: {}, closest: () => _card2 };
-  G.toggleGear(_btn2);
+  const { b1 } = mkGearCard('Lat Pulldown');
+  G.toggleGear(b1);
   check('toggleGear: no exName param → fallback to btn.dataset.exn', G.localStorage.getItem('wk-gear-Lat Pulldown') !== null);
+}
+
+// ── 28b. _gearBtnsHtml ────────────────────────────────────────────────────────
+console.log('\n── _gearBtnsHtml ───────────────────────────────────────────');
+check('_gearBtnsHtml defined', typeof G._gearBtnsHtml === 'function');
+{
+  const hFly = G._gearBtnsHtml('Cable Fly', 1, 1);
+  check('Cable Fly: has ½/1× cable button',   hFly.includes('data-gear=') && hFly.includes('1× cable'));
+  check('Cable Fly: has 2× cable button',     hFly.includes('data-gear2=') && hFly.includes('2× cable'));
+  check('Cable Fly: 2× button wired to toggleGear2', hFly.includes('toggleGear2(this'));
+  const hRow = G._gearBtnsHtml('Cable Row', 2, 1);
+  check('Cable Row: has 2× cable button',     hRow.includes('2× cable'));
+  check('Cable Row: no DB button',            !hRow.includes('>DB<'));
+  const hBench = G._gearBtnsHtml('Bench Press', 1, 1);
+  check('Bench Press: no cable buttons',      !hBench.includes('cable'));
+  check('Bench Press: has DB button',         hBench.includes('>DB<'));
+  check('Squat: no buttons at all',           G._gearBtnsHtml('Squat', 1, 1) === '');
 }
 
 // ── 29. getBestKgFromLogs ─────────────────────────────────────────────────────
@@ -2296,7 +2337,7 @@ console.log('\n── prefillLog — WPU / reps / scheme label ─────�
   check('prefillLog: _isWPU detector present',
     fn.includes('_isWPU') && fn.includes("weighted\\s*(pull|chin)"));
   check('prefillLog: isBodyweight excludes WPU (_isWPU gate)',
-    fn.includes('ex.kg===0&&!_isWPU'));
+    fn.includes('(ex.kg===0||isBWExName(ex._rehabOrig||ex.name))&&!_isWPU'));
 
   // 62b. Reps inputs are always empty (never pre-filled from template)
   check('prefillLog: repsVal is always empty string',
@@ -2352,8 +2393,7 @@ console.log('\n── prefillLog — WPU / reps / scheme label ─────�
 
   // 62e. Verify WPU is NOT flagged as bodyweight exercise in code path
   check('prefillLog: isBodyweight check includes !_isWPU exclusion',
-    fn.match(/isBodyweight\s*=\s*ex\.kg===0\s*&&\s*!_isWPU/) !== null ||
-    fn.includes('ex.kg===0&&!_isWPU'));
+    fn.includes('&&!_isWPU'));
 
   // 62f. Regular bodyweight exercises (Pull-ups without "Weighted") still use bodyweight default
   check('prefillLog: non-WPU bodyweight exercise still hits bwDefault path',
@@ -2499,6 +2539,119 @@ check('propagateWeight defined', typeof G.propagateWeight === 'function');
   check('ex isolation: changing ex0 propagates within ex0', inpEx0[1].value === '90', `got ${inpEx0[1].value}`);
   check('ex isolation: changing ex0 does NOT touch ex1 set 0', inpEx1[0].value === '80', `got ${inpEx1[0].value}`);
   check('ex isolation: changing ex0 does NOT touch ex1 set 1', inpEx1[1].value === '80', `got ${inpEx1[1].value}`);
+}
+
+// ── parseDec (decimal comma AND dot support) ─────────────────────────────────
+console.log('\n── parseDec ────────────────────────────────────────────────');
+check('parseDec defined',            typeof G.parseDec === 'function');
+check('parseDec("82,5") → 82.5',     G.parseDec('82,5') === 82.5,  `got ${G.parseDec('82,5')}`);
+check('parseDec("82.5") → 82.5',     G.parseDec('82.5') === 82.5,  `got ${G.parseDec('82.5')}`);
+check('parseDec(" 90 ") → 90',       G.parseDec(' 90 ') === 90);
+check('parseDec("") → NaN',          Number.isNaN(G.parseDec('')));
+check('parseDec(null) → NaN',        Number.isNaN(G.parseDec(null)));
+check('parseDec(5) → 5 (number passthrough)', G.parseDec(5) === 5);
+check('parseDec("0,25") → 0.25',     G.parseDec('0,25') === 0.25);
+check('kg inputs use inputmode="decimal"', (rawScript.match(/inputmode="decimal"/g) || []).length >= 4);
+check('saveLog parses kg with parseDec',   rawScript.includes('parseDec(kgInputs[i]'));
+check('saveWeight parses with parseDec',   rawScript.includes("parseDec(document.getElementById('weight-input')"));
+check('saveBf parses with parseDec',       rawScript.includes("parseDec(document.getElementById('bf-input')"));
+
+// ── ewmaSmooth (strength trend smoothing) ────────────────────────────────────
+console.log('\n── ewmaSmooth ──────────────────────────────────────────────');
+check('ewmaSmooth defined',          typeof G.ewmaSmooth === 'function');
+check('empty → []',                  G.ewmaSmooth([], [], 14).length === 0);
+check('single value → itself',       G.ewmaSmooth(['2026-07-01'], [100], 14)[0] === 100);
+{
+  const flat = G.ewmaSmooth(['2026-07-01','2026-07-03','2026-07-05'], [100,100,100], 14);
+  check('constant series stays constant', flat.every(v => v === 100));
+  // A one-off bad session must NOT tank the trend: 100 → 50 one day later moves < 10%
+  const drop = G.ewmaSmooth(['2026-07-01','2026-07-02'], [100,50], 14);
+  check('1-day 50% drop damped to <10% move', drop[1] > 90, `got ${drop[1]}`);
+  // A long gap weighs the new value more (time-aware)
+  const gap = G.ewmaSmooth(['2026-06-01','2026-07-01'], [100,50], 14);
+  check('30-day gap moves further toward new value', gap[1] < drop[1], `got ${gap[1]} vs ${drop[1]}`);
+  // Growth is smoothed symmetrically
+  const up = G.ewmaSmooth(['2026-07-01','2026-07-02'], [100,150], 14);
+  check('1-day 50% jump also damped', up[1] < 110, `got ${up[1]}`);
+}
+check('session strength chart uses ewmaSmooth', rawScript.includes('const smoothed=ewmaSmooth('));
+check('weekly strength trend uses ewmaSmooth',  rawScript.includes('const roll3=ewmaSmooth('));
+
+// ── isBWExName (bodyweight exercise detection) ───────────────────────────────
+console.log('\n── isBWExName ──────────────────────────────────────────────');
+check('isBWExName defined',              typeof G.isBWExName === 'function');
+check('"Push-ups" → true',               G.isBWExName('Push-ups'));
+check('"Pull-ups" → true',               G.isBWExName('Pull-ups'));
+check('"Chin-ups" → true',               G.isBWExName('Chin-ups'));
+check('"Dips" → true',                   G.isBWExName('Dips'));
+check('"Weighted Pull-ups" → false',     !G.isBWExName('Weighted Pull-ups'));
+check('"Tricep Pushdown" → false',       !G.isBWExName('Tricep Pushdown'));
+check('"Bench Press" → false',           !G.isBWExName('Bench Press'));
+check('syncWeightsFromAgent refreshes BW prefill', rawScript.includes('_refreshBWPrefill();}catch(e){}'));
+
+// ── Leg-day rules: Squat first, Deadlift (1×5-8) last ────────────────────────
+console.log('\n── Leg-day rules in generated programs ─────────────────────');
+{
+  const goalSubs = [['hypertrophy','upper',7],['hypertrophy','upper',6],['hypertrophy','upper',5],
+                    ['hypertrophy','balanced',6],['hypertrophy','lower',5],['hypertrophy','lower',6]];
+  let checkedDays = 0, allOk = true, details = [];
+  for (const [goal, sub, nDays] of goalSubs) {
+    const prog = G._generateWorkoutProgram(goal, sub, nDays, 'T', 12);
+    for (const day of prog.days) {
+      if (!/legs/i.test(day.name)) continue;
+      checkedDays++;
+      const exs = day.exercises;
+      if (!/squat/i.test(exs[0].name)) { allOk = false; details.push(`${goal}-${sub}-${nDays} ${day.name}: first is ${exs[0].name}`); }
+      const last = exs[exs.length - 1];
+      if (last.name !== 'Deadlift') { allOk = false; details.push(`${goal}-${sub}-${nDays} ${day.name}: last is ${last.name}`); }
+      else if (last.sets !== '6' || last.scheme !== '1×5-8') { allOk = false; details.push(`${goal}-${sub}-${nDays} ${day.name}: deadlift ${last.scheme}/${last.sets}`); }
+    }
+  }
+  check('leg days found across hypertrophy programs', checkedDays >= 6, `got ${checkedDays}`);
+  check('every Legs day: Squat first, Deadlift 1×5-8 last', allOk, details.join('; '));
+  // 7-day hypertrophy-upper specifically (the reported bug): Legs A must end with Deadlift
+  const p7 = G._generateWorkoutProgram('hypertrophy', 'upper', 7, 'T7', 12);
+  const legsA = p7.days.find(d => /legs a/i.test(d.name));
+  check('7-day hyp-upper Legs A exists', !!legsA);
+  check('7-day hyp-upper Legs A ends with Deadlift 1×5-8 single set',
+    !!legsA && legsA.exercises[legsA.exercises.length - 1].name === 'Deadlift'
+            && legsA.exercises[legsA.exercises.length - 1].sets === '6',
+    legsA ? JSON.stringify(legsA.exercises[legsA.exercises.length - 1]) : 'no Legs A');
+  // Deadlift stays a single set even at higher sets-per-muscle settings
+  const p16 = G._generateWorkoutProgram('hypertrophy', 'upper', 7, 'T16', 16);
+  const legs16 = p16.days.filter(d => /legs/i.test(d.name));
+  check('setsPerMuscle=16: Deadlift still exactly 1 set',
+    legs16.every(d => d.exercises[d.exercises.length - 1].sets === '6'),
+    JSON.stringify(legs16.map(d => d.exercises[d.exercises.length - 1].sets)));
+  // Rehab programs are untouched (no heavy deadlift forced into rehab days)
+  const pk = G._generateWorkoutProgram('rehab', 'knee', 6, 'TK', 12);
+  check('rehab-knee program has no forced Deadlift finishers',
+    pk.days.every(d => { const l = d.exercises[d.exercises.length - 1]; return !(l.name === 'Deadlift' && l.sets === '6'); }));
+}
+
+// ── Leg-day rules applied to stored hypertrophy programs (_ensurePrograms) ───
+console.log('\n── Leg-day rules on stored programs ────────────────────────');
+{
+  const savedPrograms = G.localStorage.getItem('workout_programs');
+  const testProg = { programs: [{ name: '6-Day Hypertrophy — Upper', goal: 'hypertrophy', days: [
+    { name: 'Day 3 — Legs A', warmup: false, exercises: [
+      { name: 'Leg Press', scheme: '3×12', tag: 'volume', sets: '12-12-12', kg: 100 },
+      { name: 'Squat',     scheme: '4×10', tag: 'volume', sets: '10-10-10-10', kg: 80 },
+      { name: 'Leg Curl',  scheme: '3×12', tag: 'volume', sets: '12-12-12', kg: 40 } ] },
+  ] }], active_index: 0 };
+  G.localStorage.setItem('workout_programs', JSON.stringify(testProg));
+  G.initPrograms();
+  const p = G.getActiveProgram();
+  const day = p.days.find(d => /legs/i.test(d.name));
+  check('stored program: Squat moved to first',   !!day && day.exercises[0].name === 'Squat', day ? day.exercises[0].name : 'no legs day');
+  check('stored program: Deadlift appended last', !!day && day.exercises[day.exercises.length - 1].name === 'Deadlift');
+  check('stored program: appended Deadlift is 1×5-8 single set',
+    !!day && day.exercises[day.exercises.length - 1].sets === '6'
+          && day.exercises[day.exercises.length - 1].scheme === '1×5-8');
+  // restore prior state
+  if (savedPrograms === null) G.localStorage.removeItem('workout_programs');
+  else G.localStorage.setItem('workout_programs', savedPrograms);
+  G.initPrograms();
 }
 
 // ── Summary ───────────────────────────────────────────────────────────────────
