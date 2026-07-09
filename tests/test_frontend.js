@@ -1016,52 +1016,58 @@ check('toggleDb defined', typeof G.toggleDb === 'function');
   check('toggleDb: no exName param → fallback to btn.dataset.exn', G.localStorage.getItem('wk-db-Front Raise') !== null);
 }
 
-// ── 28. toggleGear / toggleGear2 (½ / 1× / 2× cable) ─────────────────────────
-console.log('\n── toggleGear / toggleGear2 ────────────────────────────────');
+// ── 28. toggleGear / toggleGear2 — independent composable toggles ─────────────
+console.log('\n── toggleGear / toggleGear2 (independent) ──────────────────');
 check('toggleGear defined',  typeof G.toggleGear  === 'function');
 check('toggleGear2 defined', typeof G.toggleGear2 === 'function');
 function mkGearCard(exn) {
-  const b1 = { dataset: { gear: '1',  exn }, textContent: '1× cable', style: {} };
+  const b1 = { dataset: { gear: '1',  exn }, textContent: '½ gear',   style: {} };
   const b2 = { dataset: { gear2: '1', exn }, textContent: '2× cable', style: {} };
-  const card = { dataset: {}, style: {},
-    querySelector: (sel) => sel === '[data-gear]' ? b1 : (sel === '[data-gear2]' ? b2 : null) };
+  const card = { dataset: {}, style: {} };
   b1.closest = () => card; b2.closest = () => card;
   return { card, b1, b2 };
 }
 {
-  // ½ cable: gear=1 → 0.5 → 1
-  const { card, b1, b2 } = mkGearCard('Cable Row');
+  // ½ gear alone: 1 → 0.5 → 1
+  const { card, b1 } = mkGearCard('Cable Row');
   G.toggleGear(b1, 'Cable Row');
-  check('toggleGear activate: card.dataset.gear = 0.5',        parseFloat(card.dataset.gear) === 0.5,      `got ${card.dataset.gear}`);
-  check('toggleGear activate: btn.textContent = "½ cable"',    b1.textContent === '½ cable',               `got "${b1.textContent}"`);
-  check('toggleGear activate: localStorage persisted = 0.5',   parseFloat(G.localStorage.getItem('wk-gear-Cable Row')) === 0.5);
-  check('toggleGear activate: btn.style.color = "#000"',       b1.style.color === '#000',                  `got "${b1.style.color}"`);
-  check('toggleGear activate: 2× button NOT highlighted',      b2.style.background !== 'var(--accent)');
+  check('½ gear on: card.dataset.gearHalf = 0.5',  parseFloat(card.dataset.gearHalf) === 0.5, `got ${card.dataset.gearHalf}`);
+  check('½ gear on: effective gear = 0.5',         parseFloat(card.dataset.gear) === 0.5,     `got ${card.dataset.gear}`);
+  check('½ gear on: localStorage wk-gear- = 0.5',  parseFloat(G.localStorage.getItem('wk-gear-Cable Row')) === 0.5);
+  check('½ gear on: button highlighted',           b1.style.background === 'var(--accent)');
   G.toggleGear(b1, 'Cable Row');
-  check('toggleGear deactivate: card.dataset.gear = 1',        parseFloat(card.dataset.gear) === 1,        `got ${card.dataset.gear}`);
-  check('toggleGear deactivate: btn.textContent = "1× cable"', b1.textContent === '1× cable',              `got "${b1.textContent}"`);
-  check('toggleGear deactivate: localStorage persisted = 1',   parseFloat(G.localStorage.getItem('wk-gear-Cable Row')) === 1);
+  check('½ gear off: effective gear = 1',          parseFloat(card.dataset.gear) === 1,       `got ${card.dataset.gear}`);
+  check('½ gear off: localStorage wk-gear- = 1',   parseFloat(G.localStorage.getItem('wk-gear-Cable Row')) === 1);
 }
 {
-  // 2× cable: gear=1 → 2 → 1
-  const { card, b1, b2 } = mkGearCard('Cable Fly');
+  // 2× cable alone: 1 → 2 → 1
+  const { card, b2 } = mkGearCard('Cable Fly');
   G.toggleGear2(b2, 'Cable Fly');
-  check('toggleGear2 activate: card.dataset.gear = 2',         parseFloat(card.dataset.gear) === 2,        `got ${card.dataset.gear}`);
-  check('toggleGear2 activate: 2× button highlighted',         b2.style.background === 'var(--accent)',    `got "${b2.style.background}"`);
-  check('toggleGear2 activate: ½ button label back to 1×',     b1.textContent === '1× cable',              `got "${b1.textContent}"`);
-  check('toggleGear2 activate: localStorage persisted = 2',    parseFloat(G.localStorage.getItem('wk-gear-Cable Fly')) === 2);
+  check('2× on: card.dataset.gear2x = 2',          parseFloat(card.dataset.gear2x) === 2,     `got ${card.dataset.gear2x}`);
+  check('2× on: effective gear = 2',               parseFloat(card.dataset.gear) === 2,       `got ${card.dataset.gear}`);
+  check('2× on: localStorage wk-cable2- = 2',      parseFloat(G.localStorage.getItem('wk-cable2-Cable Fly')) === 2);
+  check('2× on: button highlighted',               b2.style.background === 'var(--accent)');
   G.toggleGear2(b2, 'Cable Fly');
-  check('toggleGear2 deactivate: card.dataset.gear = 1',       parseFloat(card.dataset.gear) === 1,        `got ${card.dataset.gear}`);
-  check('toggleGear2 deactivate: localStorage persisted = 1',  parseFloat(G.localStorage.getItem('wk-gear-Cable Fly')) === 1);
+  check('2× off: effective gear = 1',              parseFloat(card.dataset.gear) === 1,       `got ${card.dataset.gear}`);
 }
 {
-  // Mutual exclusion: from 2× state, tapping ½ goes straight to 0.5
+  // BOTH true at once — the whole point: ½ gear × 2 cables = net 1, both stay lit
   const { card, b1, b2 } = mkGearCard('Tricep Pushdown');
+  G.toggleGear(b1, 'Tricep Pushdown');
   G.toggleGear2(b2, 'Tricep Pushdown');
+  check('both on: gearHalf stays 0.5',             parseFloat(card.dataset.gearHalf) === 0.5, `got ${card.dataset.gearHalf}`);
+  check('both on: gear2x stays 2',                 parseFloat(card.dataset.gear2x) === 2,     `got ${card.dataset.gear2x}`);
+  check('both on: effective gear = 0.5×2 = 1',     parseFloat(card.dataset.gear) === 1,       `got ${card.dataset.gear}`);
+  check('both on: ½ button still highlighted',     b1.style.background === 'var(--accent)');
+  check('both on: 2× button still highlighted',    b2.style.background === 'var(--accent)');
+  check('both persisted independently',
+    parseFloat(G.localStorage.getItem('wk-gear-Tricep Pushdown')) === 0.5 &&
+    parseFloat(G.localStorage.getItem('wk-cable2-Tricep Pushdown')) === 2);
+  // turning ½ off leaves 2× untouched
   G.toggleGear(b1, 'Tricep Pushdown');
-  check('½ after 2×: card.dataset.gear = 0.5',                 parseFloat(card.dataset.gear) === 0.5,      `got ${card.dataset.gear}`);
-  check('½ after 2×: 2× button un-highlighted',                b2.style.background !== 'var(--accent)');
-  G.toggleGear(b1, 'Tricep Pushdown');
+  check('½ off with 2× on: effective gear = 2',    parseFloat(card.dataset.gear) === 2,       `got ${card.dataset.gear}`);
+  check('½ off with 2× on: 2× still highlighted',  b2.style.background === 'var(--accent)');
+  G.toggleGear2(b2, 'Tricep Pushdown');
 }
 {
   // Fallback to btn.dataset.exn when exName not provided
@@ -1070,21 +1076,27 @@ function mkGearCard(exn) {
   check('toggleGear: no exName param → fallback to btn.dataset.exn', G.localStorage.getItem('wk-gear-Lat Pulldown') !== null);
 }
 
-// ── 28b. _gearBtnsHtml ────────────────────────────────────────────────────────
-console.log('\n── _gearBtnsHtml ───────────────────────────────────────────');
-check('_gearBtnsHtml defined', typeof G._gearBtnsHtml === 'function');
+// ── 28b. _gearBtnsHtml / _savedGearState ─────────────────────────────────────
+console.log('\n── _gearBtnsHtml / _savedGearState ─────────────────────────');
+check('_gearBtnsHtml defined',   typeof G._gearBtnsHtml === 'function');
+check('_savedGearState defined', typeof G._savedGearState === 'function');
 {
-  const hFly = G._gearBtnsHtml('Cable Fly', 1, 1);
-  check('Cable Fly: has ½/1× cable button',   hFly.includes('data-gear=') && hFly.includes('1× cable'));
-  check('Cable Fly: has 2× cable button',     hFly.includes('data-gear2=') && hFly.includes('2× cable'));
-  check('Cable Fly: 2× button wired to toggleGear2', hFly.includes('toggleGear2(this'));
-  const hRow = G._gearBtnsHtml('Cable Row', 2, 1);
-  check('Cable Row: has 2× cable button',     hRow.includes('2× cable'));
-  check('Cable Row: no DB button',            !hRow.includes('>DB<'));
-  const hBench = G._gearBtnsHtml('Bench Press', 1, 1);
-  check('Bench Press: no cable buttons',      !hBench.includes('cable'));
-  check('Bench Press: has DB button',         hBench.includes('>DB<'));
-  check('Squat: no buttons at all',           G._gearBtnsHtml('Squat', 1, 1) === '');
+  const hFly = G._gearBtnsHtml('Cable Fly', 1, 1, 1);
+  check('Cable Fly: has ½ gear button',      hFly.includes('data-gear=') && hFly.includes('½ gear'));
+  check('Cable Fly: has 2× cable button',    hFly.includes('data-gear2=') && hFly.includes('2× cable'));
+  check('Cable Fly: buttons have tooltips',  hFly.includes('title="Machine gearing') && hFly.includes('title="Using two cable stacks'));
+  check('Cable Fly: has DB button',          hFly.includes('>DB<'));
+  const hRow = G._gearBtnsHtml('Cable Row', 0.5, 2, 1);
+  check('Cable Row: no DB button',           !hRow.includes('>DB<'));
+  const hBench = G._gearBtnsHtml('Bench Press', 1, 1, 1);
+  check('Bench Press: no cable buttons',     !hBench.includes('cable') && !hBench.includes('gear<'));
+  check('Bench Press: has DB button',        hBench.includes('>DB<'));
+  check('Squat: no buttons at all',          G._gearBtnsHtml('Squat', 1, 1, 1) === '');
+  // legacy wk-gear-=2 (from the brief combined scheme) reads as 2× cable on, ½ off
+  G.localStorage.setItem('wk-gear-Cable Crossover', '2');
+  const legacy = G._savedGearState('Cable Crossover');
+  check('legacy gear=2 → two=2, half=1', legacy.two === 2 && legacy.half === 1, JSON.stringify(legacy));
+  G.localStorage.removeItem('wk-gear-Cable Crossover');
 }
 
 // ── 29. getBestKgFromLogs ─────────────────────────────────────────────────────
@@ -2653,6 +2665,31 @@ console.log('\n── Leg-day rules on stored programs ────────�
   else G.localStorage.setItem('workout_programs', savedPrograms);
   G.initPrograms();
 }
+
+// ── Weighted Pull-ups: BW always included in volume + strength ───────────────
+console.log('\n── WPU body weight inclusion ───────────────────────────────');
+{
+  const _savedW = G.weights, _savedL = G.logs;
+  G.weights = [{ date: '2020-01-01', weight: 80 }];
+  // WPU set with 0 added weight must still count as BW load (was skipped by kg>0 guard)
+  G.logs = [{ date: '2020-01-15', exercises: [{ name: 'Weighted Pull-ups', sets: [{ kg: 0, reps: 10 }] }] }];
+  const v0 = G.buildSessionGroupVol('back', 10000);
+  check('WPU kg=0: volume counts BW (80×10×0.65)', v0.length === 1 && Math.abs(v0[0].vol - 80 * 10 * 0.65) < 0.01, `got ${v0[0]?.vol}`);
+  const s0 = G.buildSessionGroupStrength('back', 10000);
+  const expS0 = 80 * (1 + 10 / 30) * 0.65;
+  check('WPU kg=0: strength counts BW', s0.length === 1 && Math.abs(s0[0].est1rm - expS0) < 0.01, `got ${s0[0]?.est1rm}`);
+  // WPU with added weight: BW + added
+  G.logs = [{ date: '2020-01-15', exercises: [{ name: 'Weighted Pull-ups', sets: [{ kg: 15, reps: 6 }] }] }];
+  const v15 = G.buildSessionGroupVol('back', 10000);
+  check('WPU kg=15: volume = (15+80)×6×0.65', v15.length === 1 && Math.abs(v15[0].vol - 95 * 6 * 0.65) < 0.01, `got ${v15[0]?.vol}`);
+  // Non-WPU with kg=0 stays excluded (no phantom volume)
+  G.logs = [{ date: '2020-01-15', exercises: [{ name: 'Barbell Row', sets: [{ kg: 0, reps: 10 }] }] }];
+  check('non-WPU kg=0 set still excluded', G.buildSessionGroupVol('back', 10000).length === 0);
+  G.weights = _savedW; G.logs = _savedL;
+}
+check('WPU card shows BW chip in title', rawScript.includes('data-bw-chip'));
+check('BW chip refreshed after weight sync', rawScript.includes("querySelectorAll('[data-bw-chip]')"));
+check('custom-card WPU adds BW to session volume', rawScript.includes('_cbw=/weighted'));
 
 // ── Summary ───────────────────────────────────────────────────────────────────
 console.log(`\n${'─'.repeat(59)}`);
