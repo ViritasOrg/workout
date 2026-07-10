@@ -1792,8 +1792,8 @@ console.log('\n── 48. Program wizard days/sets ─────────�
     src.includes('[9,15,21]') && src.includes('[10,16,20]'));
   check('_progWizGenerate passes setsPerMuscle to _generateWorkoutProgram',
     src.includes('wiz.setsPerMuscle||12'));
-  check('_generateWorkoutProgram accepts setsPerMuscle param',
-    src.includes('function _generateWorkoutProgram(goal,sub,nDays,name,setsPerMuscle)'));
+  check('_generateWorkoutProgram accepts setsPerMuscle + injuries params',
+    src.includes('function _generateWorkoutProgram(goal,sub,nDays,name,setsPerMuscle,injuries)'));
   check('scaleSets helper scales exercise set counts',
     src.includes('function scaleSets(setsStr)'));
   check('pool padding loop fills short pools up to nDays',
@@ -1802,8 +1802,10 @@ console.log('\n── 48. Program wizard days/sets ─────────�
     src.includes('var _base=pool.length'));
   check('pool extension uses muscle-group conflict scoring to avoid consecutive same-group days',
     src.includes('function _mGroup(nm)') && src.includes('_cg===_pg?2:0'));
-  check('scaleSets applied to all exercises before slice',
-    src.includes('sets:scaleSets(ex.sets)'));
+  check('frequency-aware allocation present (session ceiling const)',
+    src.includes('SESSION_MUSCLE_CAP=10,SESSION_CEILING=25'));
+  check('strength/rehab keep linear scaleSets path',
+    src.includes('ex.sets=scaleSets(ex.sets)'));
   check('setsPerMuscle stored in generated program object',
     src.includes('setsPerMuscle:setsPerMuscle'));
   check('poolN clamped to min 3 max 6 for pool template selection',
@@ -1814,16 +1816,24 @@ console.log('\n── 48. Program wizard days/sets ─────────�
   // Test _generateWorkoutProgram at runtime
   const m = src.match(/<script>([\s\S]*?)<\/script>/);
   if(m) {
-    const scriptSrc = m[1];
+    let scriptSrc = m[1];
+    // same const->var patches as the main sandbox so a partial load still defines the data consts
+    for (const c of ['EXERCISE_SPLITS','GROUP_COLORS','DAY_TEMPLATES','THEMES',"VERSION='",'AGENT_URL=','GOOGLE_CLIENT_ID='])
+      scriptSrc = scriptSrc.replace('const '+c, 'var '+c);
     const vm = require('vm');
+    const _mls = {_s:{},getItem(k){return this._s[k]!==undefined?this._s[k]:null;},setItem(k,v){this._s[k]=String(v);},removeItem(k){delete this._s[k];},key:()=>null,length:0};
+    const _mkEl = () => ({style:{},dataset:{},classList:{add:()=>{},remove:()=>{},contains:()=>false},appendChild:()=>{},children:[],querySelector:()=>null,querySelectorAll:()=>[],addEventListener:()=>{},value:'',textContent:'',innerHTML:''});
     const localSandbox = {
       console,
-      window:{},
-      document:{getElementById:()=>null,querySelector:()=>null,querySelectorAll:()=>[],body:{classList:{add:()=>{},remove:()=>{}}}},
-      localStorage:{getItem:()=>null,setItem:()=>{},removeItem:()=>{}},
+      window:{localStorage:_mls,location:{pathname:'/workout-staging/'},addEventListener:()=>{},matchMedia:()=>({matches:false,addEventListener:()=>{}})},
+      document:{getElementById:()=>null,querySelector:()=>null,querySelectorAll:()=>[],createElement:_mkEl,addEventListener:()=>{},body:{classList:{add:()=>{},remove:()=>{}}},head:{appendChild:()=>{}},documentElement:{style:{setProperty:()=>{},getPropertyValue:()=>''}}},
+      localStorage:_mls,
       navigator:{},
-      fetch:()=>Promise.resolve(),
-      setTimeout:()=>{},clearTimeout:()=>{},
+      fetch:()=>Promise.resolve({ok:false,json:async()=>({})}),
+      setTimeout:()=>{},clearTimeout:()=>{},setInterval:()=>{},clearInterval:()=>{},
+      atob:(b)=>Buffer.from(b,'base64').toString('binary'),
+      AbortController: class { constructor(){this.signal={};} abort(){} },
+      Date, Math, JSON, Promise, Set, Map, Array, Object, Number, String, Boolean, Error, parseInt, parseFloat, isNaN,
       google:undefined
     };
     const ctx = vm.createContext(localSandbox);
@@ -1865,12 +1875,11 @@ console.log('\n── 48. Program wizard days/sets ─────────�
 
     // Test sets scaling
     try {
-      const progLow = ctx._generateWorkoutProgram('hypertrophy','balanced',4,'Low Vol',5);
+      const progLow = ctx._generateWorkoutProgram('hypertrophy','balanced',4,'Low Vol',9);
       const progHigh = ctx._generateWorkoutProgram('hypertrophy','balanced',4,'High Vol',20);
-      const lowSets = progLow.days[0].exercises[0].sets.split('-').length;
-      const highSets = progHigh.days[0].exercises[0].sets.split('-').length;
-      check('high setsPerMuscle produces more sets than low', highSets > lowSets,
-        `low=${lowSets} high=${highSets}`);
+      const daySets = (p) => p.days[0].exercises.reduce((t,e)=>t+String(e.sets).split('-').length,0);
+      check('high setsPerMuscle produces bigger sessions than low', daySets(progHigh) > daySets(progLow),
+        `low=${daySets(progLow)} high=${daySets(progHigh)}`);
     } catch(e) {
       check('sets scaling (caught)', false, String(e));
     }
@@ -2065,11 +2074,11 @@ console.log('\n── 48. Program wizard days/sets ─────────�
         check('wizard hypertrophy-upper 7-day Legs A: no Bulgarian Split Squat',
           legsADay && legsADay.exercises && !legsADay.exercises.some(e => e.name === 'Bulgarian Split Squat'),
           'Bulgarian Split Squat found in Legs A');
-        // Legs B (day 6): Squat first, no Hip Thrust, Deadlift last
+        // Legs B (day 6): Deadlift day — no squat variants, Deadlift last (rule 2026-07-10)
         const legsBDay = prog7b.days[5];
-        check('wizard hypertrophy-upper 7-day Legs B: first exercise is Squat',
-          legsBDay && legsBDay.exercises && legsBDay.exercises[0] && legsBDay.exercises[0].name === 'Squat',
-          `first ex: ${legsBDay && legsBDay.exercises && legsBDay.exercises[0] && legsBDay.exercises[0].name}`);
+        check('wizard hypertrophy-upper 7-day Legs B: Deadlift day (no squats)',
+          legsBDay && legsBDay.exercises && !legsBDay.exercises.some(e => /squat/i.test(e.name) && !/split/i.test(e.name)),
+          `exs: ${legsBDay && legsBDay.exercises && legsBDay.exercises.map(e=>e.name).join(',')}`);
         check('wizard hypertrophy-upper 7-day Legs B: no Hip Thrust',
           legsBDay && legsBDay.exercises && !legsBDay.exercises.some(e => e.name === 'Hip Thrust'),
           'Hip Thrust found in Legs B');
@@ -2613,28 +2622,35 @@ console.log('\n── Leg-day rules in generated programs ───────�
       if (!/legs/i.test(day.name)) continue;
       checkedDays++;
       const exs = day.exercises;
-      if (!/squat/i.test(exs[0].name)) { allOk = false; details.push(`${goal}-${sub}-${nDays} ${day.name}: first is ${exs[0].name}`); }
-      const last = exs[exs.length - 1];
-      if (last.name !== 'Deadlift') { allOk = false; details.push(`${goal}-${sub}-${nDays} ${day.name}: last is ${last.name}`); }
-      else if (last.sets !== '6' || last.scheme !== '1×5-8') { allOk = false; details.push(`${goal}-${sub}-${nDays} ${day.name}: deadlift ${last.scheme}/${last.sets}`); }
+      const isSq = (e) => /squat/i.test(e.name) && !/split/i.test(e.name);
+      const hasSq = exs.some(isSq), hasDL = exs.some(e => e.name === 'Deadlift');
+      const squatDay = hasSq && !hasDL && isSq(exs[0]);
+      const dlDay = hasDL && !hasSq && exs[exs.length - 1].name === 'Deadlift' && /×5-8$/.test(exs[exs.length - 1].scheme);
+      if (!(squatDay || dlDay)) { allOk = false; details.push(`${goal}-${sub}-${nDays} ${day.name}: sq=${hasSq} dl=${hasDL} first=${exs[0].name} last=${exs[exs.length-1].name}`); }
     }
   }
   check('leg days found across hypertrophy programs', checkedDays >= 6, `got ${checkedDays}`);
-  check('every Legs day: Squat first, Deadlift 1×5-8 last', allOk, details.join('; '));
+  check('every Legs day is EITHER a Squat day OR a Deadlift day', allOk, details.join('; '));
   // 7-day hypertrophy-upper specifically (the reported bug): Legs A must end with Deadlift
   const p7 = G._generateWorkoutProgram('hypertrophy', 'upper', 7, 'T7', 12);
   const legsA = p7.days.find(d => /legs a/i.test(d.name));
   check('7-day hyp-upper Legs A exists', !!legsA);
-  check('7-day hyp-upper Legs A ends with Deadlift 1×5-8 single set',
-    !!legsA && legsA.exercises[legsA.exercises.length - 1].name === 'Deadlift'
-            && legsA.exercises[legsA.exercises.length - 1].sets === '6',
-    legsA ? JSON.stringify(legsA.exercises[legsA.exercises.length - 1]) : 'no Legs A');
-  // Deadlift stays a single set even at higher sets-per-muscle settings
+  check('7-day hyp-upper Legs A is a Squat day (squat first, no Deadlift)',
+    !!legsA && /squat/i.test(legsA.exercises[0].name)
+            && !legsA.exercises.some(e => e.name === 'Deadlift'),
+    legsA ? JSON.stringify(legsA.exercises.map(e => e.name)) : 'no Legs A');
+  const legsB7 = p7.days.find(d => /legs b/i.test(d.name));
+  check('7-day hyp-upper Legs B is a Deadlift day (deadlift last, no squats)',
+    !!legsB7 && legsB7.exercises[legsB7.exercises.length - 1].name === 'Deadlift'
+             && !legsB7.exercises.some(e => /squat/i.test(e.name) && !/split/i.test(e.name)),
+    legsB7 ? JSON.stringify(legsB7.exercises.map(e => e.name)) : 'no Legs B');
+  // Deadlift is allocator-sized (2-5 sets, scheme in sync) on Deadlift days
   const p16 = G._generateWorkoutProgram('hypertrophy', 'upper', 7, 'T16', 16);
-  const legs16 = p16.days.filter(d => /legs/i.test(d.name));
-  check('setsPerMuscle=16: Deadlift still exactly 1 set',
-    legs16.every(d => d.exercises[d.exercises.length - 1].sets === '6'),
-    JSON.stringify(legs16.map(d => d.exercises[d.exercises.length - 1].sets)));
+  const dlDays16 = p16.days.filter(d => /legs/i.test(d.name) && d.exercises.some(e => e.name === 'Deadlift'));
+  check('setsPerMuscle=16: Deadlift allocator-sized (2-5 sets, scheme matches)',
+    dlDays16.length > 0 && dlDays16.every(d => { const l = d.exercises[d.exercises.length - 1]; const n = String(l.sets).split('-').length;
+      return l.name === 'Deadlift' && n >= 2 && n <= 5 && String(l.scheme).startsWith(n + '×5-8'); }),
+    JSON.stringify(dlDays16.map(d => d.exercises[d.exercises.length - 1].sets)));
   // Rehab programs are untouched (no heavy deadlift forced into rehab days)
   const pk = G._generateWorkoutProgram('rehab', 'knee', 6, 'TK', 12);
   check('rehab-knee program has no forced Deadlift finishers',
@@ -2655,11 +2671,9 @@ console.log('\n── Leg-day rules on stored programs ────────�
   G.initPrograms();
   const p = G.getActiveProgram();
   const day = p.days.find(d => /legs/i.test(d.name));
-  check('stored program: Squat moved to first',   !!day && day.exercises[0].name === 'Squat', day ? day.exercises[0].name : 'no legs day');
-  check('stored program: Deadlift appended last', !!day && day.exercises[day.exercises.length - 1].name === 'Deadlift');
-  check('stored program: appended Deadlift is 1×5-8 single set',
-    !!day && day.exercises[day.exercises.length - 1].sets === '6'
-          && day.exercises[day.exercises.length - 1].scheme === '1×5-8');
+  check('stored program: first legs day is a Squat day (Squat moved first)', !!day && day.exercises[0].name === 'Squat', day ? day.exercises[0].name : 'no legs day');
+  check('stored program: Squat day has NO Deadlift', !!day && !day.exercises.some(e => e.name === 'Deadlift'),
+    day ? JSON.stringify(day.exercises.map(e => e.name)) : 'no legs day');
   // restore prior state
   if (savedPrograms === null) G.localStorage.removeItem('workout_programs');
   else G.localStorage.setItem('workout_programs', savedPrograms);
@@ -2690,6 +2704,132 @@ console.log('\n── WPU body weight inclusion ──────────�
 check('WPU card shows BW chip in title', rawScript.includes('data-bw-chip'));
 check('BW chip refreshed after weight sync', rawScript.includes("querySelectorAll('[data-bw-chip]')"));
 check('custom-card WPU adds BW to session volume', rawScript.includes('_cbw=/weighted'));
+
+// ── Frequency-aware volume allocation ────────────────────────────────────────
+console.log('\n── Frequency-aware volume allocation ───────────────────────');
+{
+  const AG=['legs','back','chest','shoulders','arms'];
+  function allocStats(goal,sub,nd,spm){
+    const p=G._generateWorkoutProgram(goal,sub,nd,'T',spm);
+    const weekly={};AG.forEach(g=>weekly[g]=0);
+    const tots=[];let perSessionMax=0;
+    for(const d of p.days){
+      let t=0;const fs={};
+      for(const ex of d.exercises){const n=String(ex.sets).split('-').length;t+=n;const sp=G.getExSplits(ex.name);
+        AG.forEach(g=>{if(sp[g]){weekly[g]+=n*sp[g];fs[g]=(fs[g]||0)+n*sp[g];}});}
+      tots.push(t);AG.forEach(g=>{if((fs[g]||0)>perSessionMax)perSessionMax=fs[g];});
+    }
+    return {p,tots,weekly,perSessionMax};
+  }
+  // The reported bug: 7-day hypertrophy-upper at 21 sets/muscle produced 34-set sessions
+  const hi=allocStats('hypertrophy','upper',7,21);
+  check('hyp-upper 7d @21: every session ≤ 25 sets', hi.tots.every(t=>t<=25), JSON.stringify(hi.tots));
+  check('hyp-upper 7d @21: sessions not gutted (≥ 8 sets each)', hi.tots.every(t=>t>=8), JSON.stringify(hi.tots));
+  check('hyp-upper 7d @21: push/pull muscles near weekly target (0.6–1.35×)',
+    ['chest','shoulders','arms','back'].every(g=>hi.weekly[g]>=21*0.6&&hi.weekly[g]<=21*1.35),
+    JSON.stringify(hi.weekly));
+  check('per-session per-muscle load bounded (≤14 fractional sets)', hi.perSessionMax<=14, String(hi.perSessionMax));
+  // Volume responds monotonically to the setting
+  const lo=allocStats('hypertrophy','upper',7,9), mid=allocStats('hypertrophy','upper',7,15);
+  check('weekly volume monotone in setting (9 ≤ 15 ≤ 21 per group)',
+    AG.every(g=>lo.weekly[g]<=mid.weekly[g]+0.5&&mid.weekly[g]<=hi.weekly[g]+0.5),
+    JSON.stringify({lo:lo.weekly,mid:mid.weekly,hi:hi.weekly}));
+  // Session ceiling holds across hypertrophy/aesthetic configs
+  for(const [g2,s2,n2,v2] of [['hypertrophy','balanced',6,20],['hypertrophy','lower',5,15],['aesthetic','fullbody',5,15],['aesthetic','upperlower',4,16]]){
+    const st=allocStats(g2,s2,n2,v2);
+    check(`${g2}-${s2} ${n2}d @${v2}: sessions ≤ 25`, st.tots.every(t=>t<=25), JSON.stringify(st.tots));
+  }
+  // Leg-day rules survive allocation
+  const legs=hi.p.days.filter(d=>/legs/i.test(d.name));
+  const isSqA=(e)=>/squat/i.test(e.name)&&!/split/i.test(e.name);
+  check('allocation keeps every legs day either Squat day or Deadlift day',
+    legs.every(d=>{const hasSq=d.exercises.some(isSqA);const hasDL=d.exercises.some(e=>e.name==='Deadlift');
+      return (hasSq&&!hasDL&&isSqA(d.exercises[0]))||(hasDL&&!hasSq&&d.exercises[d.exercises.length-1].name==='Deadlift');}));
+  check('program with 2+ legs days has BOTH a Squat day and a Deadlift day',
+    legs.length<2||(legs.some(d=>d.exercises.some(isSqA))&&legs.some(d=>d.exercises.some(e=>e.name==='Deadlift'))));
+  // Compound priority: free-weight compounds get more sets than machines/isolation
+  check('isCompoundEx defined', typeof G.isCompoundEx==='function');
+  check('isCompoundEx: Squat/Deadlift/Bench true; machines/cable false',
+    G.isCompoundEx('Squat')&&G.isCompoundEx('Deadlift')&&G.isCompoundEx('Bench Press')&&G.isCompoundEx('Weighted Pull-ups')
+    &&!G.isCompoundEx('Leg Press')&&!G.isCompoundEx('Smith Machine Squat')&&!G.isCompoundEx('Cable Fly')&&!G.isCompoundEx('Leg Extension'));
+  {
+    const p15=G._generateWorkoutProgram('hypertrophy','upper',7,'T',15);
+    const la=p15.days.find(d=>/legs a/i.test(d.name));
+    const pa=p15.days.find(d=>/push a/i.test(d.name));
+    const n=e=>String(e.sets).split('-').length;
+    const sq=la.exercises.find(e=>e.name==='Squat'), lp=la.exercises.find(e=>e.name==='Leg Press');
+    check('Squat gets more sets than Leg Press on legs day', !!sq&&!!lp&&n(sq)>n(lp), sq&&lp?`squat=${n(sq)} lp=${n(lp)}`:'missing');
+    const bp=pa.exercises.find(e=>/^Bench Press$/.test(e.name)), fly=pa.exercises.find(e=>/Cable Fly/.test(e.name));
+    check('Bench gets more sets than Cable Fly on push day', !!bp&&!!fly&&n(bp)>n(fly), bp&&fly?`bench=${n(bp)} fly=${n(fly)}`:'missing');
+  }
+  // Ratio-blend clamp regression: the Deadlift's small back fraction must not balloon it past the day's compounds
+  check('Deadlift not inflated by cross-group ratio blowup (≤3 sets @21)',
+    legs.filter(d=>d.exercises.some(e=>e.name==='Deadlift')).every(d=>String(d.exercises[d.exercises.length-1].sets).split('-').length<=3),
+    JSON.stringify(legs.map(d=>d.exercises[d.exercises.length-1].sets)));
+  // Scheme prefix stays in sync with the resized set count
+  let schemeOk=true;
+  for(const d of hi.p.days)for(const ex of d.exercises){const n=String(ex.sets).split('-').length;const m=String(ex.scheme).match(/^(\d+)×/);if(m&&parseInt(m[1])!==n)schemeOk=false;}
+  check('scheme N× prefix matches resized set count', schemeOk);
+  // Strength and rehab keep their fixed schemes (linear scaling path)
+  const sp12=G._generateWorkoutProgram('strength','pure',3,'T',12);
+  check('strength-pure @12: Squat keeps its 5×5 scheme', sp12.days[0].exercises[0].sets==='5-5-5-5-5', sp12.days[0].exercises[0].sets);
+  const rk12=allocStats('rehab','knee',6,12), rk24=allocStats('rehab','knee',6,24);
+  check('rehab scales linearly (24 = 2× the sets of 12)', rk24.tots[0]===rk12.tots[0]*2, `${rk12.tots[0]} vs ${rk24.tots[0]}`);
+  // Wizard review shows the computed outcome
+  check('wizard review shows resulting session size', rawScript.includes('Resulting sessions:'));
+}
+
+// ── 5-Day Split no longer auto-seeded ────────────────────────────────────────
+console.log('\n── 5-Day Split deletion sticks ─────────────────────────────');
+{
+  const savedPrograms = G.localStorage.getItem('workout_programs');
+  // A user who deleted the 5-Day Split must not get it back on next load
+  G.localStorage.setItem('workout_programs', JSON.stringify({ programs: [
+    { name: '6-Day Hypertrophy — Upper', goal: 'hypertrophy', days: [
+      { name: 'Day 1 — Push A', warmup: false, exercises: [
+        { name: 'Bench Press', scheme: '4×8-12', tag: 'volume', sets: '8-8-8-8', kg: 70 } ] } ] }
+  ], active_index: 0 }));
+  G.initPrograms();
+  check('deleted 5-Day Split is NOT recreated', !G._programs.some(p => p.name === '5-Day Split'),
+    JSON.stringify(G._programs.map(p => p.name)));
+  check('no _seedDefaultProgram call left in _ensurePrograms', !rawScript.includes('_programs.push(_seedDefaultProgram())'));
+  if (savedPrograms === null) G.localStorage.removeItem('workout_programs');
+  else G.localStorage.setItem('workout_programs', savedPrograms);
+  G.initPrograms();
+}
+
+// ── Injury substitutions baked into generated programs ───────────────────────
+console.log('\n── Injury substitutions (baked) ────────────────────────────');
+{
+  const allNames = (p) => p.days.flatMap(d => d.exercises.map(e => e.name));
+  // Shoulders: no barbell/DB/smith presses anywhere; machine/landmine alternatives present
+  const ps = G._generateWorkoutProgram('hypertrophy', 'balanced', 6, 'T', 10, ['shoulders']);
+  const shoulderBad = allNames(ps).filter(n => /^(Bench Press|Incline Bench Press|Overhead Press|Push Press|Arnold Press)$/i.test(n) || (/\b(barbell|dumbbell|\bdb\b|smith)\b/i.test(n) && /\bpress\b/i.test(n)));
+  check('shoulders injury: no aggravating presses in program', shoulderBad.length === 0, shoulderBad.join(', '));
+  // Arnold Press specifically (loaded internal rotation + elevation = impingement position)
+  const pArn = G._generateWorkoutProgram('hypertrophy', 'upper', 7, 'T', 15, ['shoulders']);
+  check('shoulders injury: Arnold Press substituted out', !allNames(pArn).includes('Arnold Press'),
+    allNames(pArn).filter(n => /arnold/i.test(n)).join(', ') || 'clean');
+  check('shoulders injury: machine/landmine subs present', allNames(ps).some(n => /Machine Press|Landmine Press/.test(n)));
+  // Knees: no squats/lunges
+  const pk = G._generateWorkoutProgram('hypertrophy', 'balanced', 6, 'T', 10, ['knees']);
+  const kneeBad = allNames(pk).filter(n => (/\bsquat\b|\blunge\b/i.test(n)) && !/\b(leg press|leg curl|leg extension|machine)\b/i.test(n));
+  check('knees injury: no squats/lunges in program', kneeBad.length === 0, kneeBad.join(', '));
+  // Lower back: no deadlifts/RDL
+  const pb = G._generateWorkoutProgram('hypertrophy', 'upper', 7, 'T', 15, ['lower_back']);
+  const backBad = allNames(pb).filter(n => /romanian|\brdl\b|deadlift|good morning/i.test(n));
+  check('lower-back injury: no deadlifts/RDL in program', backBad.length === 0, backBad.join(', '));
+  // No duplicate exercises within a day after substitution
+  const dupDays = ps.days.concat(pk.days, pb.days).filter(d => new Set(d.exercises.map(e => e.name)).size !== d.exercises.length);
+  check('no duplicate exercises within a day after subs', dupDays.length === 0, dupDays.map(d => d.name).join(', '));
+  // No injuries selected → nothing substituted (Bench Press survives)
+  const p0 = G._generateWorkoutProgram('hypertrophy', 'balanced', 6, 'T', 10);
+  check('no injuries: Bench Press untouched', allNames(p0).includes('Bench Press'));
+  // Wizard wiring
+  check('wizard has Injuries step', rawScript.includes('Injuries (optional)') && rawScript.includes('_progWizToggleInjury'));
+  check('wizard passes injuries into generation', rawScript.includes("wiz.setsPerMuscle||12,wiz.injuries"));
+  check('editor condition chips bake substitutions (no rehabSubs map writes)', !rawScript.includes('subs[ex.name]=cond.suggest(ex.name)'));
+}
 
 // ── Summary ───────────────────────────────────────────────────────────────────
 console.log(`\n${'─'.repeat(59)}`);
