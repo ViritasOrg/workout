@@ -390,7 +390,7 @@ const IS_STAGING=(window.location.pathname||'').startsWith('/workout-staging');
 if(IS_STAGING){var _S='staging:';var _r=window.localStorage;var _PT=new Set(['google_token','google_email','session_token']);var _pk=function(k){return _PT.has(k)?k:_S+k;};var _p=new Proxy(_r,{get:function(t,n){if(n==='getItem')return function(k){return _r.getItem(_pk(k));};if(n==='setItem')return function(k,v){_r.setItem(_pk(k),v);};if(n==='removeItem')return function(k){_r.removeItem(_pk(k));};if(n==='clear')return function(){Object.keys(_r).filter(function(k){return k.startsWith(_S);}).forEach(function(k){_r.removeItem(k);});};if(n==='key')return function(i){return Object.keys(_r).filter(function(k){return k.startsWith(_S);}).map(function(k){return k.slice(_S.length);})[i]||null;};if(n==='length')return Object.keys(_r).filter(function(k){return k.startsWith(_S);}).length;if(typeof t[n]==='function')return t[n].bind(t);return t[n];},set:function(t,n,v){t[n]=v;return true;},ownKeys:function(){return Object.keys(_r).filter(function(k){return k.startsWith(_S);}).map(function(k){return k.slice(_S.length);});},getOwnPropertyDescriptor:function(t,n){if(Object.keys(_r).filter(function(k){return k.startsWith(_S);}).map(function(k){return k.slice(_S.length);}).includes(n))return{configurable:true,enumerable:true,value:_r.getItem(_S+n)};return undefined;},has:function(t,n){return _r.getItem(_pk(n))!==null;}});try{Object.defineProperty(window,'localStorage',{get:function(){return _p;},configurable:true});}catch(e){}}
 const REHAB_CONDITIONS=[
   {id:'shoulders',label:'Shoulders',desc:'Barbell/DB/Smith presses → machine alternatives',
-   detect:function(n){return(/\b(barbell|dumbbell|\bdb\b|smith)\b/i.test(n)&&/\bpress\b/i.test(n))||/^(bench press|incline bench press|overhead press|push press)$/i.test(n);},
+   detect:function(n){return(/\b(barbell|dumbbell|\bdb\b|smith)\b/i.test(n)&&/\bpress\b/i.test(n))||/^(bench press|incline bench press|overhead press|push press|arnold press)$/i.test(n);},
    suggest:function(n){return/incline/i.test(n)?'Incline Machine Press':/\bbench\b/i.test(n)?'Chest Machine Press':/overhead|\bohp\b/i.test(n)?'Landmine Press':'Landmine Press';}},
   {id:'lower_back',label:'Lower Back',desc:'DL/RDL → machine alternatives',
    detect:function(n){return/romanian|\brdl\b|deadlift|good morning/i.test(n);},
@@ -452,7 +452,7 @@ function ensureVolumes(){logs=logs.map(l=>{if(l.volume==null&&l.notes){const v=c
 async function checkAgentStatus(){const dot=document.getElementById('agent-dot');if(!dot)return;try{const ctrl=new AbortController();setTimeout(()=>ctrl.abort(),5000);const r=await fetch(AGENT_URL+"/weights",{headers:authHeaders(),signal:ctrl.signal});dot.className='agent-dot '+(r.ok?'up':'down');}catch(e){dot.className='agent-dot down';}}
 const MUSCLE_MAP=[["legs",["squat","deadlift","leg press","leg curl","leg extension","lunge","bulgarian","romanian","rdl","calf","hack squat"]],["back",["pull-up","pullup","chin-up","chinup","pull up","chin up","barbell row","cable row","lat pulldown","pulldown","shrug","t-bar"]],["shoulders",["landmine press","shoulder press","overhead press","ohp","lateral raise","front raise","y-raise","y raise","upright row","arnold","face pull","rear delt"]],["chest",["bench","incline","decline","chest press","chest fly","cable fly","cable crossover","pec","push-up","pushup"]],["arms",["curl","tricep","overhead tricep","pushdown","push-down","skullcrusher","close grip","hammer","preacher"]],["chest",["dip","fly","chest machine","machine press","cable chest"]],["back",["row"]],["chest",["press"]]];const EXERCISE_SPLITS=[["leg curl",{legs:1}],["leg extension",{legs:1}],["leg press",{legs:1}],["calf",{legs:1}],["lunge",{legs:1}],["bulgarian",{legs:1}],["hip thrust",{legs:1}],["hack squat",{legs:1}],["squat",{legs:1}],["romanian",{legs:0.7,back:0.3}],["rdl",{legs:0.7,back:0.3}],["deadlift",{legs:0.6,back:0.4}],["rear delt",{shoulders:1}],["lateral raise",{shoulders:1,cable:1}],["face pull",{shoulders:0.55,back:0.45,cable:1}],["y-raise",{shoulders:1}],["y raise",{shoulders:1}],["front raise",{shoulders:1}],["upright row",{shoulders:0.7,back:0.3}],["shrug",{back:1}],["chin-up",{back:0.6,arms:0.4}],["chinup",{back:0.6,arms:0.4}],["pull-up",{back:0.65,arms:0.35}],["pullup",{back:0.65,arms:0.35}],["lat pulldown",{back:0.65,arms:0.35,cable:1}],["pulldown",{back:0.65,arms:0.35,cable:1}],["t-bar",{back:0.75,arms:0.25}],["barbell row",{back:0.7,arms:0.3}],["cable row",{back:0.75,arms:0.25,cable:1}],["cable fly",{chest:0.85,shoulders:0.15,cable:1}],["chest fly",{chest:0.85,shoulders:0.15}],["cable crossover",{chest:0.85,shoulders:0.15,cable:1}],["pec",{chest:0.9,shoulders:0.1}],["chest machine",{chest:0.65,shoulders:0.2,arms:0.15}],["incline",{chest:0.55,shoulders:0.3,arms:0.15}],["decline",{chest:0.6,shoulders:0.25,arms:0.15}],["chest press",{chest:0.6,shoulders:0.25,arms:0.15}],["bench",{chest:0.6,shoulders:0.25,arms:0.15}],["push-up",{chest:0.55,shoulders:0.3,arms:0.15,factor:0.64}],["pushup",{chest:0.55,shoulders:0.3,arms:0.15,factor:0.64}],["dip",{chest:0.5,shoulders:0.3,arms:0.2,factor:0.7}],["landmine",{shoulders:0.55,chest:0.3,arms:0.15}],["overhead tricep",{arms:1,cable:1}],["overhead press",{shoulders:0.7,arms:0.2,chest:0.1}],["ohp",{shoulders:0.7,arms:0.2,chest:0.1}],["shoulder press",{shoulders:0.7,arms:0.2,chest:0.1}],["arnold",{shoulders:0.7,arms:0.2,chest:0.1}],["tricep",{arms:1}],["pushdown",{arms:1,cable:1}],["push-down",{arms:1,cable:1}],["skullcrusher",{arms:1}],["close grip",{arms:0.7,chest:0.3}],["preacher",{arms:1}],["hammer",{arms:1}],["curl",{arms:1}],["fly",{chest:0.85,shoulders:0.15}],["row",{back:0.7,arms:0.3}],["press",{chest:0.5,shoulders:0.35,arms:0.15}]];
 const GROUP_COLORS={legs:"#e8ff3c",back:"#3cffa0",chest:"#ff6b2b",shoulders:"#c084fc",arms:"#3b9eff"};
-function getExSplits(name){const n=name.toLowerCase();for(const[kw,sp]of EXERCISE_SPLITS){if(n.includes(kw))return sp;}const g=getExGroup(name);return g?{[g]:1}:{};}function isCableEx(name){return /cable|rope|push[\s-]?down|pull[\s-]?down/i.test(name)||getExSplits(name).cable===1;}function isPressEx(name){return /press|raise|fly|curl/i.test(name);}function parseDec(v){if(typeof v==='number')return v;return parseFloat(String(v==null?'':v).trim().replace(',','.'));}function isBWExName(n){return !/weighted/i.test(n||'')&&/(^|\s)(push[\s-]?ups?|pull[\s-]?ups?|chin[\s-]?ups?|dips?)$/i.test(n||'');}function ewmaSmooth(dates,values,tauDays){if(!values.length)return[];var tau=tauDays||14;var out=[values[0]];for(var i=1;i<values.length;i++){var dt=(new Date(dates[i]+'T12:00:00')-new Date(dates[i-1]+'T12:00:00'))/86400000;if(!(dt>0))dt=1;var a=1-Math.exp(-dt/tau);out.push(out[i-1]+a*(values[i]-out[i-1]));}return out;}function getExGroup(line){const n=line.toLowerCase();for(const[g,kws]of MUSCLE_MAP){for(const kw of kws){if(n.includes(kw))return g;}}return null;}
+function getExSplits(name){const n=name.toLowerCase();for(const[kw,sp]of EXERCISE_SPLITS){if(n.includes(kw))return sp;}const g=getExGroup(name);return g?{[g]:1}:{};}function isCableEx(name){return /cable|rope|push[\s-]?down|pull[\s-]?down/i.test(name)||getExSplits(name).cable===1;}function isPressEx(name){return /press|raise|fly|curl/i.test(name);}function isCompoundEx(name){var n=(name||'').toLowerCase();if(/smith|hack|cable|machine/.test(n))return false;return /squat|deadlift|romanian|rdl|bench|overhead press|barbell row|pull-?up|chin-?up|weighted|dips?$|hip thrust|lunge/.test(n);}function parseDec(v){if(typeof v==='number')return v;return parseFloat(String(v==null?'':v).trim().replace(',','.'));}function isBWExName(n){return !/weighted/i.test(n||'')&&/(^|\s)(push[\s-]?ups?|pull[\s-]?ups?|chin[\s-]?ups?|dips?)$/i.test(n||'');}function ewmaSmooth(dates,values,tauDays){if(!values.length)return[];var tau=tauDays||14;var out=[values[0]];for(var i=1;i<values.length;i++){var dt=(new Date(dates[i]+'T12:00:00')-new Date(dates[i-1]+'T12:00:00'))/86400000;if(!(dt>0))dt=1;var a=1-Math.exp(-dt/tau);out.push(out[i-1]+a*(values[i]-out[i-1]));}return out;}function getExGroup(line){const n=line.toLowerCase();for(const[g,kws]of MUSCLE_MAP){for(const kw of kws){if(n.includes(kw))return g;}}return null;}
 function getBWForDate(dateStr){if(!weights.length)return 80;let bw=weights[0].weight;for(const w of weights){if(w.date<=dateStr)bw=w.weight;else break;}return bw;}
 function calcLineVol(line,bw){const n=line.toLowerCase();const isPushup=n.includes('push-up')||n.includes('pushup')||n.includes('push up');const isPullup=!isPushup&&(n.includes('pull-up')||n.includes('pullup')||n.includes('pull up')||n.includes('chin-up')||n.includes('chinup')||n.includes('chin up')||n.includes('dip'));const dbm=line.match(/(\d+)\s*[x×]\s*(\d+(?:\.\d+)?)\s*kg/i);const wm=dbm?null:line.match(/(\d+(?:\.\d+)?)\s*kg/i);if(bw===undefined)bw=weights.length?weights[weights.length-1].weight:80;const w=isPushup&&!wm&&!dbm?25:isPullup&&!wm&&!dbm?bw:isPullup&&wm?bw+parseFloat(wm[1]):dbm?parseFloat(dbm[1])*parseFloat(dbm[2]):wm?parseFloat(wm[1]):0;if(!w)return 0;const dm=line.match(/\b(\d+(?:-\d+){1,7})\b/);return dm?dm[1].split('-').reduce((s,r)=>s+parseInt(r),0)*w:0;}
 function getWeekKey(dateStr){const d=new Date(dateStr+'T12:00:00');const mon=new Date(d);mon.setDate(d.getDate()-((d.getDay()+6)%7));return mon.toISOString().split('T')[0];}
@@ -506,12 +506,23 @@ function _ensurePrograms(){
   var changed=false;
   var hasHyp=_programs.some(function(p){return p.name==='6-Day Hypertrophy — Upper';});
   if(!hasHyp){_programs.unshift(_seedHypertrophyProgram());_activeProgramIndex=0;changed=true;}
-  var has5Day=_programs.some(function(p){return p.name==='5-Day Split';});
-  if(!has5Day&&_programs.length<4){_programs.push(_seedDefaultProgram());changed=true;}
+  // 5-Day Split is no longer auto-seeded (Henrik 2026-07-10) — deleting it must stick
   // Normalize: non-rehab programs must not show 'rehab' tag on exercises
   _programs.forEach(function(p){if((p.goal||'')!=='rehab'){(p.days||[]).forEach(function(d){(d.exercises||[]).forEach(function(e){if(e.tag==='rehab'){e.tag='volume';changed=true;}});});}});
-  // Leg-day rules (hypertrophy programs): Squat always first, Deadlift (1 heavy set, 5-8 reps) always last
-  _programs.forEach(function(p){if((p.goal||'')!=='hypertrophy')return;(p.days||[]).forEach(function(d){if(!/legs/i.test(d.name||''))return;var exs=d.exercises||[];if(!exs.length)return;var si=-1;for(var i=0;i<exs.length;i++){if(/squat/i.test(exs[i].name)&&!/split/i.test(exs[i].name)){si=i;break;}}if(si>0){exs.unshift(exs.splice(si,1)[0]);changed=true;}else if(si<0){exs.unshift({name:'Squat',scheme:'4×8-12',tag:'strength',sets:'8-8-8-8',kg:80});changed=true;}var dli=-1;for(var j=0;j<exs.length;j++){if(exs[j].name==='Deadlift'){dli=j;break;}}if(dli<0){exs.push({name:'Deadlift',scheme:'1×5-8',tag:'strength',sets:'6',kg:Math.round((exs[0].kg||80)*1.5)});changed=true;}else if(dli!==exs.length-1||exs[dli].sets!=='6'){var dlx=exs.splice(dli,1)[0];dlx.scheme='1×5-8';dlx.sets='6';dlx.tag='strength';exs.push(dlx);changed=true;}});});
+  // Leg-day rules (2026-07-10, stored hypertrophy programs): each Legs* day is EITHER a Squat
+  // day (Squat first, no conventional Deadlift) OR a Deadlift day (Deadlift last, no squat
+  // variants) — alternating, starting with a Squat day.
+  _programs.forEach(function(p){if((p.goal||'')!=='hypertrophy')return;var li=0;(p.days||[]).forEach(function(d){if(!/legs/i.test(d.name||''))return;var exs=d.exercises||[];if(!exs.length)return;var isSq=function(ex){return /squat/i.test(ex.name)&&!/split/i.test(ex.name);};
+    if(li++%2===0){
+      for(var r1=exs.length-1;r1>=0;r1--){if(exs[r1].name==='Deadlift'){exs.splice(r1,1);changed=true;}}
+      var si=-1;for(var i=0;i<exs.length;i++){if(isSq(exs[i])){si=i;break;}}
+      if(si>0){exs.unshift(exs.splice(si,1)[0]);changed=true;}else if(si<0){exs.unshift({name:'Squat',scheme:'4×8-12',tag:'strength',sets:'8-8-8-8',kg:80});changed=true;}
+    }else{
+      for(var r2=exs.length-1;r2>=0;r2--){if(isSq(exs[r2])){exs.splice(r2,1);changed=true;}}
+      var dli=-1;for(var j=0;j<exs.length;j++){if(exs[j].name==='Deadlift'){dli=j;break;}}
+      if(dli<0){exs.push({name:'Deadlift',scheme:'1×5-8',tag:'strength',sets:'6',kg:Math.round(((exs[0]||{}).kg||80)*1.5)});changed=true;}
+      else if(dli!==exs.length-1){var dlx=exs.splice(dli,1)[0];dlx.tag='strength';exs.push(dlx);changed=true;}
+    }});});
   return changed;
 }
 function initPrograms(){
@@ -595,7 +606,7 @@ function viewProgram(idx){_progReadOnly=true;_progEditIdx=idx;_progEditBuf=JSON.
 function _activateProg(i){if(i===_activeProgramIndex)return;_activeProgramIndex=i;savePrograms();rebuildDayGrid();rebuildLogDaySelect();clearDraft();var _ls=document.getElementById('log-day');if(_ls&&_ls.value)prefillLog(_ls.value);buildProgramSettingsCard();}
 function createNewProgram(){
   if(_programs.length>=4){alert('Maximum 4 programs');return;}
-  _progWiz={step:0,goal:null,sub:null,nDays:4,setsPerMuscle:12,name:''};
+  _progWiz={step:0,goal:null,sub:null,nDays:4,setsPerMuscle:12,injuries:[],name:''};
   _openProgOverlay();
 }
 function _openProgOverlay(){var ov=document.getElementById('prog-overlay');ov.classList.add('open');document.body.classList.add('locked');_renderProgOverlay();}
@@ -696,7 +707,7 @@ function _applyRehabSubs(exercises,prog){var subs=(prog||{}).rehabSubs||{};if(!O
 function _rehabSetSub(orig,val){if(!_progEditBuf.rehabSubs)_progEditBuf.rehabSubs={};_progEditBuf.rehabSubs[orig]=val;}
 function _rehabRemoveSub(orig){if(_progEditBuf.rehabSubs)delete _progEditBuf.rehabSubs[orig];_renderProgOverlay();}
 function _rehabDoAdd(){var orig=document.getElementById('rehab-add-orig').value.trim();var sub=document.getElementById('rehab-add-sub').value.trim();if(!orig||!sub){alert('Enter both exercise names');return;}if(!_progEditBuf.rehabSubs)_progEditBuf.rehabSubs={};_progEditBuf.rehabSubs[orig]=sub;_renderProgOverlay();}
-function _applyRehabCondition(condId){var cond=REHAB_CONDITIONS.find(function(c){return c.id===condId;});if(!cond)return;if(!_progEditBuf.rehabSubs)_progEditBuf.rehabSubs={};var subs=_progEditBuf.rehabSubs;(_progEditBuf.days||[]).forEach(function(day){(day.exercises||[]).forEach(function(ex){if(ex.name&&cond.detect(ex.name)&&!subs[ex.name])subs[ex.name]=cond.suggest(ex.name);});});_renderProgOverlay();}
+function _applyRehabCondition(condId){var cond=REHAB_CONDITIONS.find(function(c){return c.id===condId;});if(!cond)return;(_progEditBuf.days||[]).forEach(function(day){(day.exercises||[]).forEach(function(ex){if(ex.name&&cond.detect(ex.name))ex.name=cond.suggest(ex.name);});var _seen={};day.exercises=(day.exercises||[]).filter(function(ex){if(_seen[ex.name])return false;_seen[ex.name]=1;return true;});});_renderProgOverlay();}
 function _useProg(){_activeProgramIndex=_progEditIdx;savePrograms();rebuildDayGrid();rebuildLogDaySelect();buildProgramSettingsCard();closeProgramOverlay();}
 function _deleteProg(){
   if(!confirm('Delete "'+_programs[_progEditIdx].name+'"? This cannot be undone.'))return;
@@ -734,6 +745,10 @@ function _renderProgWiz(title,body,footer){
     html+='<div style="margin-bottom:8px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:14px;">Sets per muscle / week</div><div style="display:flex;gap:10px;">';
     for(var _si=0;_si<3;_si++){var _sp=_sPresets[_si];var _sSel=(_sp===curS);html+='<div onclick="_progWiz.setsPerMuscle='+_sp+';_renderProgOverlay()" style="flex:1;text-align:center;padding:14px 8px;border-radius:10px;cursor:pointer;background:'+(_sSel?'rgba(232,255,60,0.12)':'var(--surface2)')+';border:1px solid '+(_sSel?'var(--accent)':'var(--border)')+';user-select:none;"><div style="font-family:Bebas Neue,sans-serif;font-size:36px;color:'+(_sSel?'var(--accent)':'var(--text)')+';line-height:1;">'+_sp+'</div><div style="font-size:11px;color:'+(_sSel?'var(--accent)':'var(--muted)')+';margin-top:4px;">'+_sLabels[_si]+'</div></div>';}
     html+='</div></div>';
+    var _wInj=wiz.injuries||[];
+    html+='<div style="margin-top:24px;margin-bottom:8px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px;">Injuries (optional)</div><div style="font-size:11px;color:var(--muted);margin-bottom:12px;">Aggravating exercises are replaced with joint-friendly alternatives</div><div style="display:flex;gap:8px;">';
+    REHAB_CONDITIONS.forEach(function(c){var _on=_wInj.indexOf(c.id)>=0;html+='<div onclick="_progWizToggleInjury(\''+c.id+'\')" title="'+_escP(c.desc)+'" style="flex:1;text-align:center;padding:12px 6px;border-radius:10px;cursor:pointer;font-size:13px;background:'+(_on?'var(--accent)':'var(--surface2)')+';color:'+(_on?'#000':'var(--text)')+';border:1px solid '+(_on?'var(--accent)':'var(--border)')+';font-weight:600;">'+_escP(c.label)+'</div>';});
+    html+='</div></div>';
     body.innerHTML=html;
     footer.innerHTML='<button onclick="_progWiz.name=_progWizDefaultName();_progWiz.step=3;_renderProgOverlay()" style="width:100%;background:var(--accent);border:none;color:#000;border-radius:50px;padding:16px 24px;font-size:15px;font-weight:700;cursor:pointer;font-family:DM Sans,sans-serif;margin-bottom:8px;">Next →</button><button onclick="_progWiz.step=1;_renderProgOverlay()" style="width:100%;background:none;border:1px solid var(--border);color:var(--muted);border-radius:50px;padding:13px;font-size:13px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;">← Back</button>';
   }else if(wiz.step===3){
@@ -743,11 +758,15 @@ function _renderProgWiz(title,body,footer){
     var html='<div style="margin-bottom:20px;"><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px;">Program Name</div>';
     html+='<input id="prog-wiz-name" type="text" value="'+_escP(wiz.name||_progWizDefaultName())+'" oninput="_progWiz.name=this.value" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-size:15px;font-weight:600;font-family:DM Sans,sans-serif;outline:none;box-sizing:border-box;"></div>';
     html+='<div style="margin-top:20px;padding:16px;background:rgba(232,255,60,0.05);border:1px solid rgba(232,255,60,0.15);border-radius:10px;"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent);margin-bottom:10px;">Summary</div>';
-    html+='<div style="font-size:13px;color:var(--muted);line-height:2;">Goal: <span style="color:var(--text);font-weight:600;">'+gn+'</span><br>Focus: <span style="color:var(--text);font-weight:600;">'+sn+'</span><br>Days/week: <span style="color:var(--text);font-weight:600;">'+wiz.nDays+' day'+(wiz.nDays!==1?'s':'')+'</span><br>Sets/muscle/week: <span style="color:var(--text);font-weight:600;">'+(wiz.setsPerMuscle||12)+'</span></div></div>';
+    html+='<div style="font-size:13px;color:var(--muted);line-height:2;">Goal: <span style="color:var(--text);font-weight:600;">'+gn+'</span><br>Focus: <span style="color:var(--text);font-weight:600;">'+sn+'</span><br>Days/week: <span style="color:var(--text);font-weight:600;">'+wiz.nDays+' day'+(wiz.nDays!==1?'s':'')+'</span><br>Sets/muscle/week: <span style="color:var(--text);font-weight:600;">'+(wiz.setsPerMuscle||12)+'</span>'+((wiz.injuries||[]).length?'<br>Injuries: <span style="color:var(--text);font-weight:600;">'+wiz.injuries.map(function(id){var c=REHAB_CONDITIONS.find(function(x){return x.id===id;});return c?c.label:id;}).join(', ')+'</span>':'')+'</div>';
+    var _pv=null;try{_pv=_generateWorkoutProgram(wiz.goal,wiz.sub,wiz.nDays,'preview',wiz.setsPerMuscle||12,wiz.injuries);}catch(e){}
+    if(_pv&&_pv.days&&_pv.days.length){var _tots=_pv.days.map(function(d){return(d.exercises||[]).reduce(function(s,e){return s+String(e.sets).split('-').length;},0);});var _avg=Math.round(_tots.reduce(function(a,b){return a+b;},0)/_tots.length);var _mx=Math.max.apply(null,_tots);html+='<div style="font-size:12px;color:var(--muted);margin-top:10px;line-height:1.6;">Resulting sessions: ≈'+_avg+' sets avg ('+_mx+' max) — roughly '+Math.round(_avg*3.5)+' min per session</div>';}
+    html+='</div>';
     body.innerHTML=html;
     footer.innerHTML='<button onclick="_progWizGenerate()" style="width:100%;background:var(--accent);border:none;color:#000;border-radius:50px;padding:16px 24px;font-size:15px;font-weight:700;cursor:pointer;font-family:DM Sans,sans-serif;margin-bottom:8px;">Generate Program →</button><button onclick="_progWiz.step=2;_renderProgOverlay()" style="width:100%;background:none;border:1px solid var(--border);color:var(--muted);border-radius:50px;padding:13px;font-size:13px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;">← Back</button>';
   }
 }
+function _progWizToggleInjury(id){var a=_progWiz.injuries||(_progWiz.injuries=[]);var i=a.indexOf(id);if(i>=0)a.splice(i,1);else a.push(id);_renderProgOverlay();}
 function _progWizDefaultName(){
   if(!_progWiz)return'New Program';
   var n={strength:'Strength',hypertrophy:'Hypertrophy',aesthetic:'Feminine Aesthetic',rehab:'Rehab'}[_progWiz.goal]||'';
@@ -759,11 +778,11 @@ function _progWizDefaultName(){
 }
 function _progWizGenerate(){
   var wiz=_progWiz;var name=(wiz.name&&wiz.name.trim())||_progWizDefaultName();
-  var prog=_generateWorkoutProgram(wiz.goal,wiz.sub,wiz.nDays,name,wiz.setsPerMuscle||12);
+  var prog=_generateWorkoutProgram(wiz.goal,wiz.sub,wiz.nDays,name,wiz.setsPerMuscle||12,wiz.injuries);
   _programs.push(prog);buildProgramSettingsCard();
   _progWiz=null;_progReadOnly=false;_progEditIdx=_programs.length-1;_progEditBuf=JSON.parse(JSON.stringify(_programs[_progEditIdx]));_progIsNew=true;_renderProgOverlay();
 }
-function _generateWorkoutProgram(goal,sub,nDays,name,setsPerMuscle){
+function _generateWorkoutProgram(goal,sub,nDays,name,setsPerMuscle,injuries){
   if(!setsPerMuscle)setsPerMuscle=12;
   function scaleSets(setsStr){
     var parts=setsStr.split('-');var base=parts.length;
@@ -826,10 +845,57 @@ function _generateWorkoutProgram(goal,sub,nDays,name,setsPerMuscle){
   else{pool=[_seedDefaultProgram().days[0]];}
   (function(){var _base=pool.length;function _mGroup(nm){var n=(nm||'').toLowerCase();if(/leg|lower|squat|hip|lunge|calf|glute|quad|ham|rdl|deadlift/.test(n))return 'legs';if(/pull|row|lat|back|bicep|chin/.test(n))return 'pull';if(/push|bench|chest|press|tricep/.test(n))return 'push';if(/arm|delt|shoulder|lateral/.test(n))return 'arms';return 'other';}while(pool.length>0&&pool.length<nDays){var _pg=_mGroup(pool[pool.length-1].name);var _fg=_mGroup(pool[0].name);var _best=null,_bs=Infinity;for(var _ci=0;_ci<_base;_ci++){var _cg=_mGroup(pool[_ci].name);var _sc=(_cg===_pg?2:0)+(_cg===_fg?1:0);if(_best===null||_sc<_bs){_bs=_sc;_best=pool[_ci];}}pool.push(JSON.parse(JSON.stringify(_best)));}})();
   var _isRehabGoal=key.startsWith('rehab-');
-  pool.forEach(function(day){day.exercises=(day.exercises||[]).map(function(ex){var _t=(!_isRehabGoal&&ex.tag==='rehab')?'volume':ex.tag;return Object.assign({},ex,{sets:scaleSets(ex.sets),tag:_t});});});
-  // Leg-day rules: Squat is always the first exercise, Deadlift (1 heavy set, 5-8 reps) always the last
-  pool.forEach(function(day){if(!/legs/i.test(day.name))return;var exs=day.exercises;var si=-1;for(var _i2=0;_i2<exs.length;_i2++){if(/squat/i.test(exs[_i2].name)&&!/split/i.test(exs[_i2].name)){si=_i2;break;}}if(si>0){exs.unshift(exs.splice(si,1)[0]);}else if(si<0){exs.unshift(pw('Squat','4×8-12','strength',scaleSets('8-8-8-8'),80));}var dli=-1;for(var _j2=0;_j2<exs.length;_j2++){if(exs[_j2].name==='Deadlift'){dli=_j2;break;}}var dlx;if(dli>=0){dlx=exs.splice(dli,1)[0];}else{dlx=pw('Deadlift','1×5-8','strength','6',Math.round((exs[0].kg||80)*1.5));}dlx.scheme='1×5-8';dlx.sets='6';dlx.tag='strength';exs.push(dlx);});
+  pool.forEach(function(day){day.exercises=(day.exercises||[]).map(function(ex){var _t=(!_isRehabGoal&&ex.tag==='rehab')?'volume':ex.tag;return Object.assign({},ex,{tag:_t});});});
+  // Leg-day rules (2026-07-10): each Legs* day is EITHER a Squat day (Squat first, no
+  // conventional Deadlift) OR a Deadlift day (Deadlift last, 5-8 reps, no squat variants) —
+  // never both in one session (systemic load). Alternates, starting with a Squat day.
+  var _legIdx=0;
+  pool.forEach(function(day){if(!/legs/i.test(day.name))return;var exs=day.exercises;var _isSq=function(ex){return /squat/i.test(ex.name)&&!/split/i.test(ex.name);};
+    if(_legIdx++%2===0){
+      for(var _r1=exs.length-1;_r1>=0;_r1--){if(exs[_r1].name==='Deadlift')exs.splice(_r1,1);}
+      var si=-1;for(var _i2=0;_i2<exs.length;_i2++){if(_isSq(exs[_i2])){si=_i2;break;}}
+      if(si>0){exs.unshift(exs.splice(si,1)[0]);}else if(si<0){exs.unshift(pw('Squat','4×8-12','strength','8-8-8-8',80));}
+    }else{
+      for(var _r2=exs.length-1;_r2>=0;_r2--){if(_isSq(exs[_r2]))exs.splice(_r2,1);}
+      var dli=-1;for(var _j2=0;_j2<exs.length;_j2++){if(exs[_j2].name==='Deadlift'){dli=_j2;break;}}
+      var dlx;if(dli>=0){dlx=exs.splice(dli,1)[0];}else{dlx=pw('Deadlift','1×5-8','strength','6',Math.round(((exs[0]||{}).kg||80)*1.5));}
+      dlx.tag='strength';dlx.scheme=String(dlx.sets).split('-').length+'×5-8';exs.push(dlx);
+    }});
   var days=pool.slice(0,nDays).map(function(day,i){return Object.assign({},day,{name:'Day '+(i+1)+' — '+day.name.replace(/^Day \d+ — /,'')});});
+  // Injuries (2026-07-10): substitutions are baked into the program permanently — the
+  // aggravating exercise is replaced before allocation so volume redistributes correctly
+  if(injuries&&injuries.length){days.forEach(function(day){(day.exercises||[]).forEach(function(ex){injuries.forEach(function(cid){var c=REHAB_CONDITIONS.find(function(x){return x.id===cid;});if(c&&ex.name&&c.detect(ex.name))ex.name=c.suggest(ex.name);});});var _seen={};day.exercises=(day.exercises||[]).filter(function(ex){if(_seen[ex.name])return false;_seen[ex.name]=1;return true;});});}
+  // Volume: hypertrophy/aesthetic get frequency-aware allocation (weekly sets-per-muscle target
+  // split across the days that train each muscle, capped at 10 hard sets per muscle per session,
+  // 25-set session ceiling trimming isolation first). Strength/rehab keep their fixed schemes
+  // scaled linearly. Squat and Deadlift participate like any other exercise (rule 2026-07-10).
+  var GROUPS=['legs','back','chest','shoulders','arms'];
+  function _nSets(ex){return String(ex.sets).split('-').length;}
+  function _resizeEx(ex,n){var parts=String(ex.sets).split('-');var out=[];for(var i=0;i<n;i++)out.push(parts[i%parts.length]);ex.sets=out.join('-');ex.scheme=String(ex.scheme||'').replace(/^\d+×/,n+'×');}
+  if(/^(hypertrophy|aesthetic)-/.test(key)){
+    var SESSION_MUSCLE_CAP=10,SESSION_CEILING=25;
+    var freq={};GROUPS.forEach(function(g){freq[g]=0;});
+    days.forEach(function(day){var fs={};(day.exercises||[]).forEach(function(ex){var sp=getExSplits(ex.name);GROUPS.forEach(function(g){if(sp[g])fs[g]=(fs[g]||0)+_nSets(ex)*sp[g];});});day._fs=fs;GROUPS.forEach(function(g){if((fs[g]||0)>=1)freq[g]++;});});
+    days.forEach(function(day){
+      (day.exercises||[]).forEach(function(ex){
+        var sp=getExSplits(ex.name);var acc=0,wsum=0;
+        GROUPS.forEach(function(g){var f=sp[g]||0;if(!f)return;var base=day._fs[g]||0;if(!base||!freq[g])return;var target=Math.min(setsPerMuscle/freq[g],SESSION_MUSCLE_CAP);acc+=f*Math.max(0.4,Math.min(2,target/base));wsum+=f;});
+        if(wsum>0)_resizeEx(ex,Math.max(2,Math.min(5,Math.round(_nSets(ex)*(acc/wsum)*(isCompoundEx(ex.name)?1.5:0.85)))));
+      });
+      var _guard=100;
+      while(_guard-->0){
+        var _tot=(day.exercises||[]).reduce(function(s,ex){return s+_nSets(ex);},0);
+        if(_tot<=SESSION_CEILING)break;
+        var _trimmed=false;
+        for(var _ti=day.exercises.length-1;_ti>=0;_ti--){var _tx=day.exercises[_ti];if(!isCompoundEx(_tx.name)&&_nSets(_tx)>2){_resizeEx(_tx,_nSets(_tx)-1);_trimmed=true;break;}}
+        if(!_trimmed){for(var _tj=day.exercises.length-1;_tj>=0;_tj--){var _ty=day.exercises[_tj];if(_nSets(_ty)>2){_resizeEx(_ty,_nSets(_ty)-1);_trimmed=true;break;}}}
+        if(!_trimmed)break;
+      }
+      delete day._fs;
+    });
+  }else{
+    days.forEach(function(day){(day.exercises||[]).forEach(function(ex){ex.sets=scaleSets(ex.sets);});});
+  }
   return{name:name,days:days,goal:goal,setsPerMuscle:setsPerMuscle};
 }
 
