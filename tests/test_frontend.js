@@ -2305,9 +2305,9 @@ console.log('\n── Storage inspector ─────────────�
   check('pool.forEach remaps rehab→volume for non-rehab goals',
     src.includes("_isRehabGoal=key.startsWith('rehab-')") &&
     src.includes("(!_isRehabGoal&&ex.tag==='rehab')?'volume':ex.tag"));
-  check('_ensurePrograms normalizes rehab tags in non-rehab stored programs',
+  check('_ensurePrograms normalizes rehab tags in non-rehab stored programs (prehab exempt)',
     src.includes("(p.goal||'')!=='rehab'") &&
-    src.includes("if(e.tag==='rehab'){e.tag='volume';changed=true;}"));
+    src.includes("if(e.tag==='rehab'&&!e.prehab){e.tag='volume';changed=true;}"));
 }
 
 // ── Section 60: Program card toggle switch ────────────────────────────────────
@@ -2829,6 +2829,50 @@ console.log('\n── Injury substitutions (baked) ─────────�
   check('wizard has Injuries step', rawScript.includes('Injuries (optional)') && rawScript.includes('_progWizToggleInjury'));
   check('wizard passes injuries into generation', rawScript.includes("wiz.setsPerMuscle||12,wiz.injuries"));
   check('editor condition chips bake substitutions (no rehabSubs map writes)', !rawScript.includes('subs[ex.name]=cond.suggest(ex.name)'));
+}
+
+// ── Rotator cuff prehab block (shoulders injury) ─────────────────────────────
+console.log('\n── Rotator cuff prehab (shoulders injury) ──────────────────');
+{
+  const ps = G._generateWorkoutProgram('hypertrophy', 'balanced', 6, 'T', 15, ['shoulders']);
+  const cuffDays = ps.days.filter(d => d.exercises.some(e => e.name === 'Cable External Rotation'));
+  check('shoulders injury: ER injected on 1-3 days', cuffDays.length >= 1 && cuffDays.length <= 3, String(cuffDays.length));
+  check('injected ER keeps rehab tag at 15 reps',
+    cuffDays.every(d => { const e = d.exercises.find(x => x.name === 'Cable External Rotation');
+      return e.tag === 'rehab' && e.prehab === true && String(e.sets).split('-').every(r => r === '15'); }));
+  check('Face Pulls present on cuff days',
+    cuffDays.every(d => d.exercises.some(e => e.name === 'Face Pulls')));
+  check('prehab exempt from allocator resize (ER stays 2 sets)',
+    cuffDays.every(d => String(d.exercises.find(x => x.name === 'Cable External Rotation').sets).split('-').length === 2));
+  check('sessions still ≤ 25 with cuff block',
+    ps.days.every(d => d.exercises.reduce((t, e) => t + String(e.sets).split('-').length, 0) <= 25),
+    JSON.stringify(ps.days.map(d => d.exercises.reduce((t, e) => t + String(e.sets).split('-').length, 0))));
+  // no injuries → no ER injected
+  const p0 = G._generateWorkoutProgram('hypertrophy', 'balanced', 6, 'T', 15);
+  check('no injuries: no ER injected', !p0.days.some(d => d.exercises.some(e => e.name === 'Cable External Rotation')));
+  // catalogue
+  check('Cable External Rotation in exercise picker', html.includes('<option>Cable External Rotation</option>'));
+  check('external rotation has splits entry (shoulders:1)',
+    (G.EXERCISE_SPLITS || []).some(([k, v]) => k === 'external rotation' && v.shoulders === 1));
+  // rehab-shoulder pool includes ER
+  const pr = G._generateWorkoutProgram('rehab', 'shoulder', 6, 'T', 12);
+  check('rehab-shoulder program includes Cable External Rotation',
+    pr.days.some(d => d.exercises.some(e => e.name === 'Cable External Rotation')));
+  // _ensurePrograms: prehab keeps rehab tag, non-prehab still converted
+  const savedPrograms = G.localStorage.getItem('workout_programs');
+  G.localStorage.setItem('workout_programs', JSON.stringify({ programs: [
+    { name: '6-Day Hypertrophy — Upper', goal: 'hypertrophy', days: [
+      { name: 'Day 1 — Push A', warmup: false, exercises: [
+        { name: 'Cable External Rotation', scheme: '2×15', tag: 'rehab', sets: '15-15', kg: 5, prehab: true },
+        { name: 'Face Pulls', scheme: '3×15', tag: 'rehab', sets: '15-15-15', kg: 15 } ] } ] }
+  ], active_index: 0 }));
+  G.initPrograms();
+  const d0 = G.getActiveProgram().days[0];
+  check('stored prehab exercise keeps rehab tag', d0.exercises.find(e => e.name === 'Cable External Rotation').tag === 'rehab');
+  check('stored non-prehab rehab tag still converted to volume', d0.exercises.find(e => e.name === 'Face Pulls').tag === 'volume');
+  if (savedPrograms === null) G.localStorage.removeItem('workout_programs');
+  else G.localStorage.setItem('workout_programs', savedPrograms);
+  G.initPrograms();
 }
 
 // ── Summary ───────────────────────────────────────────────────────────────────
