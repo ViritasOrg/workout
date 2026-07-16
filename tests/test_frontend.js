@@ -2949,6 +2949,25 @@ check('log form scales prefilled load', /_deloadActive&&!isBodyweight&&lastKg>0\
 check('program view shows deload banner + scaled scheme',
   /_deloadBannerHtml\(\)/.test(rawScript) && /_deloadActive\?_deloadScheme\(ex\.scheme\)/.test(rawScript));
 
+// ── Deload applied consistently in Log Workout ───────────────────────────────
+console.log('\n── Deload in Log Workout ───────────────────────────────────');
+check('_deloadSets halves set count (8-8 → 8)',        G._deloadSets('8-8') === '8');
+check('_deloadSets rounds up (5 sets → 3)',            G._deloadSets('10-10-10-10-10') === '10-10-10');
+check('_deloadSets keeps at least 1 set',              G._deloadSets('8') === '8');
+check('_deloadKg 65% load (173 → 112)',                G._deloadKg(173) === 112);
+check('_deloadKg 65% load (90 → 59)',                  G._deloadKg(90) === 59);
+check('_deloadKg leaves 0/bodyweight untouched',       G._deloadKg(0) === 0);
+check('_deloadScheme halves the N× prefix',            G._deloadScheme('3×10-15') === '2×10-15');
+// The reported bug: a draft saved before toggling deload restored full kg values and
+// grew the cards back to full set counts over the deloaded prefill.
+check('drafts record deload state',                    rawScript.includes('deload:!!_deloadActive'));
+check('restoreDraft skips drafts from a different deload state',
+  rawScript.includes("(d.deload===undefined?false:!!d.deload)!==!!_deloadActive)return;"));
+check('settings sync refreshes Log page when deload state changes',
+  rawScript.includes('_dlPrev!==!!_deloadActive') && rawScript.includes('prefillLog(_ldD.value)'));
+check('prefillLog applies deload to prefilled kg',     rawScript.includes('lastKg=_deloadKg(lastKg)'));
+check('prefillLog applies deload to set counts',       rawScript.includes('_deloadActive?_deloadSets(ex.sets):ex.sets'));
+
 // ── Summary ───────────────────────────────────────────────────────────────────
 console.log(`\n${'─'.repeat(59)}`);
 console.log(`  ${passed} passed  ${failed} failed  ${passed + failed} total`);
