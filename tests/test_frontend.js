@@ -2575,8 +2575,8 @@ check('parseDec(null) → NaN',        Number.isNaN(G.parseDec(null)));
 check('parseDec(5) → 5 (number passthrough)', G.parseDec(5) === 5);
 check('parseDec("0,25") → 0.25',     G.parseDec('0,25') === 0.25);
 check('kg inputs use inputmode="decimal"', (rawScript.match(/inputmode="decimal"/g) || []).length >= 4);
-check('saveLog parses kg with parseDec',   rawScript.includes('parseDec(kgInputs[i]'));
-check('saveWeight parses with parseDec',   rawScript.includes("parseDec(document.getElementById('weight-input')"));
+check('saveLog parses kg in the selected unit', rawScript.includes('unitToKg(kgInputs[i]'));
+check('saveWeight parses in the selected unit', rawScript.includes("unitToKg(document.getElementById('weight-input')"));
 check('saveBf parses with parseDec',       rawScript.includes("parseDec(document.getElementById('bf-input')"));
 
 // ── ewmaSmooth (strength trend smoothing) ────────────────────────────────────
@@ -2945,7 +2945,7 @@ check('_deloadKg leaves 0 alone (bodyweight)', G._deloadKg(0) === 0, `got ${G._d
 check('deload persisted via settings push', /pushSettingsToAgent\(\{'wkt-deload':_deloadActive\}\)/.test(rawScript));
 check('deload restored from backend settings', /s\['wkt-deload'\]!==undefined/.test(rawScript));
 check('log form uses deloaded set count', /_deloadActive\?_deloadSets\(ex\.sets\):ex\.sets/.test(rawScript));
-check('log form scales prefilled load', /_deloadActive&&!isBodyweight&&lastKg>0\)lastKg=_deloadKg/.test(rawScript));
+check('log form scales prefilled load', /_deloadActive&&!isBodyweight&&lastKg>0\)\{lastKg=_deloadKg/.test(rawScript));
 check('program view shows deload banner + scaled scheme',
   /_deloadBannerHtml\(\)/.test(rawScript) && /_deloadActive\?_deloadScheme\(ex\.scheme\)/.test(rawScript));
 
@@ -2967,6 +2967,113 @@ check('settings sync refreshes Log page when deload state changes',
   rawScript.includes('_dlPrev!==!!_deloadActive') && rawScript.includes('prefillLog(_ldD.value)'));
 check('prefillLog applies deload to prefilled kg',     rawScript.includes('lastKg=_deloadKg(lastKg)'));
 check('prefillLog applies deload to set counts',       rawScript.includes('_deloadActive?_deloadSets(ex.sets):ex.sets'));
+
+// ── Barbell plate rounding + kg/lb unit switch ───────────────────────────────
+console.log('\n── Barbell rounding & units ────────────────────────────────');
+{
+  G.localStorage.setItem('wkt-unit','kg');
+  check('isBarbellEx: barbell lifts true', ['Squat','Deadlift','Bench Press','Overhead Press','Barbell Row','Romanian Deadlift','Hip Thrust'].every(n=>G.isBarbellEx(n)));
+  check('isBarbellEx: machines/DB/cable/landmine false', ['Leg Press','Smith Machine Squat','Cable Fly','Incline DB Press','Landmine Press','Chest Machine Press','Lateral Raise'].every(n=>!G.isBarbellEx(n)));
+  check('roundBarbellKg: 59 → 60 (2.5 kg steps)',   G.roundBarbellKg(59) === 60);
+  check('roundBarbellKg: 58 → 57.5',                G.roundBarbellKg(58) === 57.5);
+  check('roundBarbellKg: floor is the empty 20 kg bar', G.roundBarbellKg(12) === 20);
+  check('roundBarbellKg: already loadable stays',   G.roundBarbellKg(100) === 100);
+  check('kg mode: kgToUnit passthrough',            G.kgToUnit(92.4) === 92.4);
+  check('kg mode: unitToKg passthrough',            G.unitToKg('82,5') === 82.5);
+  G.localStorage.setItem('wkt-unit','lb');
+  check('lb mode: kgToUnit converts (100 kg → 220.5 lb)', G.kgToUnit(100) === 220.5);
+  check('lb mode: unitToKg converts (225 lb → ~102 kg)',  Math.abs(G.unitToKg('225') - 102.06) < 0.01);
+  check('lb mode: roundBarbellKg uses 45 lb bar + 5 lb steps',
+    Math.abs(G.roundBarbellKg(59) * 2.20462 - 130) < 0.05); // 59 kg = 130.1 lb → 130 lb
+  check('lb mode: floor is the empty 45 lb bar', Math.abs(G.roundBarbellKg(10) * 2.20462 - 45) < 0.05);
+  G.localStorage.setItem('wkt-unit','kg');
+  // wiring
+  check('deload prefill rounds barbell weights', rawScript.includes('if(isBarbellEx(ex.name))lastKg=roundBarbellKg(lastKg);'));
+  check('unit setting synced to backend',        rawScript.includes("pushSettingsToAgent({'wkt-unit':u})"));
+  check('unit setting restored from backend',    rawScript.includes("if(s['wkt-unit'])"));
+  check('Settings has unit toggle',              html.includes('unit-btn-kg') && html.includes('unit-btn-lb'));
+  check('onboarding has unit chips',             rawScript.includes("['kg','lb'].map(function(u)"));
+  check('drafts record unit; restore guarded',   rawScript.includes('unit:unitLabel()') && rawScript.includes("(d.unit||'kg')!==unitLabel())return;"));
+}
+
+// ── Injury interplay regressions (Legs A shoulder work / squat re-added) ─────
+console.log('\n── Injury interplay regressions ────────────────────────────');
+{
+  const isSqN = (n) => /squat/i.test(n) && !/split/i.test(n);
+  // Bug A: knee injury turns squats into Leg Press, which matched the /press/i "pressing day"
+  // check and pulled the shoulder cuff block onto leg days
+  const p = G._generateWorkoutProgram('hypertrophy', 'balanced', 6, 'T', 10, ['knees', 'shoulders']);
+  const legDays = p.days.filter(d => /legs/i.test(d.name));
+  check('knee+shoulder program: leg days exist', legDays.length >= 1);
+  check('leg days get NO shoulder cuff block', legDays.every(d => !d.exercises.some(e => /external rotation|face pull/i.test(e.name))),
+    JSON.stringify(legDays.map(d => d.exercises.map(e => e.name))));
+  check('cuff block still lands on upper pressing days',
+    p.days.some(d => !/legs/i.test(d.name) && d.exercises.some(e => e.name === 'Cable External Rotation')));
+  check('knee injury: no squats anywhere', p.days.every(d => !d.exercises.some(e => isSqN(e.name))));
+  check('generated program records its injuries', JSON.stringify(p.injuries) === JSON.stringify(['knees', 'shoulders']));
+  // Bug B: _ensurePrograms re-added Squat to knee-safe stored programs on every load
+  const savedPrograms = G.localStorage.getItem('workout_programs');
+  p.name = '6-Day Hypertrophy — Upper';
+  G.localStorage.setItem('workout_programs', JSON.stringify({ programs: [p], active_index: 0 }));
+  G.initPrograms();
+  const stored = G.getActiveProgram();
+  check('stored knee-safe program: Squat NOT re-added on load',
+    stored.days.every(d => !d.exercises.some(e => isSqN(e.name))),
+    JSON.stringify(stored.days.filter(d => /legs/i.test(d.name)).map(d => d.exercises.map(e => e.name))));
+  // lower_back analog: Deadlift not re-appended
+  const pb = G._generateWorkoutProgram('hypertrophy', 'balanced', 6, 'T', 10, ['lower_back']);
+  pb.name = '6-Day Hypertrophy — Upper';
+  G.localStorage.setItem('workout_programs', JSON.stringify({ programs: [pb], active_index: 0 }));
+  G.initPrograms();
+  check('stored lower-back-safe program: Deadlift NOT re-appended on load',
+    G.getActiveProgram().days.every(d => !d.exercises.some(e => e.name === 'Deadlift')));
+  // programs WITHOUT injuries still get the leg-day rules on load (regression)
+  G.localStorage.setItem('workout_programs', JSON.stringify({ programs: [
+    { name: '6-Day Hypertrophy — Upper', goal: 'hypertrophy', days: [
+      { name: 'Day 1 — Legs A', warmup: false, exercises: [
+        { name: 'Leg Press', scheme: '3×12', tag: 'volume', sets: '12-12-12', kg: 100 } ] } ] }
+  ], active_index: 0 }));
+  G.initPrograms();
+  check('no-injury stored program still gets Squat added to its Squat day',
+    G.getActiveProgram().days[0].exercises.some(e => isSqN(e.name)));
+  if (savedPrograms === null) G.localStorage.removeItem('workout_programs');
+  else G.localStorage.setItem('workout_programs', savedPrograms);
+  G.initPrograms();
+}
+
+// ── Drafts keyed by exercise name (no cross-exercise pollution) ──────────────
+console.log('\n── Name-keyed drafts / leg-day prehab strip ────────────────');
+{
+  check('cards carry template identity',      rawScript.includes("card.dataset.tplName=ex.name;"));
+  check('drafts saved as v2 keyed by name',   rawScript.includes("var _dk=card.dataset.tplName||String(ei);"));
+  check('v2 restore matches cards by name',   rawScript.includes("_cs[_ci].dataset.tplName===_base"));
+  check('legacy drafts still restore by index', rawScript.includes("card=c.querySelector('[data-ex-idx=\"'+ei+'\"]');"));
+  // Stored leg days lose previously injected prehab (cuff work never belongs on leg days)
+  const savedPrograms = G.localStorage.getItem('workout_programs');
+  G.localStorage.setItem('workout_programs', JSON.stringify({ programs: [
+    { name: '6-Day Hypertrophy — Upper', goal: 'hypertrophy', days: [
+      { name: 'Day 3 — Legs A', warmup: false, exercises: [
+        { name: 'Squat', scheme: '4×10', tag: 'strength', sets: '10-10-10-10', kg: 80 },
+        { name: 'Leg Press', scheme: '3×12', tag: 'volume', sets: '12-12-12', kg: 100 },
+        { name: 'Cable External Rotation', scheme: '2×15', tag: 'rehab', sets: '15-15', kg: 5, prehab: true },
+        { name: 'Face Pulls', scheme: '3×15', tag: 'rehab', sets: '15-15-15', kg: 15, prehab: true } ] },
+      { name: 'Day 1 — Push A', warmup: false, exercises: [
+        { name: 'Chest Machine Press', scheme: '4×10', tag: 'volume', sets: '10-10-10-10', kg: 57 },
+        { name: 'Cable External Rotation', scheme: '2×15', tag: 'rehab', sets: '15-15', kg: 5, prehab: true } ] }
+    ] } ], active_index: 0 }));
+  G.initPrograms();
+  const prog = G.getActiveProgram();
+  const legs = prog.days.find(d => /legs/i.test(d.name));
+  const push = prog.days.find(d => /push/i.test(d.name));
+  check('stored leg day: injected prehab stripped on load',
+    !legs.exercises.some(e => /external rotation|face pull/i.test(e.name)),
+    JSON.stringify(legs.exercises.map(e => e.name)));
+  check('stored push day: prehab kept',
+    push.exercises.some(e => e.name === 'Cable External Rotation'));
+  if (savedPrograms === null) G.localStorage.removeItem('workout_programs');
+  else G.localStorage.setItem('workout_programs', savedPrograms);
+  G.initPrograms();
+}
 
 // ── Summary ───────────────────────────────────────────────────────────────────
 console.log(`\n${'─'.repeat(59)}`);
