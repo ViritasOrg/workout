@@ -61,6 +61,8 @@ check('pin-screen markup removed',          !html.includes('id="pin-screen"'));
 const patched = rawScript
   .replace('const EXERCISE_SPLITS=', 'var EXERCISE_SPLITS=')
   .replace('const GROUP_COLORS=',    'var GROUP_COLORS=')
+  .replace('const EX_OPTS_HTML=',    'var EX_OPTS_HTML=')
+  .replace('const DAYS=',            'var DAYS=')
   .replace('const DAY_TEMPLATES=',   'var DAY_TEMPLATES=')
   .replace('const THEMES=',          'var THEMES=')
   .replace("const VERSION='",        "var VERSION='")
@@ -1907,9 +1909,9 @@ console.log('\n── 48. Program wizard days/sets ─────────�
     // prefillLog renders exactly the number of sets the program specifies (no cap)
     try {
       check('prefillLog uses ex.sets.split without artificial slice cap',
-        src.includes("ex.sets.split('-')") && !src.includes("ex.sets.split('-').slice(0,5)"));
-      check('prefillLog label shows raw ex.sets (label matches stored program)',
-        src.includes("margin-top:2px\">'+ex.sets+'</div>"));
+        src.includes("(_deloadActive?_deloadSets(ex.sets):ex.sets).split('-')") && !src.includes("ex.sets.split('-').slice(0,5)"));
+      check('prefillLog label shows program sets (deloaded when active, else raw ex.sets)',
+        src.includes("margin-top:2px\">'+(_deloadActive?_deloadSets(ex.sets):ex.sets)+'</div>"));
     } catch(e) {
       check('prefillLog no-cap invariant (caught)', false, String(e));
     }
@@ -2370,7 +2372,7 @@ console.log('\n── prefillLog — WPU / reps / scheme label ─────�
   check('prefillLog: scheme label uses var(--accent)',
     fn.includes('color:var(--accent)') && fn.includes("margin-top:2px"));
   check('prefillLog: scheme label shows sets only (no weight)',
-    fn.includes(">\'+ex.sets+\'</div>") && !fn.includes("ex.sets+' '+(lastKg?lastKg+'kg'"));
+    fn.includes(">'+(_deloadActive?_deloadSets(ex.sets):ex.sets)+'</div>") && !fn.includes("ex.sets+' '+(lastKg?lastKg+'kg'"));
   check('prefillLog: exercise name is heading above scheme label (not same line)',
     fn.includes('margin-bottom:10px') && fn.includes("margin-top:2px"));
   // Regression: must NOT still use the old muted/11px combo for the scheme label
@@ -2874,6 +2876,78 @@ console.log('\n── Rotator cuff prehab (shoulders injury) ──────�
   else G.localStorage.setItem('workout_programs', savedPrograms);
   G.initPrograms();
 }
+
+// ── Low-to-high Cable Fly (6-day hypertrophy generator only) ──────────────────
+console.log('\n── Low-to-high Cable Fly ──────────────────────────────────');
+check('catalogue EX_OPTS_HTML lists Low-to-high Cable Fly',
+  typeof G.EX_OPTS_HTML === 'string' && G.EX_OPTS_HTML.includes('Low-to-high Cable Fly'));
+const _lfSplits = G.getExSplits('Low-to-high Cable Fly');
+check('Low-to-high Cable Fly is chest-dominant (chest=0.85)', _lfSplits.chest === 0.85, `got ${_lfSplits.chest}`);
+check('Low-to-high Cable Fly counts as a cable exercise', G.isCableEx('Low-to-high Cable Fly'));
+const _flyDays = p => p.days.filter(d => d.exercises.some(e => e.name === 'Low-to-high Cable Fly')).length;
+// 6-day hypertrophy generator — fly on exactly one day in each hypertrophy sub-goal
+const _gbal6 = G._generateWorkoutProgram('hypertrophy', 'balanced', 6, 'X', 12, []);
+check('hypertrophy-balanced 6-day: Low-to-high Cable Fly on exactly one day', _flyDays(_gbal6) === 1, `got ${_flyDays(_gbal6)}`);
+const _gup6 = G._generateWorkoutProgram('hypertrophy', 'upper', 6, 'X', 12, []);
+check('hypertrophy-upper 6-day: Low-to-high Cable Fly on exactly one day', _flyDays(_gup6) === 1, `got ${_flyDays(_gup6)}`);
+// It's the Push day it lands on
+check('hypertrophy-balanced 6-day: fly is on a Push day',
+  _gbal6.days.some(d => /push/i.test(d.name) && d.exercises.some(e => e.name === 'Low-to-high Cable Fly')));
+// Not in the 5-day generator (6-day only)
+const _gbal5 = G._generateWorkoutProgram('hypertrophy', 'balanced', 5, 'X', 12, []);
+check('hypertrophy 5-day generator does NOT include the fly', _flyDays(_gbal5) === 0, `got ${_flyDays(_gbal5)}`);
+// Reverted: never edits existing programs, and not scattered into seeds
+check('_ensurePrograms does NOT add the fly to existing programs',
+  !/Low-to-high Cable Fly/.test(G._ensurePrograms.toString()));
+check('hypertrophy seed does NOT contain the fly',
+  !G._seedHypertrophyProgram().days.some(d => d.exercises.some(e => e.name === 'Low-to-high Cable Fly')));
+check('5-Day Split seed Day 3 does NOT contain the fly',
+  !G.DAYS[3].exercises.some(e => e.name === 'Low-to-high Cable Fly'));
+
+// ── Workout duration (start on first set, end on save) ────────────────────────
+console.log('\n── Workout duration ───────────────────────────────────────');
+check('_fmtDur defined', typeof G._fmtDur === 'function');
+check('_fmtDur(42) → "0:42"',  G._fmtDur(42) === '0:42',  `got "${G._fmtDur(42)}"`);
+check('_fmtDur(65) → "1:05"',  G._fmtDur(65) === '1:05',  `got "${G._fmtDur(65)}"`);
+check('_fmtDur(125) → "2:05"', G._fmtDur(125) === '2:05', `got "${G._fmtDur(125)}"`);
+check('_fmtDur(0) → "0:00"',   G._fmtDur(0) === '0:00',   `got "${G._fmtDur(0)}"`);
+check('_fmtDur(null) → ""',    G._fmtDur(null) === '',    `got "${G._fmtDur(null)}"`);
+check('saveLog records started_at/ended_at/duration_min',
+  /_timing\.started_at=_logStartedAt/.test(rawScript) &&
+  /_timing\.duration_min=Math\.max\(0,Math\.round\(/.test(rawScript));
+check('duration_min spread into the saved log', /id:editId\|\|Date\.now\(\),\.\.\._timing\}/.test(rawScript));
+check('editing preserves original timing (no wipe)',
+  /if\(editId\)\{var _origT=logs\.find/.test(rawScript));
+check('start time captured when first set logged', /_hasReps&&!_logStartedAt\)_logStartedAt=new Date/.test(rawScript));
+check('duration shown in History list', /l\.duration_min!=null\?' · ⏱ '\+_fmtDur\(l\.duration_min\)/.test(rawScript));
+check('duration shown in session detail', /log\.duration_min!=null\)parts\.push\('⏱ '\+_fmtDur\(log\.duration_min\)\)/.test(rawScript));
+
+// ── Deload toggle ─────────────────────────────────────────────────────────────
+console.log('\n── Deload toggle ──────────────────────────────────────────');
+check('_deloadSets halves set count', G._deloadSets('8-8-8-8') === '8-8', `got "${G._deloadSets('8-8-8-8')}"`);
+check('_deloadSets rounds up odd counts', G._deloadSets('5-5-5-5-5') === '5-5-5', `got "${G._deloadSets('5-5-5-5-5')}"`);
+check('_deloadSets keeps a single set', G._deloadSets('12') === '12', `got "${G._deloadSets('12')}"`);
+check('_deloadScheme "5×5" → "3×5"',    G._deloadScheme('5×5') === '3×5', `got "${G._deloadScheme('5×5')}"`);
+check('_deloadScheme "4×8-12" → "2×8-12"', G._deloadScheme('4×8-12') === '2×8-12', `got "${G._deloadScheme('4×8-12')}"`);
+check('_deloadScheme "3×max" → "2×max"', G._deloadScheme('3×max') === '2×max', `got "${G._deloadScheme('3×max')}"`);
+check('_deloadKg scales to ~65% (100→65)', G._deloadKg(100) === 65, `got ${G._deloadKg(100)}`);
+check('_deloadKg scales to ~65% (80→52)',  G._deloadKg(80) === 52, `got ${G._deloadKg(80)}`);
+check('_deloadKg leaves 0 alone (bodyweight)', G._deloadKg(0) === 0, `got ${G._deloadKg(0)}`);
+{
+  const _savedD = G._deloadActive;
+  G._deloadActive = false;
+  G.toggleDeload();
+  check('toggleDeload turns deload on', G._deloadActive === true);
+  G.toggleDeload();
+  check('toggleDeload turns deload off', G._deloadActive === false);
+  G._deloadActive = _savedD;
+}
+check('deload persisted via settings push', /pushSettingsToAgent\(\{'wkt-deload':_deloadActive\}\)/.test(rawScript));
+check('deload restored from backend settings', /s\['wkt-deload'\]!==undefined/.test(rawScript));
+check('log form uses deloaded set count', /_deloadActive\?_deloadSets\(ex\.sets\):ex\.sets/.test(rawScript));
+check('log form scales prefilled load', /_deloadActive&&!isBodyweight&&lastKg>0\)lastKg=_deloadKg/.test(rawScript));
+check('program view shows deload banner + scaled scheme',
+  /_deloadBannerHtml\(\)/.test(rawScript) && /_deloadActive\?_deloadScheme\(ex\.scheme\)/.test(rawScript));
 
 // ── Summary ───────────────────────────────────────────────────────────────────
 console.log(`\n${'─'.repeat(59)}`);
