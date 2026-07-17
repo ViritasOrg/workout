@@ -2969,6 +2969,20 @@ check('settings sync refreshes Log page when deload state changes',
   rawScript.includes('_dlPrev!==!!_deloadActive') && rawScript.includes('prefillLog(_ldD.value)'));
 check('prefillLog applies deload to prefilled kg',     rawScript.includes('lastKg=_deloadKg(lastKg)'));
 check('prefillLog applies deload to set counts',       rawScript.includes('_deloadActive?_deloadSets(ex.sets):ex.sets'));
+// The reported bug: toggle Deload on the Program page, then open Log Workout —
+// the Log still showed the full non-deload list because showPage('log') only
+// re-prefilled on a day change, not a deload/unit change. Fix stamps the state
+// the log was built under and re-prefills when it goes stale (unless reps entered).
+check('prefillLog stamps the deload state on the log container',
+  rawScript.includes("container.dataset.deload=_deloadActive?'1':'0'"));
+check('prefillLog stamps the unit the log was built under',
+  rawScript.includes('container.dataset.unit=unitLabel()'));
+check('showPage(log) re-prefills when the rendered deload/unit is stale',
+  rawScript.includes("_lc.dataset.deload!==(_deloadActive?'1':'0')") &&
+  rawScript.includes('_lc.dataset.unit!==unitLabel()') &&
+  /else if\(_stale\)\{prefillLog/.test(rawScript));
+check('stale re-prefill is gated on no reps entered (never wipes in-progress log)',
+  /_stale=_lc&&!_hasReps&&/.test(rawScript));
 
 // ── Barbell plate rounding + kg/lb unit switch ───────────────────────────────
 console.log('\n── Barbell rounding & units ────────────────────────────────');
