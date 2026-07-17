@@ -77,6 +77,8 @@ const patched = rawScript
   .replace('let _chartScale=',       'var _chartScale=')
   .replace('let _programs=',         'var _programs=')
   .replace('let _pageVis=',          'var _pageVis=')
+  .replace('const PAGE_LABELS=',     'var PAGE_LABELS=')
+  .replace('const PRIMARY_GROUPS=',  'var PRIMARY_GROUPS=')
   .replace('let bfLog=',             'var bfLog=');
 
 const noop = () => {};
@@ -2253,8 +2255,8 @@ console.log('\n── 48. Program wizard days/sets ─────────�
 console.log('\n── Storage inspector ────────────────────────────────────────');
 {
   const src = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
-  check('nav-btn-storage exists in HTML (hidden by default)',
-    src.includes('id="nav-btn-storage"') && src.includes("style=\"display:none\""));
+  check('tab-btn-storage exists in HTML (hidden by default)',
+    src.includes('id="tab-btn-storage"') && src.includes("style=\"display:none\""));
   check('page-storage div exists in HTML',
     src.includes('id="page-storage"'));
   check('buildStoragePage function defined',
@@ -3073,6 +3075,52 @@ console.log('\n── Name-keyed drafts / leg-day prehab strip ─────�
   if (savedPrograms === null) G.localStorage.removeItem('workout_programs');
   else G.localStorage.setItem('workout_programs', savedPrograms);
   G.initPrograms();
+}
+
+// ── Section: Bottom navbar + PLASMA GUI port (from peptide app) ───────────────
+console.log('\n── Bottom navbar / PLASMA GUI port ─────────────────────────');
+{
+  const src = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  check('fixed bottom navbar markup exists with 5 primaries',
+    ['navbtn-program', 'navbtn-log', 'navbtn-history', 'navbtn-progress', 'navbtn-more']
+      .every(id => src.includes('id="' + id + '"')));
+  check('navbar buttons call switchPrimary', src.includes("switchPrimary('more')") && src.includes("switchPrimary('program')"));
+  check('navbar CSS is fixed to bottom with safe-area inset',
+    src.includes('.navbar{position:fixed;bottom:0') && src.includes('env(safe-area-inset-bottom'));
+  check('navbtn active indicator bar (::before) present', src.includes('.navbtn.active::before'));
+  check('old top-nav markup removed', !src.includes('nav-btn-program') && !src.includes('class="nav-btn'));
+  check('sub-tab strip exists with tab-btn-* ids (legacy page ids preserved)',
+    src.includes('id="subtabs"') && src.includes('id="tab-btn-program"') && src.includes('id="tab-btn-settings"'));
+  check('PRIMARY_GROUPS groups settings+storage under more',
+    JSON.stringify(G.PRIMARY_GROUPS.more) === JSON.stringify(['settings', 'storage']));
+  check('every PAGE_LABELS page belongs to a primary group',
+    Object.keys(G.PAGE_LABELS).every(id => G.primaryOf(id) !== ''));
+  check('primaryOf maps settings→more, log→log, unknown→\'\'',
+    G.primaryOf('settings') === 'more' && G.primaryOf('log') === 'log' && G.primaryOf('nope') === '');
+  check('showPage remembers last sub-tab per primary', src.includes("localStorage.setItem('wkt-last-sub-'+_pr,name)"));
+  check('switchPrimary restores last visible sub-tab', /function switchPrimary\(p\)\{[^}]*_lastSub\[p\]/.test(src));
+  check('sub-tab strip hidden when group has ≤1 visible destination',
+    src.includes("strip.style.display=vis.length>1?'':'none'"));
+  check('settings sub-tab always visible in _subVisible', src.includes("if(id==='settings')return true"));
+  check('Google webfont import removed (system fonts only)', !src.includes('fonts.googleapis.com'));
+  check('SF system font tokens defined (--font-ui/--font-display/--font-mono)',
+    src.includes('--font-ui:-apple-system') && src.includes('--font-display:-apple-system') && src.includes('--font-mono:ui-monospace'));
+  check('no Bebas Neue / DM Sans references remain', !/Bebas|DM Sans/.test(src));
+  check('PLASMA palette in :root (true-black bg, warm surfaces)',
+    src.includes('--bg:#000000') && src.includes('--surface:#15130F') && src.includes('--border-strong:#6E675A'));
+  check('content bottom padding clears fixed navbar', src.includes('padding:16px 20px 116px'));
+  check('rest timer bar sits above the bottom navbar',
+    src.includes('bottom:calc(64px + env(safe-area-inset-bottom,0px))'));
+  check('boot restores last page via showPage without legacy nav button',
+    !src.includes("getElementById('nav-btn-'") && src.includes("localStorage.getItem('wkt-last-page')"));
+  check('header restyled to pep hdr (34px display title, non-sticky)',
+    src.includes('.header-title{font-family:var(--font-display);font-size:34px') && !src.includes('.header{position:sticky'));
+  check('weight badge label cannot wrap (KG TODAY on one line)',
+    /\.weight-badge \.lbl\{[^}]*white-space:nowrap/.test(src) && /\.weight-badge \.val\{[^}]*white-space:nowrap/.test(src));
+  check('weight badge does not shrink against the header title',
+    /\.weight-badge\{[^}]*flex-shrink:0/.test(src));
+  check('iOS date inputs constrained to their container (no card overflow)',
+    /input\[type="date"\]\{min-width:0;max-width:100%;-webkit-appearance:none;appearance:none/.test(src));
 }
 
 // ── Summary ───────────────────────────────────────────────────────────────────
