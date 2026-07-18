@@ -1145,15 +1145,14 @@ check('clearDraft: removes wkt-draft from localStorage', G.getData('wkt-draft', 
 G.clearDraft(); // second call
 check('clearDraft: idempotent (no throw on second call)',  G.getData('wkt-draft', null) === null);
 
-// saveDraft writes structured data
-G.clearDraft();
+// saveDraft only persists once a session is started (≥1 rep). With no reps logged
+// (the mock log has none) it must NOT write a weights-only draft — it clears instead,
+// so an abandoned weights-only draft never resurfaces odd per-set weights later.
+const _todayStr = new Date().toISOString().split('T')[0];
+G.setData('wkt-draft', { stale: 1, savedDate: _todayStr });
 G.saveDraft();
 const _draft30 = G.getData('wkt-draft', null);
-check('saveDraft: writes wkt-draft to localStorage',       _draft30 !== null);
-check('saveDraft: draft has day property',                  _draft30 && 'day' in _draft30);
-check('saveDraft: draft has tmpl object',                   _draft30 && typeof _draft30.tmpl === 'object');
-check('saveDraft: draft has custom array',                  _draft30 && Array.isArray(_draft30.custom));
-check('saveDraft: draft has savedDate (today)',              _draft30 && _draft30.savedDate === new Date().toISOString().split('T')[0]);
+check('saveDraft: does not persist a no-rep (weights-only) draft', _draft30 === null);
 
 // restoreDraft: day mismatch → returns early, no throw
 G.setData('wkt-draft', { day: '3', date: '2026-06-01', weight: '80', tmpl: {}, custom: [] });
@@ -3158,6 +3157,33 @@ console.log('\n── Swipe navigation between top-level tabs ──────
     check('unknown current primary → null', G._navSwipeTarget(order, '__nope__', 1) === null);
     check('single visible primary → null', G._navSwipeTarget([order[0]], order[0], 1) === null);
     check('operates on the visible subset', G._navSwipeTarget([order[0], order[2]], order[0], 1) === order[2]);
+  }
+}
+
+// ── Draft resume requires reps (weights-only draft is discarded) ─────────────
+console.log('\n── Draft resume requires reps ──────────────────────────────');
+{
+  check('_draftHasReps defined', typeof G._draftHasReps === 'function');
+  if (typeof G._draftHasReps === 'function') {
+    // The bug case: weights entered per set but NO reps → not a resumable session
+    check('weights-only draft (no reps) → NOT resumable',
+      G._draftHasReps({ tmpl: { 'Lat Pulldown': { kg: ['59','90'], reps: ['',''] } } }) === false);
+    // A genuinely started session (≥1 rep) → resumable
+    check('draft with a rep → resumable',
+      G._draftHasReps({ tmpl: { 'Lat Pulldown': { kg: ['59','90'], reps: ['10',''] } } }) === true);
+    // Custom-exercise reps also count
+    check('custom-exercise reps count as started',
+      G._draftHasReps({ tmpl: {}, custom: [{ name: 'X', kg: ['20'], reps: ['8'] }] }) === true);
+    // Legacy flat sets format
+    check('legacy sets format: reps detected',
+      G._draftHasReps({ sets: { '0_0_kg': '50', '0_0_reps': '10' } }) === true);
+    check('legacy sets format: weights-only not resumable',
+      G._draftHasReps({ sets: { '0_0_kg': '50', '0_1_kg': '55' } }) === false);
+    // Empty / malformed → not resumable (no throw)
+    check('empty draft → not resumable', G._draftHasReps({}) === false);
+    check('null draft → not resumable', G._draftHasReps(null) === false);
+    check('reps of 0 do not count as started',
+      G._draftHasReps({ tmpl: { A: { kg: ['40'], reps: ['0'] } } }) === false);
   }
 }
 
