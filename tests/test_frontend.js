@@ -2660,23 +2660,37 @@ console.log('\n── Leg-day rules in generated programs ───────�
     pk.days.every(d => { const l = d.exercises[d.exercises.length - 1]; return !(l.name === 'Deadlift' && l.sets === '6'); }));
 }
 
-// ── Leg-day rules applied to stored hypertrophy programs (_ensurePrograms) ───
-console.log('\n── Leg-day rules on stored programs ────────────────────────');
+// ── Stored programs are NEVER mutated by _ensurePrograms (user edits stick) ──
+// Rule (2026-07-24): leg-day rules apply only to newly generated programs. A stored program's
+// exercises must survive reload exactly as saved — _ensurePrograms must not reorder/inject
+// Squat or Deadlift on a stored Legs day (that silently reverted the user's own edits).
+console.log('\n── Stored programs untouched on load ───────────────────────');
 {
   const savedPrograms = G.localStorage.getItem('workout_programs');
   const testProg = { programs: [{ name: '6-Day Hypertrophy — Upper', goal: 'hypertrophy', days: [
     { name: 'Day 3 — Legs A', warmup: false, exercises: [
       { name: 'Leg Press', scheme: '3×12', tag: 'volume', sets: '12-12-12', kg: 100 },
-      { name: 'Squat',     scheme: '4×10', tag: 'volume', sets: '10-10-10-10', kg: 80 },
       { name: 'Leg Curl',  scheme: '3×12', tag: 'volume', sets: '12-12-12', kg: 40 } ] },
   ] }], active_index: 0 };
   G.localStorage.setItem('workout_programs', JSON.stringify(testProg));
   G.initPrograms();
   const p = G.getActiveProgram();
   const day = p.days.find(d => /legs/i.test(d.name));
-  check('stored program: first legs day is a Squat day (Squat moved first)', !!day && day.exercises[0].name === 'Squat', day ? day.exercises[0].name : 'no legs day');
-  check('stored program: Squat day has NO Deadlift', !!day && !day.exercises.some(e => e.name === 'Deadlift'),
+  // The user removed Squat from this leg day — it must stay removed on load (not re-injected)
+  check('stored Legs day is left exactly as saved (Squat NOT re-injected)',
+    !!day && JSON.stringify(day.exercises.map(e => e.name)) === JSON.stringify(['Leg Press', 'Leg Curl']),
     day ? JSON.stringify(day.exercises.map(e => e.name)) : 'no legs day');
+  // Regression for the reported bug: replace Squat → Leg Press on a stored leg day, reload, edit sticks
+  const edited = { programs: [{ name: '6-Day Hypertrophy — Upper', goal: 'hypertrophy', days: [
+    { name: 'Day 1 — Legs A', warmup: false, exercises: [
+      { name: 'Leg Press', scheme: '4×10', tag: 'volume', sets: '10-10-10-10', kg: 100 },
+      { name: 'Leg Curl',  scheme: '3×12', tag: 'volume', sets: '12-12-12', kg: 40 } ] } ] }], active_index: 0 };
+  G.localStorage.setItem('workout_programs', JSON.stringify(edited));
+  G.initPrograms();
+  const ed = G.getActiveProgram().days[0];
+  check('replacing Squat→Leg Press on a stored leg day survives reload',
+    !ed.exercises.some(e => /squat/i.test(e.name) && !/split/i.test(e.name)),
+    JSON.stringify(ed.exercises.map(e => e.name)));
   // restore prior state
   if (savedPrograms === null) G.localStorage.removeItem('workout_programs');
   else G.localStorage.setItem('workout_programs', savedPrograms);
@@ -2773,9 +2787,10 @@ console.log('\n── Frequency-aware volume allocation ────────
   let schemeOk=true;
   for(const d of hi.p.days)for(const ex of d.exercises){const n=String(ex.sets).split('-').length;const m=String(ex.scheme).match(/^(\d+)×/);if(m&&parseInt(m[1])!==n)schemeOk=false;}
   check('scheme N× prefix matches resized set count', schemeOk);
-  // Strength and rehab keep their fixed schemes (linear scaling path)
-  const sp12=G._generateWorkoutProgram('strength','pure',3,'T',12);
-  check('strength-pure @12: Squat keeps its 5×5 scheme', sp12.days[0].exercises[0].sets==='5-5-5-5-5', sp12.days[0].exercises[0].sets);
+  // Strength SPLITS (5+ days) and rehab keep their fixed schemes (linear scaling path).
+  // (≤4-day strength is now full-body and uses the frequency-aware allocator — see below.)
+  const sp12=G._generateWorkoutProgram('strength','pure',5,'T',12);
+  check('strength-pure 5-day @12: Squat keeps its 5×5 scheme', sp12.days[0].exercises[0].sets==='5-5-5-5-5', sp12.days[0].exercises[0].sets);
   const rk12=allocStats('rehab','knee',6,12), rk24=allocStats('rehab','knee',6,24);
   check('rehab scales linearly (24 = 2× the sets of 12)', rk24.tots[0]===rk12.tots[0]*2, `${rk12.tots[0]} vs ${rk24.tots[0]}`);
   // Wizard review shows the computed outcome
@@ -2843,8 +2858,13 @@ console.log('\n── Rotator cuff prehab (shoulders injury) ──────�
   check('injected ER keeps rehab tag at 15 reps',
     cuffDays.every(d => { const e = d.exercises.find(x => x.name === 'Cable External Rotation');
       return e.tag === 'rehab' && e.prehab === true && String(e.sets).split('-').every(r => r === '15'); }));
-  check('Face Pulls present on cuff days',
-    cuffDays.every(d => d.exercises.some(e => e.name === 'Face Pulls')));
+  check('cuff block injects no Face Pulls (only External Rotation; rule 2026-07-24)',
+    !ps.days.some(d => d.exercises.some(e => e.name === 'Face Pulls' && e.prehab)));
+  // ER lands only on actual PRESS days, never on a pull day that merely carries a shoulder set
+  const _isPressER = (nm) => /bench|incline|overhead press|\bohp\b|shoulder press|arnold press|chest press|chest machine|landmine press|\bdips?\b|push-?up|close grip/i.test(nm) && !/leg press/i.test(nm);
+  check('External Rotation injected only on press days (not pull days)',
+    cuffDays.every(d => d.exercises.some(e => _isPressER(e.name))),
+    cuffDays.filter(d => !d.exercises.some(e => _isPressER(e.name))).map(d => d.name).join(', '));
   check('prehab exempt from allocator resize (ER stays 2 sets)',
     cuffDays.every(d => String(d.exercises.find(x => x.name === 'Cable External Rotation').sets).split('-').length === 2));
   check('sessions still ≤ 25 with cuff block',
@@ -3042,15 +3062,16 @@ console.log('\n── Injury interplay regressions ─────────�
   G.initPrograms();
   check('stored lower-back-safe program: Deadlift NOT re-appended on load',
     G.getActiveProgram().days.every(d => !d.exercises.some(e => e.name === 'Deadlift')));
-  // programs WITHOUT injuries still get the leg-day rules on load (regression)
+  // A stored program without injuries is ALSO left untouched (Squat not auto-added on load)
   G.localStorage.setItem('workout_programs', JSON.stringify({ programs: [
     { name: '6-Day Hypertrophy — Upper', goal: 'hypertrophy', days: [
       { name: 'Day 1 — Legs A', warmup: false, exercises: [
         { name: 'Leg Press', scheme: '3×12', tag: 'volume', sets: '12-12-12', kg: 100 } ] } ] }
   ], active_index: 0 }));
   G.initPrograms();
-  check('no-injury stored program still gets Squat added to its Squat day',
-    G.getActiveProgram().days[0].exercises.some(e => isSqN(e.name)));
+  check('no-injury stored program is left as saved (Squat NOT auto-added)',
+    !G.getActiveProgram().days[0].exercises.some(e => isSqN(e.name)),
+    JSON.stringify(G.getActiveProgram().days[0].exercises.map(e => e.name)));
   if (savedPrograms === null) G.localStorage.removeItem('workout_programs');
   else G.localStorage.setItem('workout_programs', savedPrograms);
   G.initPrograms();
@@ -3063,15 +3084,14 @@ console.log('\n── Name-keyed drafts / leg-day prehab strip ─────�
   check('drafts saved as v2 keyed by name',   rawScript.includes("var _dk=card.dataset.tplName||String(ei);"));
   check('v2 restore matches cards by name',   rawScript.includes("_cs[_ci].dataset.tplName===_base"));
   check('legacy drafts still restore by index', rawScript.includes("card=c.querySelector('[data-ex-idx=\"'+ei+'\"]');"));
-  // Stored leg days lose previously injected prehab (cuff work never belongs on leg days)
+  // Stored programs are left exactly as saved on load (no mutation of a stored leg day)
   const savedPrograms = G.localStorage.getItem('workout_programs');
   G.localStorage.setItem('workout_programs', JSON.stringify({ programs: [
     { name: '6-Day Hypertrophy — Upper', goal: 'hypertrophy', days: [
       { name: 'Day 3 — Legs A', warmup: false, exercises: [
         { name: 'Squat', scheme: '4×10', tag: 'strength', sets: '10-10-10-10', kg: 80 },
         { name: 'Leg Press', scheme: '3×12', tag: 'volume', sets: '12-12-12', kg: 100 },
-        { name: 'Cable External Rotation', scheme: '2×15', tag: 'rehab', sets: '15-15', kg: 5, prehab: true },
-        { name: 'Face Pulls', scheme: '3×15', tag: 'rehab', sets: '15-15-15', kg: 15, prehab: true } ] },
+        { name: 'Leg Curl', scheme: '3×12', tag: 'volume', sets: '12-12-12', kg: 40 } ] },
       { name: 'Day 1 — Push A', warmup: false, exercises: [
         { name: 'Chest Machine Press', scheme: '4×10', tag: 'volume', sets: '10-10-10-10', kg: 57 },
         { name: 'Cable External Rotation', scheme: '2×15', tag: 'rehab', sets: '15-15', kg: 5, prehab: true } ] }
@@ -3080,8 +3100,8 @@ console.log('\n── Name-keyed drafts / leg-day prehab strip ─────�
   const prog = G.getActiveProgram();
   const legs = prog.days.find(d => /legs/i.test(d.name));
   const push = prog.days.find(d => /push/i.test(d.name));
-  check('stored leg day: injected prehab stripped on load',
-    !legs.exercises.some(e => /external rotation|face pull/i.test(e.name)),
+  check('stored leg day left exactly as saved on load',
+    JSON.stringify(legs.exercises.map(e => e.name)) === JSON.stringify(['Squat', 'Leg Press', 'Leg Curl']),
     JSON.stringify(legs.exercises.map(e => e.name)));
   check('stored push day: prehab kept',
     push.exercises.some(e => e.name === 'Cable External Rotation'));
@@ -3241,6 +3261,111 @@ if (typeof G._generateWorkoutProgram === 'function') {
         _ns(_sq) >= 4, `Squat ${_ns(_sq)}`);
     }
   }
+}
+
+// ── Hip Thrust: Feminine Aesthetic + Knee Rehab only ───────────────────────────
+// Rule (2026-07-23): Hip Thrust may appear ONLY in aesthetic-* (Feminine Aesthetic)
+// and rehab-knee (glute activation) programs. A generator guard swaps it out of every
+// strength / hypertrophy / back-rehab / shoulder-rehab program.
+if (typeof G._generateWorkoutProgram === 'function') {
+  console.log('\n── Hip Thrust: Feminine Aesthetic + Knee Rehab only ───────');
+  const _hasHT = (p) => (p.days || []).some(d => (d.exercises || []).some(e => e.name === 'Hip Thrust'));
+  const _stripped = [
+    ['strength','pure',5], ['strength','hybrid',6],
+    ['hypertrophy','balanced',6], ['hypertrophy','upper',6], ['hypertrophy','lower',6],
+    ['rehab','back',6], ['rehab','shoulder',6],
+  ];
+  let _leak = _stripped.filter(([g,s,n]) => _hasHT(G._generateWorkoutProgram(g, s, n, 'T', 16, [])));
+  check('No Hip Thrust in strength / hypertrophy / back- or shoulder-rehab programs',
+    _leak.length === 0, _leak.map(c => c.join('-')).join(', '));
+  // No duplicate exercise names introduced by the swap (e.g. Legs C already had Leg Curl)
+  const _lowerC = G._generateWorkoutProgram('hypertrophy','lower',6,'T',16,[]);
+  const _dupFree = (_lowerC.days || []).every(d => {
+    const ns = (d.exercises || []).map(e => e.name);
+    return ns.length === new Set(ns).size;
+  });
+  check('Hip Thrust swap leaves no duplicate exercises in a day', _dupFree);
+  // Feminine Aesthetic and Knee Rehab keep Hip Thrust
+  check('Feminine Aesthetic (aesthetic-*) retains Hip Thrust',
+    _hasHT(G._generateWorkoutProgram('aesthetic','upperlower',5,'T',16,[])));
+  check('Knee Rehab (rehab-knee) retains Hip Thrust',
+    _hasHT(G._generateWorkoutProgram('rehab','knee',6,'T',16,[])));
+}
+
+// ── Face Pulls: at most one day per generated program ──────────────────────────
+// Rule (2026-07-24): Face Pulls must NEVER sit on a push/press day — any day containing a
+// pressing movement — even in shoulder rehab. The shoulder-injury cuff block injects Cable
+// External Rotation (not Face Pulls) on pressing days. At most one Face Pulls day per program.
+if (typeof G._generateWorkoutProgram === 'function') {
+  console.log('\n── Face Pulls: never on a push/press day ──────────────────');
+  const _isPress = (nm) => /bench|incline|overhead press|\bohp\b|shoulder press|arnold press|chest press|chest machine|landmine press|\bdips?\b|push-?up|close grip/i.test(nm) && !/leg press/i.test(nm);
+  const _fpDayCount = (p) => (p.days || []).filter(d => (d.exercises || []).some(e => e.name === 'Face Pulls')).length;
+  const _combos = [
+    ['strength','pure',5], ['strength','hybrid',6],
+    ['hypertrophy','balanced',6], ['hypertrophy','upper',5], ['hypertrophy','upper',7], ['hypertrophy','lower',6],
+  ];
+  const _over = _combos.filter(([g,s,n]) => _fpDayCount(G._generateWorkoutProgram(g,s,n,'T',16,[])) > 1);
+  check('No non-injury program schedules Face Pulls on more than one day',
+    _over.length === 0, _over.map(c => c.join('-')).join(', '));
+  // Sweep every goal/sub/day-count, with and without shoulder injury: no Face Pulls (prehab or
+  // not) may share a day with a pressing movement.
+  const _allCombos = [['strength','pure'],['strength','hybrid'],['hypertrophy','balanced'],
+    ['hypertrophy','upper'],['hypertrophy','lower'],['aesthetic','fullbody'],['aesthetic','upperlower'],
+    ['rehab','shoulder'],['rehab','back'],['rehab','knee']];
+  const _nd = { strength:[3,4,5,6], hypertrophy:[3,4,5,6,7], aesthetic:[3,5], rehab:[6] };
+  let _pressFP = [];
+  _allCombos.forEach(([g,s]) => _nd[g].forEach(n => [[],['shoulders']].forEach(inj => {
+    const p = G._generateWorkoutProgram(g, s, n, 'T', 16, inj);
+    (p.days || []).forEach(d => {
+      const hasFP = (d.exercises || []).some(e => e.name === 'Face Pulls');
+      const hasPress = (d.exercises || []).some(e => _isPress(e.name));
+      if (hasFP && hasPress) _pressFP.push(`${g}-${s}-${n}/${inj.join('')}: ${d.name}`);
+    });
+  })));
+  check('Face Pulls never share a day with a pressing movement (any program)',
+    _pressFP.length === 0, _pressFP.slice(0, 5).join(' | '));
+  // Shoulder-injury cuff work is preserved via Cable External Rotation (NOT Face Pulls)
+  const _shoulder = G._generateWorkoutProgram('hypertrophy','balanced',6,'T',16,['shoulders']);
+  const _hasExtRot = (_shoulder.days || []).some(d => (d.exercises || []).some(e => e.name === 'Cable External Rotation' && e.prehab));
+  check('Shoulder-injury program still injects prehab Cable External Rotation', _hasExtRot);
+  const _cuffFP = (_shoulder.days || []).some(d => (d.exercises || []).some(e => e.name === 'Face Pulls' && e.prehab));
+  check('Shoulder-injury cuff block no longer injects Face Pulls', _cuffFP === false);
+}
+
+// ── Manual program builder (blank, no wizard) ──────────────────────────────────
+console.log('\n── Manual program builder ─────────────────────────────────');
+check('_progBuildManual defined', typeof G._progBuildManual === 'function');
+check('New-program wizard offers a "Build manually" option', html.includes('_progBuildManual()') && html.includes('Build manually'));
+
+// ── Full-body at ≤4 days/week ──────────────────────────────────────────────────
+// Rule (2026-07-24): 4 days/week or fewer → full-body sessions (not a push/pull/legs or
+// upper/lower split) for hypertrophy & strength. 5+ days keep their splits.
+if (typeof G._generateWorkoutProgram === 'function') {
+  console.log('\n── Full-body at ≤4 days/week ──────────────────────────────');
+  const _dayNames = (p) => (p.days || []).map(d => d.name.replace(/^Day \d+ — /, ''));
+  const _allFB = (p) => (p.days || []).every(d => /Full Body/.test(d.name));
+  const _noSplit = (p) => !(p.days || []).some(d => /^(Push|Pull|Legs|Upper|Lower)\b/.test(d.name.replace(/^Day \d+ — /, '')));
+  [['hypertrophy','upper'],['hypertrophy','lower'],['hypertrophy','balanced'],['strength','pure'],['strength','hybrid']]
+    .forEach(([g,s]) => [3,4].forEach(n => {
+      const p = G._generateWorkoutProgram(g, s, n, 'T', 16, []);
+      check(`${g}-${s} ${n}-day is full-body (no split days)`, _allFB(p) && _noSplit(p), _dayNames(p).join('/'));
+    }));
+  // 5+ days keep splits (not full-body)
+  const _five = G._generateWorkoutProgram('hypertrophy', 'upper', 5, 'T', 16, []);
+  check('hypertrophy-upper 5-day keeps its split (not full-body)', !_allFB(_five));
+  // Full-body sessions stay within the 25-set ceiling even at high volume (strength path too)
+  const _fbHeavy = G._generateWorkoutProgram('strength', 'pure', 4, 'T', 20, []);
+  const _tots = (_fbHeavy.days || []).map(d => d.exercises.reduce((t,e)=>t+String(e.sets).split('-').length,0));
+  check('strength full-body sessions respect the 25-set ceiling @20', _tots.every(t => t <= 25), JSON.stringify(_tots));
+  // No full-body day contains both Squat and a conventional Deadlift (CNS load)
+  const _noSqDl = (p) => (p.days || []).every(d => {
+    const ns = d.exercises.map(e => e.name);
+    const hasSq = ns.some(n => /squat/i.test(n) && !/split/i.test(n));
+    const hasDl = ns.some(n => n === 'Deadlift');
+    return !(hasSq && hasDl);
+  });
+  check('no full-body day pairs Squat with Deadlift',
+    [['hypertrophy','balanced',4],['strength','pure',4],['hypertrophy','lower',3]].every(([g,s,n]) => _noSqDl(G._generateWorkoutProgram(g,s,n,'T',16,[]))));
 }
 
 // ── Summary ───────────────────────────────────────────────────────────────────
