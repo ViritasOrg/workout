@@ -1116,14 +1116,20 @@ function _generateWorkoutProgram(goal,sub,nDays,name,setsPerMuscle,injuries){
   function _nSets(ex){return String(ex.sets).split('-').length;}
   function _resizeEx(ex,n){var parts=String(ex.sets).split('-');var out=[];for(var i=0;i<n;i++)out.push(parts[i%parts.length]);ex.sets=out.join('-');ex.scheme=String(ex.scheme||'').replace(/^\d+×/,n+'×');}
   if(/^(hypertrophy|aesthetic)-/.test(key)||_fb){
-    var SESSION_MUSCLE_CAP=10,SESSION_CEILING=25;
+    var SESSION_MUSCLE_CAP=10,SESSION_CEILING=25,BALANCE_RATIO=2;
     var freq={};GROUPS.forEach(function(g){freq[g]=0;});
     days.forEach(function(day){var fs={};(day.exercises||[]).forEach(function(ex){if(ex.prehab)return;var sp=getExSplits(ex.name);GROUPS.forEach(function(g){if(sp[g])fs[g]=(fs[g]||0)+_nSets(ex)*sp[g];});});day._fs=fs;GROUPS.forEach(function(g){if((fs[g]||0)>=1)freq[g]++;});});
     days.forEach(function(day){
       (day.exercises||[]).forEach(function(ex){
         if(ex.prehab)return;
         var sp=getExSplits(ex.name);var acc=0,wsum=0;
-        GROUPS.forEach(function(g){var f=sp[g]||0;if(!f)return;var base=day._fs[g]||0;if(base<1||!freq[g])return;var target=Math.min(setsPerMuscle/freq[g],SESSION_MUSCLE_CAP);acc+=f*Math.max(0.4,Math.min(2,target/base));wsum+=f;});
+        GROUPS.forEach(function(g){var f=sp[g]||0;if(!f)return;var base=day._fs[g]||0;if(base<1||!freq[g])return;var target=Math.min(setsPerMuscle/freq[g],SESSION_MUSCLE_CAP);var r=Math.max(0.4,Math.min(2,target/base));
+          // A group this exercise only partially trains (f<0.5) may pull its set count DOWN but
+          // never UP: on e.g. a leg day the only back volume comes from the RDL itself, so
+          // target/back-base hits the 2× ceiling and (with the 1.5× compound bias) inflated the
+          // RDL to 5 sets beside 2-set leg work. Sizing is driven by the muscle the lift is for.
+          if(f<0.5)r=Math.min(1,r);
+          acc+=f*r;wsum+=f;});
         if(wsum>0)_resizeEx(ex,Math.max(2,Math.min(5,Math.round(_nSets(ex)*(acc/wsum)*(isCompoundEx(ex.name)?1.5:0.85)))));
       });
       var _guard=100;
@@ -1135,6 +1141,18 @@ function _generateWorkoutProgram(goal,sub,nDays,name,setsPerMuscle,injuries){
         if(!_trimmed){for(var _tj=day.exercises.length-1;_tj>=0;_tj--){var _ty=day.exercises[_tj];if(_nSets(_ty)>2){_resizeEx(_ty,_nSets(_ty)-1);_trimmed=true;break;}}}
         if(!_trimmed)break;
       }
+      // Balance guardrail: no exercise may carry more than BALANCE_RATIO× the sets of the
+      // smallest exercise in the same session — a 5-set lift beside 2-set work is never
+      // intended. The compound bias is 1.5 vs 0.85 (~1.76×), so this preserves the bias in
+      // full and only clips rounding/floor pile-ups. Runs last because the ceiling trim above
+      // takes sets from isolation first and can itself open the gap.
+      (function(){
+        var _sizable=(day.exercises||[]).filter(function(ex){return !ex.prehab;});
+        if(_sizable.length<2)return;
+        var _min=_sizable.reduce(function(m,ex){return Math.min(m,_nSets(ex));},99);
+        var _cap=Math.max(2,Math.floor(_min*BALANCE_RATIO));
+        _sizable.forEach(function(ex){if(_nSets(ex)>_cap)_resizeEx(ex,_cap);});
+      })();
       delete day._fs;
     });
   }else{
