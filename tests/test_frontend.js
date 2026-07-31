@@ -3368,6 +3368,88 @@ if (typeof G._generateWorkoutProgram === 'function') {
     [['hypertrophy','balanced',4],['strength','pure',4],['hypertrophy','lower',3]].every(([g,s,n]) => _noSqDl(G._generateWorkoutProgram(g,s,n,'T',16,[]))));
 }
 
+// ── Intra-session set balance (allocator) ─────────────────────────────────────
+// Regression (2026-07-31): hypertrophy-upper 6-day Day 6 — Legs B generated
+// "Romanian Deadlift 5 sets" beside 2-set Leg Extension / Leg Press / Leg Curl. Cause: the
+// only back volume in a leg day comes from the RDL itself, so target/base for back hit the
+// 2× ceiling and, multiplied by the 1.5× compound bias, inflated the RDL. A secondary group
+// (split fraction < 0.5) may now only pull sets DOWN, and a per-session balance guardrail
+// caps every exercise at 2× the smallest exercise in that session.
+if (typeof G._generateWorkoutProgram === 'function') {
+  console.log('\n── Intra-session set balance ──────────────────────────────');
+  const _ns = (e) => String(e.sets).split('-').length;
+  const _sizable = (d) => (d.exercises || []).filter(e => !e.prehab);
+
+  check('secondary muscle group cannot raise an exercise\'s set count',
+    /if\(f<0\.5\)r=Math\.min\(1,r\);/.test(rawScript));
+  check('balance guardrail constant defined (BALANCE_RATIO=2)',
+    rawScript.includes('SESSION_MUSCLE_CAP=10,SESSION_CEILING=25,BALANCE_RATIO=2'));
+  check('balance guardrail runs after the 25-set ceiling trim',
+    rawScript.indexOf('_min*BALANCE_RATIO') > rawScript.indexOf('if(_tot<=SESSION_CEILING)break;'));
+
+  // The exact reported program: RDL must not tower over the rest of its own leg day.
+  const _legsB = G._generateWorkoutProgram('hypertrophy', 'upper', 6, 'T', 12, [])
+    .days.find(d => /Legs B/.test(d.name));
+  const _rdl = _legsB && _legsB.exercises.find(e => e.name === 'Romanian Deadlift');
+  check('hypertrophy-upper 6-day Legs B: RDL is at most 3 sets',
+    !!_rdl && _ns(_rdl) <= 3, _legsB && _legsB.exercises.map(e => e.name + ' ' + _ns(e)).join(' | '));
+
+  // Invariant across every allocator-sized program: max ≤ 2× min within a session.
+  const _combos = [];
+  [['hypertrophy','upper'],['hypertrophy','lower'],['hypertrophy','balanced'],
+   ['aesthetic','fullbody'],['aesthetic','ppl'],['aesthetic','upperlower']]
+    .forEach(([g,s]) => [1,2,3,4,5,6,7].forEach(nd => [9,12,16,20,25].forEach(spm => _combos.push([g,s,nd,spm]))));
+  const _bad = [];
+  _combos.forEach(([g,s,nd,spm]) => {
+    (G._generateWorkoutProgram(g, s, nd, 'T', spm, []).days || []).forEach(d => {
+      const es = _sizable(d); if (es.length < 2) return;
+      const mx = Math.max(...es.map(_ns)), mn = Math.min(...es.map(_ns));
+      if (mx > 2 * mn) _bad.push(`${g}/${s} ${nd}d spm${spm} ${d.name}: ${mn}-${mx}`);
+    });
+  });
+  check('no session has an exercise above 2× the session minimum',
+    _bad.length === 0, _bad.slice(0, 4).join('; '));
+
+  // Two lifts of the same class targeting the same muscle stay within 2× of each other
+  // (pre-fix this failed: RDL 5 vs Deadlift 2, both compound, both legs-dominant).
+  const _dom = (name) => {
+    const sp = G.getExSplits(name); let best = '', v = 0;
+    Object.keys(sp).forEach(k => { if (k === 'factor' || k === 'cable') return; if (sp[k] > v) { v = sp[k]; best = k; } });
+    return best;
+  };
+  const _pairBad = [];
+  _combos.forEach(([g,s,nd,spm]) => {
+    (G._generateWorkoutProgram(g, s, nd, 'T', spm, []).days || []).forEach(d => {
+      const es = _sizable(d);
+      es.forEach(a => es.forEach(b => {
+        if (a === b || _dom(a.name) !== _dom(b.name)) return;
+        if (G.isCompoundEx(a.name) !== G.isCompoundEx(b.name)) return;
+        if (_ns(a) > 2 * _ns(b)) _pairBad.push(`${g}/${s} ${nd}d spm${spm} ${d.name}: ${a.name} ${_ns(a)} vs ${b.name} ${_ns(b)}`);
+      }));
+    });
+  });
+  check('same-muscle same-class lifts stay within 2× of each other',
+    _pairBad.length === 0, _pairBad.slice(0, 4).join('; '));
+
+  // The guardrail must not undo the compound bias: compounds still outweigh isolation.
+  const _p20 = G._generateWorkoutProgram('hypertrophy', 'upper', 6, 'T', 20, []);
+  const _push = _p20.days.find(d => /Push A/.test(d.name));
+  const _bench = _push && _push.exercises.find(e => e.name === 'Bench Press');
+  const _fly = _push && _push.exercises.find(e => e.name === 'Cable Fly');
+  check('compound bias preserved (Bench > Cable Fly on Push A @20)',
+    !!_bench && !!_fly && _ns(_bench) > _ns(_fly), _push && _push.exercises.map(e => e.name + ' ' + _ns(e)).join(' | '));
+
+  // Sessions still respect the 25-set ceiling after the guardrail runs.
+  const _overCeiling = [];
+  _combos.forEach(([g,s,nd,spm]) => {
+    (G._generateWorkoutProgram(g, s, nd, 'T', spm, []).days || []).forEach(d => {
+      const tot = (d.exercises || []).reduce((t,e) => t + _ns(e), 0);
+      if (tot > 25) _overCeiling.push(`${g}/${s} ${nd}d spm${spm} ${d.name}: ${tot}`);
+    });
+  });
+  check('25-set session ceiling still holds', _overCeiling.length === 0, _overCeiling.slice(0, 3).join('; '));
+}
+
 // ── Summary ───────────────────────────────────────────────────────────────────
 console.log(`\n${'─'.repeat(59)}`);
 console.log(`  ${passed} passed  ${failed} failed  ${passed + failed} total`);
