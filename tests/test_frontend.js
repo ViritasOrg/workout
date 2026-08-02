@@ -59,6 +59,7 @@ check('pin-screen markup removed',          !html.includes('id="pin-screen"'));
 
 // ── Sandbox setup ─────────────────────────────────────────────────────────────
 const patched = rawScript
+  .replace('const APP_ID=', 'var APP_ID=')
   .replace('const EXERCISE_SPLITS=', 'var EXERCISE_SPLITS=')
   .replace('const GROUP_COLORS=',    'var GROUP_COLORS=')
   .replace('const EX_OPTS_HTML=',    'var EX_OPTS_HTML=')
@@ -1431,7 +1432,7 @@ console.log('\n── pollProdVersion waits for actual version change ───�
 check('_prevProdVer variable declared',
   rawScript.includes('let _prevProdVer=null'));
 check('pushToProd snapshots current prod version into _prevProdVer',
-  rawScript.includes("_prevProdVer=null;") && rawScript.includes("fetch('https://henrikschaub.github.io/workout/version.json'"));
+  rawScript.includes("_prevProdVer=null;") && rawScript.includes("fetch('https://viritasorg.github.io/workout/version.json'"));
 check('pushToProd captures staging version at push time (_stagingVer=VERSION)',
   rawScript.includes('_stagingVer=VERSION'));
 check('saveLastPush accepts stagingVer parameter',
@@ -2302,15 +2303,19 @@ console.log('\n── Storage inspector ─────────────�
     !src.slice(src.indexOf('async function loadSettings('), src.indexOf('async function loadSettings(') + 4000).includes('buildProgramSettingsCard()'));
 }
 
-// ── Section 60a: No rehab tag in non-rehab programs ──────────────────────────
+// ── Section 60a: tags are derived from reps, never rewritten on load ──────────
+// Rule (2026-07-31) REPLACES "no rehab tag in non-rehab programs": that rewrite relabelled
+// 15-rep isolation as `volume` and left the reps at 15 — the violation it was meant to prevent.
 {
   const src = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
-  check('pool.forEach remaps rehab→volume for non-rehab goals',
-    src.includes("_isRehabGoal=key.startsWith('rehab-')") &&
-    src.includes("(!_isRehabGoal&&ex.tag==='rehab')?'volume':ex.tag"));
-  check('_ensurePrograms normalizes rehab tags in non-rehab stored programs (prehab exempt)',
-    src.includes("(p.goal||'')!=='rehab'") &&
-    src.includes("if(e.tag==='rehab'&&!e.prehab){e.tag='volume';changed=true;}"));
+  check('generator derives every exercise tag from its prescribed reps',
+    src.includes('days.forEach(function(day){(day.exercises||[]).forEach(applyTagFromReps);});'));
+  check('derivation runs after the leg-day rule re-authors the Deadlift scheme',
+    src.indexOf('forEach(applyTagFromReps)') > src.indexOf("dlx.tag='strength';dlx.fixed=true"));
+  check('the old rehab→volume generator rewrite is gone',
+    !src.includes("(!_isRehabGoal&&ex.tag==='rehab')?'volume':ex.tag"));
+  check('_ensurePrograms no longer rewrites tags on stored programs',
+    !src.includes("if(e.tag==='rehab'&&!e.prehab){e.tag='volume';changed=true;}"));
 }
 
 // ── Section 60: Program card toggle switch ────────────────────────────────────
@@ -2628,7 +2633,12 @@ console.log('\n── Leg-day rules in generated programs ───────�
       const isSq = (e) => /squat/i.test(e.name) && !/split/i.test(e.name);
       const hasSq = exs.some(isSq), hasDL = exs.some(e => e.name === 'Deadlift');
       const squatDay = hasSq && !hasDL && isSq(exs[0]);
-      const dlDay = hasDL && !hasSq && exs[exs.length - 1].name === 'Deadlift' && /×5-8$/.test(exs[exs.length - 1].scheme);
+      // Scheme is "1×6", not the old "1×5-8" (rule 2026-07-31): a 5-8 range straddles strength
+      // (4-6) and volume (8-12), so it is not a range any tag defines. The heavy single is
+      // prescribed at 6 reps and labelled strength.
+      const _dl = exs[exs.length - 1];
+      const dlDay = hasDL && !hasSq && _dl.name === 'Deadlift'
+        && new RegExp('×' + String(_dl.sets).split('-')[0] + '$').test(_dl.scheme) && _dl.tag === 'strength';
       if (!(squatDay || dlDay)) { allOk = false; details.push(`${goal}-${sub}-${nDays} ${day.name}: sq=${hasSq} dl=${hasDL} first=${exs[0].name} last=${exs[exs.length-1].name}`); }
     }
   }
@@ -2647,13 +2657,28 @@ console.log('\n── Leg-day rules in generated programs ───────�
     !!legsB7 && legsB7.exercises[legsB7.exercises.length - 1].name === 'Deadlift'
              && !legsB7.exercises.some(e => /squat/i.test(e.name) && !/split/i.test(e.name)),
     legsB7 ? JSON.stringify(legsB7.exercises.map(e => e.name)) : 'no Legs B');
-  // Deadlift is allocator-sized (2-5 sets, scheme in sync) on Deadlift days
-  const p16 = G._generateWorkoutProgram('hypertrophy', 'upper', 7, 'T16', 16);
-  const dlDays16 = p16.days.filter(d => /legs/i.test(d.name) && d.exercises.some(e => e.name === 'Deadlift'));
-  check('setsPerMuscle=16: Deadlift allocator-sized (2-5 sets, scheme matches)',
-    dlDays16.length > 0 && dlDays16.every(d => { const l = d.exercises[d.exercises.length - 1]; const n = String(l.sets).split('-').length;
-      return l.name === 'Deadlift' && n >= 2 && n <= 5 && String(l.scheme).startsWith(n + '×5-8'); }),
-    JSON.stringify(dlDays16.map(d => d.exercises[d.exercises.length - 1].sets)));
+  // The heavy Deadlift finisher is a FIXED prescription (rule 2026-07-31, supersedes the
+  // 2026-07-10 "Deadlift is allocator-sized like any other exercise" rule for this entry):
+  // it is always present, always last, and keeps exactly the sets it was authored with at
+  // every setsPerMuscle. Everything else in the session is sized around it.
+  const _dlFin = (spm) => G._generateWorkoutProgram('hypertrophy', 'upper', 7, 'T', spm)
+    .days.filter(d => /legs/i.test(d.name) && d.exercises.some(e => e.name === 'Deadlift'))
+    .map(d => d.exercises[d.exercises.length - 1]);
+  const _dl9 = _dlFin(9), _dl16 = _dlFin(16), _dl25 = _dlFin(25);
+  check('heavy Deadlift finisher present and last on the Deadlift leg day',
+    _dl9.length > 0 && _dl9.every(l => l.name === 'Deadlift'));
+  check('heavy Deadlift finisher is flagged as a fixed prescription',
+    _dl16.every(l => l.fixed === true));
+  check('heavy Deadlift finisher keeps its sets at every setsPerMuscle (9/16/25)',
+    [_dl9, _dl16, _dl25].every(a => a.every(l => String(l.sets) === '6' && String(l.scheme) === '1×6' && l.tag === 'strength')),
+    JSON.stringify([_dl9, _dl16, _dl25].map(a => a.map(l => l.sets))));
+  // Strength programs keep it too — the linear scaling path must not scale it either.
+  const _dlStr = G._generateWorkoutProgram('strength', 'hybrid', 6, 'T', 20)
+    .days.filter(d => /legs/i.test(d.name)).map(d => d.exercises[d.exercises.length - 1])
+    .filter(l => l.name === 'Deadlift');
+  check('strength path leaves the heavy Deadlift finisher unscaled',
+    _dlStr.length > 0 && _dlStr.every(l => String(l.sets) === '6'),
+    JSON.stringify(_dlStr.map(l => l.sets)));
   // Rehab programs are untouched (no heavy deadlift forced into rehab days)
   const pk = G._generateWorkoutProgram('rehab', 'knee', 6, 'TK', 12);
   check('rehab-knee program has no forced Deadlift finishers',
@@ -2787,10 +2812,18 @@ console.log('\n── Frequency-aware volume allocation ────────
   let schemeOk=true;
   for(const d of hi.p.days)for(const ex of d.exercises){const n=String(ex.sets).split('-').length;const m=String(ex.scheme).match(/^(\d+)×/);if(m&&parseInt(m[1])!==n)schemeOk=false;}
   check('scheme N× prefix matches resized set count', schemeOk);
-  // Strength SPLITS (5+ days) and rehab keep their fixed schemes (linear scaling path).
-  // (≤4-day strength is now full-body and uses the frequency-aware allocator — see below.)
+  // Strength SPLITS now run through the frequency-aware allocator too (rule 2026-07-31,
+  // supersedes "strength splits keep their fixed 5×5/5×3 schemes"): the weekly sets-per-muscle
+  // target applies to every goal, so a strength Squat is target-sized like any other lift.
+  // Rehab keeps the linear path. Reps/tag are untouched — only the set count moves.
   const sp12=G._generateWorkoutProgram('strength','pure',5,'T',12);
-  check('strength-pure 5-day @12: Squat keeps its 5×5 scheme', sp12.days[0].exercises[0].sets==='5-5-5-5-5', sp12.days[0].exercises[0].sets);
+  const sp25=G._generateWorkoutProgram('strength','pure',5,'T',25);
+  const _sq12=sp12.days[0].exercises[0], _sq25=sp25.days[0].exercises[0];
+  check('strength-pure 5-day: Squat is target-sized, not a fixed 5×5',
+    String(_sq12.sets).split('-').length < String(_sq25.sets).split('-').length,
+    `@12 ${_sq12.sets} vs @25 ${_sq25.sets}`);
+  check('strength-pure Squat keeps its strength rep scheme (4-6 reps)',
+    String(_sq12.sets).split('-').every(r => +r >= 4 && +r <= 6), _sq12.sets);
   const rk12=allocStats('rehab','knee',6,12), rk24=allocStats('rehab','knee',6,24);
   check('rehab scales linearly (24 = 2× the sets of 12)', rk24.tots[0]===rk12.tots[0]*2, `${rk12.tots[0]} vs ${rk24.tots[0]}`);
   // Wizard review shows the computed outcome
@@ -2892,7 +2925,9 @@ console.log('\n── Rotator cuff prehab (shoulders injury) ──────�
   G.initPrograms();
   const d0 = G.getActiveProgram().days[0];
   check('stored prehab exercise keeps rehab tag', d0.exercises.find(e => e.name === 'Cable External Rotation').tag === 'rehab');
-  check('stored non-prehab rehab tag still converted to volume', d0.exercises.find(e => e.name === 'Face Pulls').tag === 'volume');
+  // Rule 2026-07-31: a stored tag is never rewritten on load — 15-rep Face Pulls stay `rehab`,
+  // which is what the canonical rep ranges say they are. (Supersedes "still converted to volume".)
+  check('stored non-prehab rehab tag is left exactly as saved', d0.exercises.find(e => e.name === 'Face Pulls').tag === 'rehab');
   if (savedPrograms === null) G.localStorage.removeItem('workout_programs');
   else G.localStorage.setItem('workout_programs', savedPrograms);
   G.initPrograms();
@@ -3257,8 +3292,13 @@ if (typeof G._generateWorkoutProgram === 'function') {
     if (_sq && _rdl) {
       check('RDL does not out-rank the primary Squat (leakage fixed)',
         _ns(_rdl) <= _ns(_sq), `Squat ${_ns(_sq)} vs RDL ${_ns(_rdl)}`);
-      check('Squat gets meaningful volume at 20 sets/muscle (leads the day)',
-        _ns(_sq) >= 4, `Squat ${_ns(_sq)}`);
+      // Squat leads its day, but a hard "≥4 sets" is arithmetically incompatible with hitting
+      // the weekly target (2026-07-31): 5 leg exercises at a 2-set floor already spend the
+      // 10-set session budget, so leading is expressed as "≥ every other exercise", not a
+      // fixed count.
+      check('Squat leads its day at 20 sets/muscle (≥ every other exercise)',
+        _legA.exercises.filter(e => !e.fixed && !e.prehab).every(e => _ns(_sq) >= _ns(e)),
+        _legA.exercises.map(e => e.name + ' ' + _ns(e)).join(' | '));
     }
   }
 }
@@ -3378,10 +3418,14 @@ if (typeof G._generateWorkoutProgram === 'function') {
 if (typeof G._generateWorkoutProgram === 'function') {
   console.log('\n── Intra-session set balance ──────────────────────────────');
   const _ns = (e) => String(e.sets).split('-').length;
-  const _sizable = (d) => (d.exercises || []).filter(e => !e.prehab);
+  // Fixed prescriptions (the heavy Deadlift finisher) and prehab blocks are not allocator-sized,
+  // so they neither set nor break the balance invariant.
+  const _sizable = (d) => (d.exercises || []).filter(e => !e.prehab && !e.fixed);
 
-  check('secondary muscle group cannot raise an exercise\'s set count',
-    /if\(f<0\.5\)r=Math\.min\(1,r\);/.test(rawScript));
+  check('sets are allocated from the muscle an exercise targets (split >= 0.5)',
+    /\(getExSplits\(ex\.name\)\[g\]\|\|0\)>=0\.5/.test(rawScript));
+  check('a muscle only counts a day toward its frequency if something targets it',
+    /if\(sp\[g\]>=0\.5\)dom\[g\]=1;/.test(rawScript));
   check('balance guardrail constant defined (BALANCE_RATIO=2)',
     rawScript.includes('SESSION_MUSCLE_CAP=10,SESSION_CEILING=25,BALANCE_RATIO=2'));
   check('balance guardrail runs after the 25-set ceiling trim',
@@ -3450,7 +3494,348 @@ if (typeof G._generateWorkoutProgram === 'function') {
   check('25-set session ceiling still holds', _overCeiling.length === 0, _overCeiling.slice(0, 3).join('; '));
 }
 
+// ── Weekly sets-per-muscle lands on target ────────────────────────────────────
+// Rule (2026-07-31): the wizard's sets-per-muscle is a target the generator must actually hit,
+// for every goal including strength. Before this, a 12-set weekly leg target generated 20 sets
+// (+68%) on hypertrophy-upper and 39 sets (+145%) on strength-hybrid, because the compound bias
+// multiplied the total and a 2-set floor across 5-6 exercises could not go lower.
+if (typeof G._generateWorkoutProgram === 'function') {
+  console.log('\n── Weekly sets-per-muscle vs target ───────────────────────');
+  const _GR = ['legs','back','chest','shoulders','arms'];
+  const _n = (e) => String(e.sets).split('-').length;
+  const _weekly = (p) => {
+    const w = {}; _GR.forEach(g => w[g] = 0);
+    (p.days || []).forEach(d => (d.exercises || []).forEach(e => {
+      const sp = G.getExSplits(e.name); _GR.forEach(g => { if (sp[g]) w[g] += _n(e) * sp[g]; });
+    }));
+    return w;
+  };
+  // The two programs from the report, at the volumes that were worst.
+  const _hw = _weekly(G._generateWorkoutProgram('hypertrophy', 'upper', 6, 'T', 12, []));
+  check('hypertrophy-upper 6-day @12: weekly leg sets within 1.35x target',
+    _hw.legs <= 12 * 1.35, `legs ${_hw.legs.toFixed(1)} vs 12`);
+  const _sw = _weekly(G._generateWorkoutProgram('strength', 'hybrid', 6, 'T', 16, []));
+  check('strength-hybrid 6-day @16: weekly leg sets within 1.35x target',
+    _sw.legs <= 16 * 1.35, `legs ${_sw.legs.toFixed(1)} vs 16`);
+
+  // No muscle may run away from the target in any allocator-sized program.
+  // Overshoot is only ever allowed when every lift for that muscle already sits on the 2-set
+  // floor — the smallest a session can prescribe. A 9-set weekly leg target spread over three
+  // leg days cannot physically be met (3 exercises x 2 sets x 3 days = 18). Anywhere above that
+  // floor, 1.6x is a bug.
+  const _runaway = [];
+  [['hypertrophy','upper'],['hypertrophy','lower'],['hypertrophy','balanced'],
+   ['aesthetic','ppl'],['aesthetic','upperlower'],['strength','pure'],['strength','hybrid']]
+    .forEach(([g,s]) => [4,5,6,7].forEach(nd => [9,12,16,20,25].forEach(spm => {
+      const p = G._generateWorkoutProgram(g, s, nd, 'T', spm, []);
+      const w = _weekly(p);
+      _GR.forEach(m => {
+        if (w[m] <= spm * 1.6) return;
+        // every session training this muscle must be at the floor for the overshoot to be legal
+        const atFloor = (p.days || []).every(d =>
+          (d.exercises || []).filter(e => !e.prehab && !e.fixed && (G.getExSplits(e.name)[m] || 0) >= 0.5)
+            .every(e => _n(e) <= 2));
+        if (!atFloor) _runaway.push(`${g}/${s} ${nd}d spm${spm} ${m} ${w[m].toFixed(1)}`);
+      });
+    })));
+  check('no muscle exceeds 1.6x its weekly target unless the sessions are at their floor',
+    _runaway.length === 0, _runaway.slice(0, 4).join('; '));
+
+  // Drop-to-fit: sessions may lose accessories, never compounds, the heavy Deadlift, or drop
+  // below 3 exercises.
+  const _pruneBad = [];
+  [['hypertrophy','upper',6,9],['hypertrophy','balanced',6,9],['strength','pure',6,9],['aesthetic','ppl',6,9]]
+    .forEach(([g,s,nd,spm]) => {
+      const p = G._generateWorkoutProgram(g, s, nd, 'T', spm, []);
+      (p.days || []).forEach(d => {
+        const es = (d.exercises || []).filter(e => !e.prehab);
+        if (es.length < 3) _pruneBad.push(`${g}/${s} ${d.name}: only ${es.length} exercises`);
+      });
+      // Nothing that survives at a high target (where little pruning happens) may be pruned away
+      // at a low one if it is a compound or a fixed prescription.
+      const hi = G._generateWorkoutProgram(g, s, nd, 'T', 25, []);
+      (hi.days || []).forEach((d, i) => {
+        const lo = (p.days || [])[i]; if (!lo) return;
+        d.exercises.filter(e => G.isCompoundEx(e.name) || e.fixed).forEach(e => {
+          if (!lo.exercises.some(x => x.name === e.name))
+            _pruneBad.push(`${g}/${s} ${d.name}: pruned ${e.name}`);
+        });
+      });
+    });
+  check('drop-to-fit keeps >=3 exercises and never prunes a compound or the heavy Deadlift',
+    _pruneBad.length === 0, _pruneBad.slice(0, 3).join('; '));
+
+  // Shape: the muscle's main compound is never out-ranked by an accessory that only touches it
+  // as a secondary muscle (the original RDL-vs-Squat failure, from the volume side this time).
+  const _shape = [];
+  [['hypertrophy','upper'],['hypertrophy','balanced']].forEach(([g,s]) =>
+    [5,6,7].forEach(nd => [12,16,20,25].forEach(spm => {
+      (G._generateWorkoutProgram(g, s, nd, 'T', spm, []).days || []).forEach(d => {
+        const sq = d.exercises.find(e => /^Squat/.test(e.name));
+        const rdl = d.exercises.find(e => /Romanian Deadlift/.test(e.name));
+        if (sq && rdl && _n(rdl) > _n(sq)) _shape.push(`${g}/${s} ${nd}d spm${spm} ${d.name}: Squat ${_n(sq)} RDL ${_n(rdl)}`);
+      });
+    })));
+  check('RDL never out-ranks the Squat it sits behind, at any volume',
+    _shape.length === 0, _shape.slice(0, 3).join('; '));
+}
+
+// ── Numeric keypad + program-editor sets/reps dropdowns ───────────────────────
+// Rule (2026-07-31): entering reps must never raise the full keyboard. A bare
+// <input type="number"> gets iOS's numbers-and-punctuation layout, not the 10-key pad —
+// inputmode="numeric" is what selects the keypad, matching the kg fields' inputmode="decimal".
+// And the program editor's free-text "10-10-10" sets field is replaced by two dropdowns.
+{
+  console.log('\n── Reps entry: numeric keypad + dropdowns ─────────────────');
+  const repsInputs = rawScript.match(/<input[^>]*data-type="reps"[^>]*>/g) || [];
+  check('every reps input exists (log, add-set, custom exercise)', repsInputs.length === 3,
+    `found ${repsInputs.length}`);
+  check('every reps input requests the numeric keypad',
+    repsInputs.length > 0 && repsInputs.every(t => /inputmode="numeric"/.test(t)),
+    repsInputs.filter(t => !/inputmode="numeric"/.test(t)).join(' | '));
+  check('no reps input relies on bare type="number"',
+    !repsInputs.some(t => /type="number"/.test(t)));
+  check('reps inputs are read with parseInt (safe as text inputs)',
+    /parseInt\((?:r|ri)Input?\.value\)/.test(rawScript) || /parseInt\(ri\.value\)/.test(rawScript));
+
+  // Program editor: dropdowns, not a text field
+  check('program editor has no free-text sets field',
+    !/placeholder="5-5-5"/.test(rawScript));
+  check('program editor renders sets/reps dropdowns', /_progSetsSelects\(di,ei,ex\.sets\)/.test(rawScript));
+  check('sets range 1-6', /PROG_SETS_MIN=1,PROG_SETS_MAX=6/.test(rawScript));
+
+  if (typeof G._progSetsSelects === 'function') {
+    const opts = (h) => [...h.matchAll(/<option[^>]*>([^<]*)</g)].map(m => m[1]);
+    const sel  = (h) => [...h.matchAll(/<option selected>([^<]*)</g)].map(m => m[1]);
+    const h = G._progSetsSelects(0, 0, '8-8-8-8');
+    check('two dropdowns rendered', (h.match(/<select/g) || []).length === 2);
+    // Regression (2026-08-01): a <select> sizes itself to its widest option OR optgroup label,
+    // so "Strength 4-6" stretched the control, overflowed the editor row and pushed the kg
+    // field, tag chip and remove button off-screen — the program looked like it had no weights.
+    check('both dropdowns carry an explicit width', (h.match(/width:\d+px/g) || []).length === 2,
+      JSON.stringify(h.match(/width:\d+px/g)));
+    check('dropdown widths stay within the old sets field footprint',
+      (h.match(/width:(\d+)px/g) || []).map(w => +w.match(/\d+/)[0]).reduce((a,b) => a+b, 0) <= 100);
+    check('editor row wraps rather than pushing controls off-screen',
+      /display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;align-items:center;/.test(rawScript));
+    check('editor row still renders the kg field next to the dropdowns',
+      /_progSetsSelects\(di,ei,ex\.sets\)/.test(rawScript) &&
+      rawScript.indexOf("].kg=unitToKg(this.value)") > rawScript.indexOf('_progSetsSelects(di,ei,ex.sets)'));
+    check('4x8 preselects 4 sets and 8 reps', JSON.stringify(sel(h)) === '["4","8"]', JSON.stringify(sel(h)));
+    const all = opts(h);
+    check('sets options are 1-6', JSON.stringify(all.slice(0, 6)) === '["1","2","3","4","5","6"]', JSON.stringify(all.slice(0, 6)));
+    // Rule 2026-07-31 (supersedes the 3-15 range): only rep counts a tag range defines are
+    // offered, so picking reps IS picking the tag and an illegal pair cannot be authored.
+    check('reps options are only the legal counts (4-6, 8-12, 15) plus max',
+      JSON.stringify(all.slice(6)) === JSON.stringify(['4','5','6','8','9','10','11','12','15','max']),
+      JSON.stringify(all.slice(6)));
+    check('reps are grouped by the tag they produce',
+      /optgroup label="Strength 4-6"/.test(h) && /optgroup label="Volume 8-12"/.test(h) && /optgroup label="Rehab 15"/.test(h));
+    check('bodyweight "max" prescription survives', JSON.stringify(sel(G._progSetsSelects(0,0,'max-max-max'))) === '["3","max"]');
+    check('the 1-set heavy Deadlift reads as 1 x 6', JSON.stringify(sel(G._progSetsSelects(0,0,'6'))) === '["1","6"]');
+    check('a value the dropdowns cannot express is kept, not rewritten',
+      sel(G._progSetsSelects(0,0,'10-10-12')).includes('10-10-12'));
+
+    // _progSetSets writes the sets string and keeps the scheme prefix in sync
+    G._progEditBuf = {days:[{name:'D',exercises:[{name:'Squat',scheme:'4×8-12',sets:'8-8-8-8',tag:'volume',kg:100}]}]};
+    G._progSetSets(0, 0, '3', null);
+    const ex = G._progEditBuf.days[0].exercises[0];
+    check('changing sets rewrites the sets string', ex.sets === '8-8-8', ex.sets);
+    check('changing sets syncs the scheme N× prefix', ex.scheme === '3×8-12', ex.scheme);
+    G._progSetSets(0, 0, null, '12');
+    check('changing reps rewrites every set', G._progEditBuf.days[0].exercises[0].sets === '12-12-12',
+      G._progEditBuf.days[0].exercises[0].sets);
+    check('changing reps leaves the set count alone',
+      G._progEditBuf.days[0].exercises[0].scheme === '3×8-12', G._progEditBuf.days[0].exercises[0].scheme);
+    G._progEditBuf.days[0].exercises[0].sets = '10-10-12';
+    G._progSetSets(0, 0, '4', null);
+    check('a mixed sets string normalises when edited',
+      G._progEditBuf.days[0].exercises[0].sets === '10-10-10-10', G._progEditBuf.days[0].exercises[0].sets);
+    G._progSetSets(99, 99, '3', null); // must not throw on a stale index
+    check('_progSetSets ignores a stale exercise index', true);
+  }
+}
+
+// ── Every numeric field raises a numeric keypad, app-wide ─────────────────────
+// Reported 2026-07-31 (peptide app, same fix applied here): the onboarding Age
+// field opened iOS's numbers-and-punctuation keyboard — digits plus - / : ; ( )
+// £ & @ " and an ABC key — rather than a plain keypad. That layout is what bare
+// type="number" gets on iOS; inputmode is what actually selects the keypad.
+// Decimal-capable fields use inputmode="decimal", integer fields use "numeric".
+{
+  console.log('\n── Numeric keypad on every number field ───────────────────');
+  const _bareNum = [];
+  const _numRe = /type="number"/g;
+  let _nm;
+  while ((_nm = _numRe.exec(html))) {
+    const st = html.lastIndexOf('<input', _nm.index), en = html.indexOf('>', _nm.index);
+    if (st === -1 || en === -1) continue;
+    if (html.slice(st, en + 1).indexOf('inputmode') === -1)
+      _bareNum.push('line ' + html.slice(0, _nm.index).split('\n').length);
+  }
+  check('no type="number" input is left without an inputmode', _bareNum.length === 0,
+    _bareNum.length ? _bareNum.join(', ') : 'all number inputs declare one');
+
+  // Behavioural: the onboarding steps the report came from. Age sits in step 2,
+  // height and body weight in step 3 — check the rendered markup, not the source.
+  if (typeof G._obHtml2 === 'function' && typeof G._obHtml3 === 'function') {
+    const _svOb = G._obData;
+    G._obData = {gender:'male'};
+    const _ob = G._obHtml2() + G._obHtml3();
+    const _obIn = (_ob.match(/<input[^>]*>/g) || []).filter(t => /type="(number|text)"/.test(t));
+    check('the onboarding stats steps render their inputs', _obIn.length === 3, `got ${_obIn.length}`);
+    check('  …every one declares an inputmode', _obIn.every(t => t.indexOf('inputmode=') !== -1),
+      _obIn.filter(t => t.indexOf('inputmode=') === -1).join(' | '));
+    check('  …Age asks for a plain numeric keypad',
+      /Age<\/label>[\s\S]{0,80}inputmode="numeric"/.test(_ob));
+    check('  …Height asks for a plain numeric keypad',
+      /Height \(cm\)<\/label>[\s\S]{0,80}inputmode="numeric"/.test(_ob));
+    check('  …Body Weight still allows a decimal point',
+      /inputmode="decimal"[^>]*placeholder="85"/.test(_ob));
+    G._obData = _svOb;
+  } else {
+    check('_obHtml2/_obHtml3 available for the onboarding keypad check', false);
+  }
+}
+
+// ── Automatic tagging from prescribed reps ────────────────────────────────────
+// Rule (2026-07-31): "make tagging automatic and honor the rep ranges". The tag is derived
+// from the PRESCRIPTION, never set by hand. Logged reps never re-label anything — an AMRAP set
+// that ran to 18 because the weight was light leaves the program's label alone.
+if (typeof G.tagForReps === 'function') {
+  console.log('\n── Automatic tagging from reps ────────────────────────────');
+  check('canonical ranges: strength 4-6, volume 8-12, rehab 15',
+    JSON.stringify(G.TAG_RANGES) === JSON.stringify({strength:[4,6],volume:[8,12],rehab:[15,15]}),
+    JSON.stringify(G.TAG_RANGES));
+  check('4/5/6 reps → strength', [4,5,6].every(r => G.tagForReps(r) === 'strength'));
+  check('8-12 reps → volume', [8,9,10,11,12].every(r => G.tagForReps(r) === 'volume'));
+  check('15 reps → rehab', G.tagForReps(15) === 'rehab');
+  check('rehab is the only tag above 12 reps',
+    [13,15,18,20].every(r => G.tagForReps(r) === 'rehab'));
+  check('AMRAP/max keeps whatever tag it had', G.tagForReps('max') === null && G.tagForReps('') === null);
+  check('snapReps moves an undefined count onto the nearest legal one',
+    G.snapReps(20) === 15 && G.snapReps(13) === 12 && G.snapReps(7) === 6 && G.snapReps(3) === 4);
+  check('snapReps leaves max alone', G.snapReps('max') === 'max');
+
+  // Every generated program, every goal: reps are legal and the tag matches them.
+  const mism = [], illegal = [];
+  [['hypertrophy','upper'],['hypertrophy','lower'],['hypertrophy','balanced'],
+   ['aesthetic','ppl'],['aesthetic','fullbody'],['strength','pure'],['strength','hybrid'],
+   ['rehab','knee'],['rehab','back'],['rehab','shoulder']]
+    .forEach(([g,s]) => [3,4,5,6,7].forEach(nd => [9,12,16,20,25].forEach(spm => {
+      (G._generateWorkoutProgram(g, s, nd, 'T', spm, []).days || []).forEach(d =>
+        (d.exercises || []).forEach(e => String(e.sets).split('-').forEach(r => {
+          const want = G.tagForReps(r);
+          if (!want) return; // 'max'
+          if (!G.REPS_LEGAL.includes(parseInt(r, 10))) illegal.push(`${g}/${s} ${e.name} ${r}`);
+          if (want !== e.tag) mism.push(`${g}/${s} ${nd}d spm${spm} ${d.name} ${e.name} reps=${r} tag=${e.tag} want=${want}`);
+        })));
+    })));
+  check('no generated exercise prescribes a rep count outside the ranges',
+    illegal.length === 0, illegal.slice(0, 3).join('; '));
+  check('every generated exercise tag matches its prescribed reps',
+    mism.length === 0, mism.slice(0, 3).join('; '));
+
+  // The scheme string the user reads must sit inside the tag's range too.
+  const schemeBad = [];
+  [['hypertrophy','upper'],['strength','pure'],['rehab','knee']].forEach(([g,s]) =>
+    [5,6,7].forEach(nd => (G._generateWorkoutProgram(g, s, nd, 'T', 16, []).days || []).forEach(d =>
+      (d.exercises || []).forEach(e => {
+        const m = String(e.scheme).match(/^(\d+)×(\d+)(?:\s*[-–]\s*(\d+))?/);
+        if (!m) return;
+        const lo = String(e.sets).split('-')[0];
+        if (m[2] !== lo) schemeBad.push(`${e.name}: scheme ${e.scheme} vs sets ${e.sets}`);
+        if (m[3] && G.TAG_RANGES[e.tag] && +m[3] > G.TAG_RANGES[e.tag][1])
+          schemeBad.push(`${e.name}: scheme ${e.scheme} exceeds ${e.tag} ceiling`);
+      }))));
+  check('scheme rep guidance never exceeds the tag it carries',
+    schemeBad.length === 0, schemeBad.slice(0, 3).join('; '));
+
+  // A 15-rep lift is `rehab` even inside a hypertrophy program — and gets the 90s rest timer.
+  const _hyp = G._generateWorkoutProgram('hypertrophy', 'upper', 6, 'T', 20, []);
+  const _r15 = [];
+  (_hyp.days || []).forEach(d => (d.exercises || []).forEach(e => {
+    if (String(e.sets).split('-')[0] === '15') _r15.push(e);
+  }));
+  check('15-rep isolation exists in a hypertrophy program and is tagged rehab',
+    _r15.length > 0 && _r15.every(e => e.tag === 'rehab'),
+    _r15.map(e => e.name + ' ' + e.tag).join(', '));
+  check('rest timer follows the derived tag (rehab 90s, strength 240s)',
+    G.restSecsForTag('rehab') === 90 && G.restSecsForTag('strength') === 240 && G.restSecsForTag('volume') === 120);
+
+  // Logging must not re-tag: saveLog writes name/sets/kg/reps only, never a tag.
+  const _saveLog = rawScript.slice(rawScript.indexOf('function saveLog('), rawScript.indexOf('function saveLog(') + 4000);
+  check('saveLog never writes a tag (logged reps do not re-label)',
+    !/\btag\s*:/.test(_saveLog) && !/\.tag\s*=/.test(_saveLog));
+  check('applyTagFromReps is not called from the logging path',
+    !_saveLog.includes('applyTagFromReps') && !_saveLog.includes('tagForReps'));
+
+  // The editor derives the tag too — there is no manual tag picker any more.
+  check('program editor has no manual tag <select>',
+    !rawScript.includes(".exercises['+ei+'].tag=this.value"));
+  check('program editor shows a derived, read-only tag chip',
+    rawScript.includes("id=\"prog-tag-'+di+'-'+ei+'\""));
+  if (typeof G._progSetSets === 'function') {
+    G._progEditBuf = {days:[{name:'D',exercises:[{name:'Calf Raises',scheme:'3×10',sets:'10-10-10',tag:'volume',kg:60}]}]};
+    G._progSetSets(0, 0, null, '15');
+    check('picking 15 reps in the editor sets the rehab tag',
+      G._progEditBuf.days[0].exercises[0].tag === 'rehab', G._progEditBuf.days[0].exercises[0].tag);
+    G._progSetSets(0, 0, null, '5');
+    check('picking 5 reps in the editor sets the strength tag',
+      G._progEditBuf.days[0].exercises[0].tag === 'strength', G._progEditBuf.days[0].exercises[0].tag);
+    G._progSetSets(0, 0, null, 'max');
+    check('picking max leaves the tag as it was',
+      G._progEditBuf.days[0].exercises[0].tag === 'strength', G._progEditBuf.days[0].exercises[0].tag);
+  }
+}
+
 // ── Summary ───────────────────────────────────────────────────────────────────
 console.log(`\n${'─'.repeat(59)}`);
+
+// ── Staging has its own backend namespace ────────────────────────────────────
+// Reported 2026-08-01: "testing stage fucks my prod data". Both builds sent no
+// X-App-Id, so staging wrote into the same user records as production. Staging now
+// declares its own namespace; production keeps sending nothing, which is where its
+// data already lives — changing that would orphan it.
+{
+  console.log('\n── Staging data namespace ─────────────────────────────────');
+  check('APP_ID is declared and keys off IS_STAGING',
+    /const APP_ID=IS_STAGING\?'stage':''/.test(rawScript));
+  check('authHeaders sends X-App-Id when there is one',
+    /function authHeaders\(extra\)\{const h=\{\};if\(APP_ID\)h\['X-App-Id'\]=APP_ID;/.test(rawScript));
+  check('production still sends no namespace header, so its data is untouched',
+    typeof G.APP_ID === 'string' && G.APP_ID === '' && !('X-App-Id' in G.authHeaders()),
+    JSON.stringify(G.authHeaders()));
+  check('  …and the auth token still goes out either way',
+    /const _t=_sessionToken\|\|_googleToken;if\(_t\)h\['Authorization'\]/.test(rawScript));
+
+  // The copy button
+  check('copyDataToStage is defined', typeof G.copyDataToStage === 'function');
+  check('buildStageCopyCard is defined', typeof G.buildStageCopyCard === 'function');
+  check('it posts to the copy endpoint', /AGENT_URL\+'\/account\/copy-to-stage',\{method:'POST'/.test(rawScript));
+  check('  …authenticated', /copy-to-stage',\{method:'POST',headers:authHeaders\(\)\}/.test(rawScript));
+  check('the card is rendered with the other settings cards',
+    (rawScript.match(/buildStageCopyCard\(\)/g)||[]).length >= 3,
+    'found '+((rawScript.match(/buildStageCopyCard\(\)/g)||[]).length));
+  check('it is hidden on staging — there is nothing to copy from there',
+    /if\(IS_STAGING\)\{card\.innerHTML='';return;\}/.test(rawScript));
+  check('the copy is confirmed before it runs', /confirm\('Copy your data to the staging app\?/.test(rawScript));
+  check('  …and says plainly that this app is not changed',
+    /Nothing in this app changes/.test(rawScript));
+
+  // Rendered markup, in the production case
+  if (typeof G.buildStageCopyCard === 'function') {
+    let _html='';
+    const _svGet = G.document.getElementById;
+    G.document.getElementById = id => id==='s-stagecopy-card'
+      ? {set innerHTML(v){_html=v;}, get innerHTML(){return _html;}}
+      : _svGet(id);
+    G.buildStageCopyCard();
+    check('the card renders a copy button', /s-stagecopy-btn/.test(_html) && /Copy my data to staging/.test(_html));
+    check('  …with somewhere to report the result', /s-stagecopy-status/.test(_html));
+    G.document.getElementById = _svGet;
+  }
+}
+
 console.log(`  ${passed} passed  ${failed} failed  ${passed + failed} total`);
 process.exit(failed === 0 ? 0 : 1);
