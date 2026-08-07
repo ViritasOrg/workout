@@ -1310,7 +1310,11 @@ check('bfLog key: bf_log used for storage', rawScript.includes("'bf_log'") || ra
 {
   const _origBfLog2 = [...G.bfLog];
   G.bfLog.push({date:'2026-01-01', bf:18});
+  // The sandbox stubs confirm() to false, and deleteBf now asks before deleting
+  // (it used to delete silently). Say yes for this behavioural check.
+  const _confirmWas = G.confirm; G.confirm = () => true;
   G.deleteBf('2026-01-01');
+  G.confirm = _confirmWas;
   check('deleteBf: removes entry with matching date', !G.bfLog.find(e=>e.date==='2026-01-01'), `still ${G.bfLog.length} entries`);
   G.bfLog.length = 0; _origBfLog2.forEach(e=>G.bfLog.push(e)); // restore
 }
@@ -1888,16 +1892,28 @@ console.log('\n── 47b. BF% pre-isolation migration ────────�
     src.includes("syncBodyCompFromAgent();syncWorkoutDraftFromAgent();(function(){if(!IS_STAGING||localStorage.getItem('wk-bf-isol-v1'))"));
 }
 
-// ── 47c. BF_SEED baseline entries ────────────────────────────────────────────
-console.log('\n── 47c. BF_SEED baseline entries ────────────────────────────────');
+// ── 47c. No hardcoded personal data (2026-08-05) ─────────────────────────────
+// These three checks used to assert the OPPOSITE — that BF_SEED existed and that
+// syncBodyCompFromAgent re-added it. Henrik asked for every hardcoded value to go:
+// SEED_LOGS (33 real training sessions), SEED_WEIGHTS (37 bodyweight readings) and
+// BF_SEED (3 body-fat readings) were one person's records living in a public repo
+// and being written into every user's storage. BF_SEED was the worst of the three —
+// it was re-merged on every backend sync and then pushed back up, so a deleted
+// body-fat entry returned and re-uploaded itself.
+console.log('\n── 47c. No hardcoded personal data ──────────────────────────────');
 {
   const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'index.html'), 'utf8');
-  check('BF_SEED constant defined with 3 baseline entries',
-    src.includes('const BF_SEED=') && src.includes('2026-03-23') && src.includes('2026-05-02') && src.includes('2026-05-03'));
-  check('syncBodyCompFromAgent merges BF_SEED entries missing from backend+local',
-    src.includes('const seedToAdd=BF_SEED.filter') && src.includes('mergedDates.has(s.date)'));
-  check('syncBodyCompFromAgent pushes missing seed entries to backend',
-    src.includes('seedToAdd') && src.includes('uploads.map'));
+  check('no BF_SEED constant', !/const BF_SEED=/.test(src));
+  check('no SEED_LOGS constant', !/const SEED_LOGS=/.test(src));
+  check('no SEED_WEIGHTS constant', !/const SEED_WEIGHTS=/.test(src));
+  check('syncBodyCompFromAgent no longer re-adds seed rows', !/seedToAdd/.test(src));
+  check('  …and uploads only what the user actually has locally',
+    /const uploads=toUpload;/.test(src));
+  check('nothing is merged into workout_logs at load beyond what is stored',
+    !/for\(const e of SEED_LOGS\)/.test(src));
+  // The dated records themselves. A future paste of the same data fails here.
+  check('no hardcoded body-fat readings', !/bf:23\.0|bf:21\.0|bf:19\.6/.test(src));
+  check('no hardcoded training-log ids', !/id:20260517004|"id":20260517004/.test(src));
 }
 
 // ── 48. Program wizard — days 1-7 + sets per muscle ──────────────────────────
@@ -3952,6 +3968,176 @@ console.log(`\n${'─'.repeat(59)}`);
     check('  …with somewhere to report the result', /s-stagecopy-status/.test(_html));
     G.document.getElementById = _svGet;
   }
+}
+
+
+// ── Failure logging + diagnostics (added 2026-08-05) ────────────────────────
+// This app had no logging layer at all: 43 backend calls, 31 silent catch(e){},
+// nothing surviving a reload. The protocol apps got a diagnostics log the same day
+// and it identified a real bug within minutes; this is the same capability here.
+{
+  check('_diagPush defined',        typeof G._diagPush === 'function');
+  check('_diagAll defined',         typeof G._diagAll === 'function');
+  check('_logErr defined',          typeof G._logErr === 'function');
+  check('_logHttp defined',         typeof G._logHttp === 'function');
+  check('copyDiagnostics defined',  typeof G.copyDiagnostics === 'function');
+  check('clearDiagnostics defined', typeof G.clearDiagnostics === 'function');
+  check('the Storage page renders the card', /_diagRenderInto\(_el\);/.test(rawScript));
+
+  // One choke point instead of editing 43 call sites: the wrapper sees the response
+  // before any caller's `catch(e){}` swallows it.
+  const w = rawScript.slice(rawScript.indexOf('if(typeof window.fetch!==\'function\')return;'),
+                            rawScript.indexOf('window.addEventListener(\'error\''));
+  check('fetch is wrapped', /window\.fetch=function\(input,init\)/.test(w));
+  check('  …only AGENT_URL traffic is touched',
+    /url\.indexOf\(AGENT_URL\)!==0\)return p;/.test(w));
+  check('  …non-ok responses are logged', /if\(!r\.ok\)_logHttp\('fetch',r\.status,path\)/.test(w));
+  check('  …the response is returned unchanged', /\breturn r;/.test(w));
+  check('  …and network errors are RETHROWN so no caller behaviour changes',
+    /throw e;/.test(w));
+
+  check('uncaught errors are captured',   /addEventListener\('error'/.test(rawScript));
+  check('unhandled rejections are captured', /addEventListener\('unhandledrejection'/.test(rawScript));
+
+  // Must never throw — it runs inside the error handlers and the fetch wrapper.
+  const push = rawScript.slice(rawScript.indexOf('function _diagPush('),
+                               rawScript.indexOf('function _diagAll('));
+  check('_diagPush wraps its whole body', /\}catch\(e\)\{\}/.test(push));
+  check('  …a corrupt stored value degrades to an empty list', /catch\(e\)\{a=\[\];\}/.test(push));
+  check('_diagPush caps the ring buffer', /while\(a\.length>WKT_DIAG_MAX\)a\.shift\(\)/.test(push));
+
+  // Entries are exception text and URLs — never injected as HTML.
+  const render = rawScript.slice(rawScript.indexOf('function _diagRenderInto('),
+                                 rawScript.indexOf('function buildStoragePage('));
+  check('the diagnostics view adds no innerHTML sink', !/innerHTML/.test(render));
+  check('  …it uses textContent for entry text', /pre\.textContent=/.test(render));
+
+  // Round-trip the shipped functions.
+  G.localStorage.removeItem('wkt-diag-log');
+  check('empty store reads as an empty list', G._diagAll().length === 0);
+  G._logErr('unit', new Error('boom'));
+  G._logHttp('unit', 503, '/weights');
+  const all = G._diagAll();
+  check('_logErr persists an entry', all.length === 2, `got ${all.length}`);
+  check('  …with the message', all[0].msg === 'boom', `got ${all[0].msg}`);
+  check('  …and _logHttp keeps the status', all[1].status === 503);
+  for (let i = 0; i < 200; i++) G._diagPush({t: i, ctx: 'flood', msg: String(i)});
+  check('the buffer caps at 60, oldest dropped first', G._diagAll().length === 60,
+    `got ${G._diagAll().length}`);
+  check('  …and the newest survives', G._diagAll().slice(-1)[0].msg === '199');
+  G.localStorage.removeItem('wkt-diag-log');
+}
+
+
+// ── Progress charts: All window (added 2026-08-05) ──────────────────────────
+// Every Progress chart was capped at 90 days with no wider option, so a seeded
+// history (SEED_WEIGHTS goes back to 2024-09) could never be seen in full.
+{
+  check('WINDOW_ALL is defined', /const WINDOW_ALL=36500;/.test(rawScript));
+  for (const [fn, id] of [['setWeightWindow','wt-btn'],['setVolWindow','vol-btn'],['setStrWindow','str-btn']]) {
+    check(`${fn} has an All button`,
+      new RegExp(`onclick="${fn}\\(36500\\)" id="${id}-36500"`).test(html));
+    check(`  …${id} All is not pre-selected (90d stays the default)`,
+      new RegExp(`id="${id}-36500" class="${id}"[^>]*>All<`).test(html));
+    check(`  …${id} 90d keeps the active class`,
+      new RegExp(`id="${id}-90" class="${id} vol-btn-active"`).test(html));
+  }
+  // The windows are plain day counts fed to a date cutoff, so All needs no
+  // special-casing — but it must actually be wider than any real history.
+  check('All is wider than the oldest seeded weight', (() => {
+    const oldest = new Date('2024-09-16');
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 36500);
+    return cutoff < oldest;
+  })());
+  check('the default window is still 90', /let _weightWindow=90/.test(rawScript));
+  check('setWeightWindow still redraws all four overview charts',
+    /setWeightWindow\(days\)\{[^}]*drawChart\(\);drawBfChart\(\);drawBmiChart\(\);drawLbmChart\(\);/.test(rawScript));
+}
+
+
+// ── Deleting every program must stick (regression, 2026-08-05) ─────────────
+// Reported: "if I delete all programs in workout my old 5-day program reappears".
+// _ensurePrograms re-added the 6-Day Hypertrophy program whenever it was absent, so
+// deleting everything silently recreated one on the next load. The 5-Day Split was
+// already fixed this way on 2026-07-10 ("deleting it must stick"); the 6-Day was not.
+{
+  const src = rawScript;
+  check('the re-seed is gated on a deletion signal', /!hasHyp&&!_hypDeleted/.test(src));
+  check('the signal is read from storage', /localStorage\.getItem\('wkt-hyp-deleted'\)==='1'/.test(src));
+  // Recorded by the DELETE, not inferred from an empty list — emptiness cannot tell
+  // "never had programs" from "deleted them all".
+  check('the delete path records the intent',
+    /name==='6-Day Hypertrophy — Upper'\)\{try\{localStorage\.setItem\('wkt-hyp-deleted','1'\)/.test(src));
+  check('both delete call sites record it',
+    (src.match(/localStorage\.setItem\('wkt-hyp-deleted','1'\)/g) || []).length === 2);
+  check('a fresh install still gets the seed (no signal set)',
+    !/localStorage\.getItem\('wkt-hyp-deleted'\)==='1'\)\s*\{[\s\S]{0,40}unshift/.test(src));
+  check('_seedHypertrophyProgram still exists', typeof G._seedHypertrophyProgram === 'function');
+}
+
+
+// ── Every preference reaches the backend (2026-08-05) ──────────────────────
+// localStorage is a cache, never the source of truth: anything written there has
+// to be pushed AND read back, or a cache wipe loses it. Three things failed that:
+// the Navy-BF measurements and onboarded flag inside wkt-profile, the theme, and
+// the chart scale — all written locally and never sent anywhere.
+{
+  const src = rawScript;
+
+  check('onboarding pushes the whole profile, not just the shared user_* fields',
+    /_pf\['wkt-profile'\]=profile;/.test(src));
+  check('the profile push is unconditional (an empty user_* set used to skip it)',
+    /_pf\['wkt-profile'\]=profile;\s*\n?\s*pushSettingsToAgent\(_pf\);/.test(src));
+  check('neck/waist/hips are part of the profile that gets pushed',
+    /neck:_obData\.neck\?parseDec\(_obData\.neck\):null,waist:/.test(src));
+  check('the startup sync restores the profile',
+    /if\(s\['wkt-profile'\]\)/.test(src));
+  check('the restored profile is merged, not swapped in whole',
+    /setData\('wkt-profile',Object\.assign\(\{\},getData\('wkt-profile',\{\}\),_sp\)\)/.test(src));
+
+  check('choosing a theme pushes it', /setData\('wkt-theme',id\);pushSettingsToAgent\(\{'wkt-theme':id\}\)/.test(src));
+  check('the startup sync restores the theme', /if\(s\['wkt-theme'\]/.test(src));
+  // applyTheme itself pushes, so re-applying an unchanged value would echo it back
+  // to the backend on every single load.
+  check('the theme is only re-applied when it differs',
+    /s\['wkt-theme'\]&&getData\('wkt-theme',null\)!==s\['wkt-theme'\]/.test(src));
+
+  check('the chart scale is pushed', /setData\('wkt-chart-scale',mode\);pushSettingsToAgent\(\{'wkt-chart-scale':mode\}\)/.test(src));
+  check('the startup sync restores the chart scale', /if\(s\['wkt-chart-scale'\]\)/.test(src));
+}
+
+
+// ── Deleting is global, and says so (2026-08-05) ───────────────────────────
+// Henrik: "delete entries need an extra confirmation step explaining that the
+// delete is global." Deleting a record removes it from the backend, so it is gone
+// from every device — deleteWeight and deleteBf did not even ask first.
+{
+  const src = rawScript;
+
+  check('there is one shared confirm helper', /function confirmGlobalDelete\(what\)\{/.test(src));
+  check('  …and it says the record leaves the backend',
+    /deletes it from your account on the backend/.test(src));
+  check('  …and that every device is affected, not just this one',
+    /every device you are signed in on — not just this one/.test(src));
+  check('  …and that it cannot be undone', /It cannot be undone\./.test(src));
+
+  check('deleting a workout entry asks',
+    /function deleteLog\(id\)\{if\(!confirmGlobalDelete\('this workout entry'\)\)return;/.test(src));
+  check('deleting a weight asks (it used to delete silently)',
+    /function deleteWeight\(date\)\{if\(!confirmGlobalDelete\(/.test(src));
+  check('deleting a body-fat reading asks (it used to delete silently)',
+    /function deleteBf\(date\)\{if\(!confirmGlobalDelete\(/.test(src));
+  check('deleting a program asks',
+    /if\(!confirmGlobalDelete\('the program "'\+_programs\[_progEditIdx\]\.name\+'"'\)\)return;/.test(src));
+
+  // Every delete that reaches the backend must go through the helper, so a new one
+  // cannot quietly ship without the warning.
+  const backendDeletes = ['deleteLog','deleteWeight','deleteBf'];
+  backendDeletes.forEach(function(fn){
+    const body = src.slice(src.indexOf('function ' + fn + '('));
+    check(fn + ' confirms before it touches anything',
+      body.slice(0, 120).includes('confirmGlobalDelete'));
+  });
 }
 
 console.log(`  ${passed} passed  ${failed} failed  ${passed + failed} total`);
