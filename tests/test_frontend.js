@@ -5944,6 +5944,51 @@ console.log('\n── Push to Prod failures persist ─────────�
   delete _idStore['push-to-prod-last'];
 }
 
+// ── A LONG PROGRAM NAME MUST NOT RESIZE THE PROGRAM GRID ────────────────────
+// Found 2026-09-09 by checking this app for the pattern that broke
+// peptidetracker's protocol cards: a long custom name took most of its row and
+// squeezed the card beside it to a sliver.
+//
+// A `1fr` track's minimum is `auto`, which resolves to min-content, so the COLUMN
+// grows to fit the widest unbreakable thing inside it. Program names are free
+// text with no length cap — the wizard's name input carries no maxlength — so
+// that is whatever the user typed.
+//
+// This card was WORSE than peptidetracker's: .prog-card-name had no truncation
+// at all, where the peptide equivalent at least had the ellipsis and merely could
+// not reach it.
+console.log('\n── Program cards: a long custom name cannot break the grid ──');
+{
+  const _pcSrc = rawScript;
+  const _pcCss = html;
+  const _pcFn = (_pcSrc.match(/function buildProgramSettingsCard\(\)\{[\s\S]*?\n\}/) || [''])[0];
+  check('the program grid exists to assert against', _pcFn.length > 0);
+
+  // All three are needed and none is sufficient: the track can only shrink if the
+  // item can, the item can only shrink if the track lets it, and the name only
+  // clips once it must.
+  check('the grid tracks can shrink below their content',
+    /grid-template-columns:minmax\(0,1fr\) minmax\(0,1fr\)/.test(_pcFn));
+  check('  …and the card itself can shrink with them',
+    /\.prog-card\{[^}]*min-width:0[^}]*\}/.test(_pcCss));
+  check('  …and the name truncates rather than widening the column',
+    /\.prog-card-name\{[^}]*text-overflow:ellipsis[^}]*\}/.test(_pcCss) &&
+    /\.prog-card-name\{[^}]*white-space:nowrap[^}]*\}/.test(_pcCss) &&
+    /\.prog-card-name\{[^}]*overflow:hidden[^}]*\}/.test(_pcCss));
+  check('  …with no bare 1fr track left in the program grid',
+    !/grid-template-columns:1fr 1fr/.test(_pcFn));
+
+  // ⚠️ CLIPPED FOR DISPLAY, NOT TRUNCATED IN DATA. Cutting the string would put a
+  // shortened name in the DOM and lose the rest; CSS clipping keeps the whole
+  // name, adapts to any width, and the full text is one tap away in the program
+  // view. Matches how peptidetracker's protocol cards do it.
+  check('the full name is still rendered, only visually clipped',
+    /_escP\(prog\.name\)/.test(_pcFn) &&
+    !/\.slice\(0,\s*\d+\)/.test(_pcFn) && !/substring\(/.test(_pcFn));
+  check('  …and escaped, being user input going into innerHTML',
+    /_escP\(prog\.name\)/.test(_pcFn));
+}
+
 // Deferred until the microtask queue drains. This suite is synchronous apart from
 // the BF% prune block, which drives the real async syncBodyCompFromAgent against a
 // stubbed backend — its .then callback is a microtask and only runs after this pass

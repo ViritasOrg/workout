@@ -122,9 +122,15 @@
   .weight-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border);}
   .weight-row:last-child{border-bottom:none;}
   .note-text{font-size:14px;color:var(--muted);margin-top:4px;font-style:italic;}
-  .prog-card{border:1px solid var(--border);border-radius:10px;padding:12px;background:rgba(255,255,255,0.03);display:flex;flex-direction:column;gap:6px;cursor:pointer;transition:all 0.15s;}
+  /* min-width:0 lets the card shrink below its own content, which is what makes
+     .prog-card-name's ellipsis reachable. Without it a long program name widens
+     the grid column instead of being clipped. */
+  .prog-card{border:1px solid var(--border);border-radius:10px;padding:12px;background:rgba(255,255,255,0.03);display:flex;flex-direction:column;gap:6px;cursor:pointer;transition:all 0.15s;min-width:0;}
   .prog-card.active{border-color:var(--accent);background:rgba(232,255,60,0.08);}
-  .prog-card-name{font-size:15px;font-weight:600;color:var(--text);}
+  /* Clipped for display, not truncated in data: the whole name stays in the DOM
+     and is one tap away in the program view. This card had NO truncation at all —
+     peptidetracker's equivalent at least had the ellipsis and could not reach it. */
+  .prog-card-name{font-size:15px;font-weight:600;color:var(--text);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .prog-card-meta{font-size:13px;color:var(--muted);}
   .prog-card-empty{border:1.5px dashed rgba(255,255,255,0.12);border-radius:10px;padding:12px;background:transparent;display:flex;align-items:center;justify-content:center;min-height:80px;}
   .prog-overlay{position:fixed;inset:0;background:var(--bg);z-index:300;display:flex;flex-direction:column;overflow:hidden;transform:translateX(100%);transition:transform 0.28s cubic-bezier(0.4,0,0.2,1);}
@@ -1175,7 +1181,18 @@ function buildProgramSettingsCard(){
   var SLOTS=4;
   var html='<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:0">';
   html+=sSecHdr('programs','Programs')+sSecBody('programs');
-  html+='<div style="padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
+  // ⚠️ minmax(0,1fr), NOT 1fr — A LONG PROGRAM NAME MUST NOT RESIZE THE GRID.
+  // A `1fr` track's minimum is `auto`, which resolves to min-content, so the track
+  // grows to fit the widest unbreakable thing inside it and the card beside it is
+  // squeezed to a sliver. Program names are free text with no length cap (the
+  // wizard's name input has no maxlength), so the widest thing is whatever the
+  // user typed. Fixed in peptidetracker's protocol cards on 2026-09-09 and found
+  // here by checking for the same pattern.
+  //
+  // Pairs with min-width:0 on .prog-card and the truncation on .prog-card-name —
+  // all three are needed: the track can only shrink if the item can, the item can
+  // only shrink if the track lets it, and the name only clips once it must.
+  html+='<div style="padding:12px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;">';
   for(var i=0;i<Math.min(_programs.length,SLOTS);i++){
     var prog=_programs[i];var isActive=i===_activeProgramIndex;
     html+='<div class="prog-card'+(isActive?' active':'')+'" onclick="viewProgram('+i+')">';
