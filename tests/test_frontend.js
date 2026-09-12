@@ -5727,8 +5727,8 @@ console.log('\n── Standard machine exercises ──────────�
     check('every exercise in the picker resolves to a muscle group',
       unclassified.length === 0, unclassified.join(', '));
     // Exact count on purpose: adding or removing an exercise should be a conscious edit here.
-    check('the catalogue holds every exercise it is meant to (61)',
-      opts.length === 61, String(opts.length));
+    check('the catalogue holds every exercise it is meant to (63)',
+      opts.length === 63, String(opts.length));
     check('no exercise is listed twice in the picker',
       new Set(opts).size === opts.length,
       opts.filter((n, i) => opts.indexOf(n) !== i).join(', '));
@@ -5996,6 +5996,74 @@ console.log('\n── Program cards: a long custom name cannot break the grid �
 // silently did not run AND did not appear in the total: the suite reported all green
 // while six assertions had never executed. setImmediate fires after the microtask
 // queue is empty, so the summary counts them.
+// ── Section: Muscle Up / Assisted Muscle Up — pickable, never prescribed ────
+// Henrik, 2026-09-12: "Muscle up and assisted muscle up needs to be added to pull exercises
+// (but not recommended by program generation)." So: in the Back group of both pickers, fully
+// classified for volume — and absent from every seed pool, which the sweep below enforces.
+console.log('\n── Muscle Up / Assisted Muscle Up ─────────────────────────');
+{
+  const MU = 'Muscle Up', AMU = 'Assisted Muscle Up';
+
+  // Both pickers, under Back
+  {
+    const back = G.EX_OPTS_HTML.slice(G.EX_OPTS_HTML.indexOf('label="Back"'), G.EX_OPTS_HTML.indexOf('label="Chest"'));
+    check('Log Workout offers Muscle Up under Back', back.includes('<option>' + MU + '</option>'));
+    check('Log Workout offers Assisted Muscle Up under Back', back.includes('<option>' + AMU + '</option>'));
+    const fn = String(G._exOpts || '');
+    const ed = fn.slice(fn.indexOf("'Back':"), fn.indexOf("'Chest':"));
+    check('the program editor offers both under Back',
+      ed.includes("'" + MU + "'") && ed.includes("'" + AMU + "'"), ed.slice(-120));
+  }
+
+  // Volume attribution — a pull-up into a transition into a dip: back-dominant, press counted
+  [MU, AMU].forEach(n => {
+    const sp = G.getExSplits(n);
+    check(`${n} counts as back volume`, sp.back > 0, JSON.stringify(sp));
+    check(`…with back as its largest share`,
+      Object.keys(sp).filter(k => k !== 'cable' && k !== 'factor').every(k => sp[k] <= sp.back),
+      JSON.stringify(sp));
+    check(`…and arms, chest and shoulders getting their part`,
+      sp.arms > 0 && sp.chest > 0 && sp.shoulders > 0, JSON.stringify(sp));
+    check(`${n} maps to the back muscle group`, G.getExGroup(n) === 'back', String(G.getExGroup(n)));
+  });
+  check('a hand-typed "Muscle-up" classifies the same way',
+    G.getExGroup('Muscle-up') === 'back' && G.getExSplits('Muscle-up').back > 0);
+
+  // Bodyweight: the plain one is, the assisted one is NOT (its stack takes weight off)
+  check('Muscle Up is a bodyweight lift, so a set of them is not logged as zero work',
+    G.isBWExName(MU) === true);
+  check('Assisted Muscle Up is not a bodyweight card — the stack is assistance',
+    G.isBWExName(AMU) === false);
+  check('the bodyweight lifts that were already there are unchanged',
+    ['Pull-ups', 'Chin-ups', 'Push-ups', 'Dips'].every(n => G.isBWExName(n)) &&
+    !G.isBWExName('Weighted Pull-ups'));
+  check('the assisted machines stay loaded cards too',
+    !G.isBWExName('Assisted Pull-up Machine') && !G.isBWExName('Assisted Dip Machine'));
+
+  // Not prescribed: no pool, no injury substitution, no prehab injection may author them
+  {
+    const subsFor = { hypertrophy: ['balanced', 'upper', 'lower'], strength: ['pure', 'hybrid'],
+                      aesthetic: ['fullbody', 'glutes', 'upper'], rehab: ['shoulder', 'back', 'knee'] };
+    let found = [];
+    Object.keys(subsFor).forEach(goal => subsFor[goal].forEach(sub => {
+      [3, 4, 5, 6, 7].forEach(nDays => [10, 16, 22].forEach(spm => {
+        [[], ['shoulders'], ['knees'], ['lower_back']].forEach(inj => {
+          let prog; try { prog = G._generateWorkoutProgram(goal, sub, nDays, 'T', spm, inj); } catch (e) { return; }
+          (prog.days || []).forEach(d => (d.exercises || []).forEach(ex => {
+            if (/muscle[\s-]?up/i.test(ex.name || '')) found.push(`${goal}/${sub} ${nDays}d spm=${spm} ${d.name}: ${ex.name}`);
+          }));
+        });
+      }));
+    }));
+    check('no generated program ever prescribes a muscle-up', found.length === 0, found.slice(0, 3).join(' ; '));
+    check('…and no seed pool authors one either', !/pw\('(Assisted )?Muscle[\s-]?Up'/i.test(rawScript));
+  }
+
+  // It is a catalogue entry only — the pull-up hoist and the 1RM grouping are untouched
+  check('a muscle-up is not treated as a pull-up variant by the hoist',
+    G.isPullUpEx(MU) === false && G.isPullUpEx(AMU) === false);
+}
+
 setImmediate(() => {
   console.log(`  ${passed} passed  ${failed} failed  ${passed + failed} total`);
   process.exit(failed === 0 ? 0 : 1);
