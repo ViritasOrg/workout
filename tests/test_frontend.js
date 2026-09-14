@@ -5721,14 +5721,14 @@ console.log('\n── Standard machine exercises ──────────�
   // Invariant for anything added to the catalogue from here on
   {
     const opts = [...G.EX_OPTS_HTML.matchAll(/<option>([^<]+)<\/option>/g)].map(m => m[1]);
-    // Skull Crushers has no EXERCISE_SPLITS entry — pre-existing gap, not touched here.
-    const unclassified = opts.filter(n => n !== 'Skull Crushers' &&
+    // No exceptions any more — Skull Crushers was the last unclassified name (fixed 2026-09-13).
+    const unclassified = opts.filter(n =>
       Object.keys(G.getExSplits(n)).filter(k => k !== 'cable' && k !== 'factor').length === 0);
     check('every exercise in the picker resolves to a muscle group',
       unclassified.length === 0, unclassified.join(', '));
     // Exact count on purpose: adding or removing an exercise should be a conscious edit here.
-    check('the catalogue holds every exercise it is meant to (63)',
-      opts.length === 63, String(opts.length));
+    check('the catalogue holds every exercise it is meant to (65)',
+      opts.length === 65, String(opts.length));
     check('no exercise is listed twice in the picker',
       new Set(opts).size === opts.length,
       opts.filter((n, i) => opts.indexOf(n) !== i).join(', '));
@@ -6062,6 +6062,149 @@ console.log('\n── Muscle Up / Assisted Muscle Up ─────────
   // It is a catalogue entry only — the pull-up hoist and the 1RM grouping are untouched
   check('a muscle-up is not treated as a pull-up variant by the hoist',
     G.isPullUpEx(MU) === false && G.isPullUpEx(AMU) === false);
+}
+
+// ── Section: Skull Crushers volume + Behind the Neck Press ─────────────────
+// Henrik, 2026-09-13: "Fix Skull crushers split, also add Behind the Neck Presses to catalog".
+// The split key was written "skullcrusher" while the catalogue name is "Skull Crushers", so the
+// name matched nothing: every set of them counted toward no muscle group at all.
+console.log('\n── Skull Crushers split / Behind the Neck Press ───────────');
+{
+  ['Skull Crushers', 'Skull Crusher', 'Skullcrusher', 'Skull-crusher'].forEach(n => {
+    check(`"${n}" counts as arm volume`,
+      JSON.stringify(G.getExSplits(n)) === JSON.stringify({ arms: 1 }), JSON.stringify(G.getExSplits(n)));
+    check(`"${n}" maps to the arms muscle group`, G.getExGroup(n) === 'arms', String(G.getExGroup(n)));
+  });
+  check('the catalogue name itself is the one that was broken, and is fixed',
+    G.EX_OPTS_HTML.includes('<option>Skull Crushers</option>') &&
+    Object.keys(G.getExSplits('Skull Crushers')).length > 0);
+  check('the other arm exercises are untouched',
+    ['Tricep Pushdown', 'Barbell Curl', 'Hammer Curl', 'Preacher Curl', 'Close Grip Press']
+      .every(n => Object.keys(G.getExSplits(n)).length > 0));
+
+  // Behind the Neck Press — catalogue entry, Shoulders
+  const BTN = 'Behind the Neck Press';
+  {
+    const sh = G.EX_OPTS_HTML.slice(G.EX_OPTS_HTML.indexOf('label="Shoulders"'), G.EX_OPTS_HTML.indexOf('label="Arms"'));
+    check('Log Workout offers Behind the Neck Press under Shoulders', sh.includes('<option>' + BTN + '</option>'));
+    const fn = String(G._exOpts || '');
+    const ed = fn.slice(fn.indexOf("'Shoulders':"), fn.indexOf("'Arms':"));
+    check('the program editor offers it under Shoulders', ed.includes("'" + BTN + "'"), ed.slice(-90));
+  }
+  check('it counts as shoulder volume, with the triceps getting their share',
+    G.getExSplits(BTN).shoulders > 0 && G.getExSplits(BTN).arms > 0, JSON.stringify(G.getExSplits(BTN)));
+  check('…shoulders being the largest share',
+    Object.keys(G.getExSplits(BTN)).every(k => G.getExSplits(BTN)[k] <= G.getExSplits(BTN).shoulders));
+  check('…and NOT falling through to the generic "press" key, which would call it a chest lift',
+    !G.getExSplits(BTN).chest, JSON.stringify(G.getExSplits(BTN)));
+  check('it maps to the shoulders muscle group', G.getExGroup(BTN) === 'shoulders', String(G.getExGroup(BTN)));
+  check('Overhead Press keeps the split it had', 
+    JSON.stringify(G.getExSplits('Overhead Press')) === JSON.stringify({ shoulders: 0.7, arms: 0.2, chest: 0.1 }));
+
+  // Catalogue only — Henrik chose to leave program generation alone (2026-09-13)
+  {
+    const subsFor = { hypertrophy: ['balanced', 'upper', 'lower'], strength: ['pure', 'hybrid'],
+                      aesthetic: ['fullbody', 'glutes', 'upper'], rehab: ['shoulder', 'back', 'knee'] };
+    let found = [];
+    Object.keys(subsFor).forEach(goal => subsFor[goal].forEach(sub => {
+      [3, 5, 6, 7].forEach(nDays => [10, 16, 22].forEach(spm => {
+        [[], ['shoulders']].forEach(inj => {
+          let prog; try { prog = G._generateWorkoutProgram(goal, sub, nDays, 'T', spm, inj); } catch (e) { return; }
+          (prog.days || []).forEach(d => (d.exercises || []).forEach(ex => {
+            if (/behind the neck/i.test(ex.name || '')) found.push(`${goal}/${sub} ${nDays}d ${d.name}`);
+          }));
+        });
+      }));
+    }));
+    check('no generated program prescribes it — including the shoulder-injury path',
+      found.length === 0, found.slice(0, 3).join(' ; '));
+    check('…and the shoulders injury still substitutes overhead pressing to Landmine Press',
+      (G.REHAB_CONDITIONS.find(c => c.id === 'shoulders') || {}).suggest('Overhead Press') === 'Landmine Press');
+  }
+}
+
+// ── Section: Drape Pulldowns ────────────────────────────────────────────────
+// Requested 2026-09-14: a muscle-up prep movement done standing at the lat machine, pulling
+// the bar in a long arc from overhead down to the waist. It lives next to Lat Pulldown in the
+// catalogue, but it is NOT a lat pulldown: the travel is far longer, so its ROM (and therefore
+// the energy/volume attributed to a set) has to be its own value rather than the pulldown's.
+console.log('\n── Drape Pulldowns ───────────────────────────────────────');
+{
+  const optGroup = (label) => {
+    const start = G.EX_OPTS_HTML.indexOf('<optgroup label="' + label + '"');
+    const end = G.EX_OPTS_HTML.indexOf('</optgroup>', start);
+    return G.EX_OPTS_HTML.slice(start, end);
+  };
+  const back = optGroup('Back');
+  const editorBack = (() => {
+    const fn = String(G._exOpts || '');
+    const start = fn.indexOf("'Back':");
+    return fn.slice(start, fn.indexOf(']', start));
+  })();
+
+  check('Log Workout offers Drape Pulldowns under Back',
+    back.includes('<option>Drape Pulldowns</option>'), back.slice(-160));
+  check('the program editor offers Drape Pulldowns under Back',
+    editorBack.includes("'Drape Pulldowns'"), editorBack.slice(-160));
+
+  // "next to Lat Pulldown" — immediately after it in both hand-maintained lists
+  check('it sits directly after Lat Pulldown in the Log Workout picker',
+    back.includes('<option>Lat Pulldown</option><option>Drape Pulldowns</option>'),
+    back.slice(Math.max(0, back.indexOf('Lat Pulldown') - 20), back.indexOf('Lat Pulldown') + 90));
+  check('…and directly after it in the program editor',
+    editorBack.includes("'Lat Pulldown','Drape Pulldowns'"), editorBack);
+
+  // Classification: a back-dominant cable-machine pull
+  const spl = G.getExSplits('Drape Pulldowns');
+  check('it counts toward back', spl.back > 0, JSON.stringify(spl));
+  check('back is the dominant group',
+    Object.keys(spl).filter(k => k !== 'cable' && k !== 'factor')
+      .every(k => k === 'back' || spl[k] <= spl.back), JSON.stringify(spl));
+  check('getExGroup places it with back', G.getExGroup('Drape Pulldowns') === 'back',
+    String(G.getExGroup('Drape Pulldowns')));
+  check('it is a cable/stack exercise, so the card gets the cable gearing controls',
+    G.isCableEx('Drape Pulldowns'));
+  check('it is not a bodyweight card (the stack carries the load)',
+    !G.isBWExName('Drape Pulldowns'));
+
+  // The specific key has to be matched before the generic pulldown keys, or the substring
+  // lookup would resolve "Drape Pulldowns" as a plain lat pulldown.
+  const iDrape = G.EXERCISE_SPLITS.findIndex(e => e[0] === 'drape pulldown');
+  const iLat = G.EXERCISE_SPLITS.findIndex(e => e[0] === 'lat pulldown');
+  check('the drape key exists in EXERCISE_SPLITS', iDrape >= 0);
+  check('…and is matched before the lat pulldown key', iDrape >= 0 && iLat >= 0 && iDrape < iLat,
+    iDrape + ' vs ' + iLat);
+
+  // ROM: the whole point of the exercise. Long arc, not a lats-to-chest pull.
+  const romDrape = G.exerciseRom('Drape Pulldowns');
+  const romLat = G.exerciseRom('Lat Pulldown');
+  check('it has its own ROM rather than falling through to the default',
+    romDrape !== G.KCAL_ROM_DEFAULT, String(romDrape));
+  check('its ROM is 0.90 (overhead to waist)', Math.abs(romDrape - 0.90) < 1e-9, String(romDrape));
+  check('its ROM is meaningfully longer than a normal lat pulldown',
+    romDrape > romLat + 0.2, romDrape + ' vs ' + romLat);
+  const iRomDrape = G.EXERCISE_ROM.findIndex(e => e[0] === 'drape pulldown');
+  const iRomPull = G.EXERCISE_ROM.findIndex(e => e[0] === 'pulldown');
+  check('the drape ROM key is matched before the generic pulldown key',
+    iRomDrape >= 0 && iRomPull >= 0 && iRomDrape < iRomPull, iRomDrape + ' vs ' + iRomPull);
+
+  // A set of drapes must therefore carry more energy/volume than the same set of pulldowns
+  check('the same set therefore scores more energy than a lat pulldown set',
+    romDrape * 1 > romLat * 1);
+
+  // Nothing about the ordinary pulldown changes
+  check('Lat Pulldown keeps its own ROM', Math.abs(romLat - 0.55) < 1e-9, String(romLat));
+  check('Lat Pulldown keeps its own split',
+    G.getExSplits('Lat Pulldown').back === 0.65 && G.getExSplits('Lat Pulldown').arms === 0.35,
+    JSON.stringify(G.getExSplits('Lat Pulldown')));
+
+  // Same class of typo as the Skull Crushers split (2026-09-13): the ROM table keyed the
+  // exercise "skullcrusher" while the catalogue name is "Skull Crushers", so the substring
+  // lookup never fired and every set was scored at the 0.45 default.
+  const romSkull = G.exerciseRom('Skull Crushers');
+  check('Skull Crushers resolves to its own ROM instead of the default',
+    romSkull !== G.KCAL_ROM_DEFAULT, String(romSkull));
+  check('…which is 0.40', Math.abs(romSkull - 0.40) < 1e-9, String(romSkull));
 }
 
 setImmediate(() => {
