@@ -174,9 +174,12 @@ check('no duplicate function names', dupes.length === 0, dupes.length ? dupes.jo
 console.log('\n── EXERCISE_SPLITS — all fractions sum to 1.0 ─────────────');
 check('EXERCISE_SPLITS defined',     Array.isArray(G.EXERCISE_SPLITS));
 check('30+ exercises',               (G.EXERCISE_SPLITS?.length || 0) >= 30, `got ${G.EXERCISE_SPLITS?.length}`);
+// Keys in a split that are NOT a muscle share. Add a new one here and both invariants below
+// (this sum, and "every picker name resolves to a muscle group") keep working.
+const SPLIT_META_KEYS = ['factor', 'cable', 'mechFactor'];
 const badSplits = [];
 for (const [kw, sp] of (G.EXERCISE_SPLITS || [])) {
-  const sum = Object.entries(sp).filter(([k]) => k !== 'factor' && k !== 'cable').reduce((a, [, v]) => a + v, 0);
+  const sum = Object.entries(sp).filter(([k]) => !SPLIT_META_KEYS.includes(k)).reduce((a, [, v]) => a + v, 0);
   if (Math.abs(sum - 1.0) > 0.001) badSplits.push(`"${kw}" sums to ${sum.toFixed(3)}`);
 }
 check('all fractions sum to 1.0',    badSplits.length === 0, badSplits.join('; '));
@@ -5723,12 +5726,12 @@ console.log('\n── Standard machine exercises ──────────�
     const opts = [...G.EX_OPTS_HTML.matchAll(/<option>([^<]+)<\/option>/g)].map(m => m[1]);
     // No exceptions any more — Skull Crushers was the last unclassified name (fixed 2026-09-13).
     const unclassified = opts.filter(n =>
-      Object.keys(G.getExSplits(n)).filter(k => k !== 'cable' && k !== 'factor').length === 0);
+      Object.keys(G.getExSplits(n)).filter(k => !SPLIT_META_KEYS.includes(k)).length === 0);
     check('every exercise in the picker resolves to a muscle group',
       unclassified.length === 0, unclassified.join(', '));
     // Exact count on purpose: adding or removing an exercise should be a conscious edit here.
-    check('the catalogue holds every exercise it is meant to (65)',
-      opts.length === 65, String(opts.length));
+    check('the catalogue holds every exercise it is meant to (66)',
+      opts.length === 66, String(opts.length));
     check('no exercise is listed twice in the picker',
       new Set(opts).size === opts.length,
       opts.filter((n, i) => opts.indexOf(n) !== i).join(', '));
@@ -6205,6 +6208,150 @@ console.log('\n── Drape Pulldowns ──────────────
   check('Skull Crushers resolves to its own ROM instead of the default',
     romSkull !== G.KCAL_ROM_DEFAULT, String(romSkull));
   check('…which is 0.40', Math.abs(romSkull - 0.40) < 1e-9, String(romSkull));
+}
+
+// ── Section: 45° Leg Press ────────────────────────────────────────────────────
+// Requested 2026-09-17. Leg presses come in two builds. On a horizontal/vertical machine the
+// plate load is what you push. On a 45° sled the carriage rides a ramp, so only the component
+// of gravity along the rail reaches your feet: sin(45°) = 0.707 of the plates. Logging 200 kg
+// on the sled is not the same work as 200 kg straight up, and the app was scoring them equal.
+//
+// Shipped as its own catalogue entry rather than a factor on the shared "leg press" key: both
+// builds exist, the name is the only thing the app can tell them apart by, and putting the
+// factor on the shared key would silently rescale every Leg Press session already logged.
+console.log('\n── 45° Leg Press (sled scales the plate load) ────────────');
+{
+  const NAME = '45° Leg Press';
+  const optGroup = (label) => {
+    const start = G.EX_OPTS_HTML.indexOf('<optgroup label="' + label + '"');
+    return G.EX_OPTS_HTML.slice(start, G.EX_OPTS_HTML.indexOf('</optgroup>', start));
+  };
+  const legs = optGroup('Legs');
+  const editorLegs = (() => {
+    const fn = String(G._exOpts || '');
+    const start = fn.indexOf("'Legs':");
+    return fn.slice(start, fn.indexOf(']', start));
+  })();
+
+  check('Log Workout offers it under Legs', legs.includes('<option>' + NAME + '</option>'), legs.slice(-160));
+  check('the program editor offers it under Legs', editorLegs.includes("'" + NAME + "'"), editorLegs.slice(-160));
+  check('it sits directly after Leg Press in the Log Workout picker',
+    legs.includes('<option>Leg Press</option><option>' + NAME + '</option>'), legs.slice(0, 220));
+  check('…and directly after it in the program editor',
+    editorLegs.includes("'Leg Press','" + NAME + "'"), editorLegs);
+
+  // Classification — a leg machine like any other
+  const spl = G.getExSplits(NAME);
+  check('it counts as legs volume', spl.legs === 1, JSON.stringify(spl));
+  check('it maps to the legs muscle group', G.getExGroup(NAME) === 'legs', String(G.getExGroup(NAME)));
+  check('it is not a bodyweight card', !G.isBWExName(NAME));
+  check('it is not a cable exercise', !G.isCableEx(NAME));
+  check('it is not a barbell lift, so no plate rounding', !G.isBarbellEx(NAME));
+  check('the body does not travel with the sled, so no body-mass term',
+    G.exerciseBwFrac(NAME) === 0, String(G.exerciseBwFrac(NAME)));
+
+  // The scale factor IS the feature
+  check('the logged plate weight is scaled down', spl.factor > 0 && spl.factor < 1, String(spl.factor));
+  check('the factor is sin(45°), not a round guess',
+    Math.abs(spl.factor - Math.sin(Math.PI / 4)) < 0.005,
+    `${spl.factor} vs sin45 ${Math.sin(Math.PI / 4).toFixed(4)}`);
+  check('…which is 0.71', Math.abs(spl.factor - 0.71) < 1e-9, String(spl.factor));
+
+  // Ordering: the generic "leg press" key would otherwise swallow the name and drop the factor
+  const iSled = G.EXERCISE_SPLITS.findIndex(e => e[0] === '45° leg press');
+  const iFlat = G.EXERCISE_SPLITS.findIndex(e => e[0] === 'leg press');
+  check('the sled key exists', iSled >= 0);
+  check('…and is matched before the generic leg press key', iSled >= 0 && iFlat >= 0 && iSled < iFlat,
+    `${iSled} vs ${iFlat}`);
+
+  // ROM is the travel along the rail, same as any leg press — the factor is the only difference,
+  // so the two builds cannot drift apart for a second, compounding reason.
+  check('it keeps the leg press range of motion',
+    G.exerciseRom(NAME) === G.exerciseRom('Leg Press'),
+    `${G.exerciseRom(NAME)} vs ${G.exerciseRom('Leg Press')}`);
+
+  // ── What the factor actually does to the numbers ──────────────────────────
+  const _savedLogs = G.logs, _savedW = G.weights;
+  const sess = (n, kg, reps) => [{ date: '2026-09-17', exercises: [{ name: n, sets: reps.map(r => ({ kg, reps: r })) }] }];
+
+  G.logs = sess(NAME, 200, [10, 10, 10]);
+  const volSled = G.buildSessionGroupVol('legs', 10000)[0].vol;
+  G.logs = sess('Leg Press', 200, [10, 10, 10]);
+  const volFlat = G.buildSessionGroupVol('legs', 10000)[0].vol;
+  check('3×10 @ 200 kg on the sled scores 0.71 of the same sets pressed straight up',
+    Math.abs(volSled - volFlat * 0.71) < 0.01, `${volSled} vs ${volFlat}`);
+  check('…which is 4260 kg of leg volume, not 6000',
+    Math.abs(volSled - 4260) < 0.01, String(volSled));
+
+  G.logs = sess(NAME, 200, [5]);
+  const rmSled = G.buildSessionGroupStrength('legs', 10000)[0].est1rm;
+  check('the 1RM estimate is scaled the same way',
+    Math.abs(rmSled - 200 * 0.71 * (1 + 5 / 30)) < 0.01, String(rmSled));
+
+  G.weights = [{ date: '2026-01-01', weight: 89 }];
+  const one = (n, kg, reps) => ({ date: '2026-09-17', exercises: [{ name: n, sets: reps.map(r => ({ kg, reps: r })) }] });
+  const jSled = G.sessionWork(one(NAME, 200, [10, 10, 10])).joules;
+  const jFlat = G.sessionWork(one('Leg Press', 200, [10, 10, 10])).joules;
+  check('the work done is 0.71 of the same plates on a straight press',
+    Math.abs(jSled - jFlat * 0.71) < 1e-6, `${jSled} vs ${jFlat}`);
+  check('…and is exact against load × g × rom × reps',
+    Math.abs(jSled - 200 * 0.71 * G.KCAL_G * 0.45 * 30) < 1e-6, String(jSled));
+  // The calorie figure follows the work only while the session sits inside the Compendium power
+  // band — heavy leg pressing pins the MET at the vigorous ceiling either way, so compare at a
+  // load that stays inside it.
+  check('so the sled session is also the cheaper one in calories',
+    G.estimateSessionKcal(one(NAME, 100, [10, 10, 10])) < G.estimateSessionKcal(one('Leg Press', 100, [10, 10, 10])),
+    `${G.estimateSessionKcal(one(NAME, 100, [10, 10, 10]))} vs ${G.estimateSessionKcal(one('Leg Press', 100, [10, 10, 10]))}`);
+
+  // A mechanical factor scales the PLATES, so unlike a bodyweight factor it does not make the
+  // estimate depend on a weigh-in. The guard used to read any factor below 1 as body-derived.
+  check('the sled factor is flagged as mechanical, not body-derived', spl.mechFactor === 1, String(spl.mechFactor));
+  check('a bodyweight factor carries no such flag',
+    !G.getExSplits('Push-ups').mechFactor && !G.getExSplits('Dips').mechFactor);
+  check('sessionWork no longer reads every factor below 1 as needing a weigh-in',
+    !/factor!==1\|\|bwFrac/.test(String(G.sessionWork)), 'the old proxy condition is still there');
+  G.weights = [];
+  check('the sled alone does not flag the session as needing a body weight',
+    G.sessionWork(one(NAME, 200, [10])) !== null);
+  check('…while push-ups still do, their kg field being a body weight',
+    G.sessionWork(one('Push-ups', 89, [10])) === null);
+  check('…and so do weighted pull-ups and the lifts that raise the lifter',
+    G.sessionWork(one('Weighted Pull-ups', 20, [5])) === null &&
+    G.sessionWork(one('Squat', 100, [5])) === null);
+  G.weights = [{ date: '2026-01-01', weight: 89 }];
+
+  // ── Nothing about the straight presses changes ────────────────────────────
+  check('Leg Press itself is still unscaled',
+    G.getExSplits('Leg Press').factor === undefined &&
+    G.getExSplits('Leg Press').legs === 1, JSON.stringify(G.getExSplits('Leg Press')));
+  check('Bilateral Leg Press is still unscaled',
+    G.getExSplits('Bilateral Leg Press').factor === undefined, JSON.stringify(G.getExSplits('Bilateral Leg Press')));
+  check('a Leg Press session logged before today reads exactly as it did',
+    Math.abs(volFlat - 6000) < 0.01, String(volFlat));
+  check('the other legs machines keep their splits',
+    G.getExSplits('Leg Extension').legs === 1 && G.getExSplits('Leg Curl').legs === 1 &&
+    G.getExSplits('Hack Squat').legs === 1);
+  check('push-ups and dips keep the bodyweight factors they had',
+    G.getExSplits('Push-ups').factor === 0.64 && G.getExSplits('Dips').factor === 0.7);
+
+  G.logs = _savedLogs; G.weights = _savedW;
+
+  // Catalogue-only, as with every other addition that was not asked to be programmed.
+  const found = [];
+  ['strength', 'hypertrophy', 'rehab'].forEach(goal => ['balanced', 'upper', 'lower', 'hybrid', 'aesthetics'].forEach(sub => {
+    [3, 5, 6, 7].forEach(nDays => [10, 16, 22].forEach(spm => {
+      [[], ['knees'], ['shoulders']].forEach(inj => {
+        let prog; try { prog = G._generateWorkoutProgram(goal, sub, nDays, 'T', spm, inj); } catch (e) { return; }
+        (prog.days || []).forEach(d => (d.exercises || []).forEach(ex => {
+          if (/45/.test(ex.name || '')) found.push(`${goal}/${sub} ${nDays}d ${d.name}: ${ex.name}`);
+        }));
+      });
+    }));
+  }));
+  check('no generated program prescribes it — including the knees-injury path',
+    found.length === 0, found.slice(0, 3).join(' ; '));
+  check('…and the knees injury still substitutes squats to the plain Leg Press',
+    (G.REHAB_CONDITIONS.find(c => c.id === 'knees') || {}).suggest('Squat') === 'Leg Press');
 }
 
 setImmediate(() => {
