@@ -133,6 +133,18 @@
   .prog-card-name{font-size:15px;font-weight:600;color:var(--text);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .prog-card-meta{font-size:13px;color:var(--muted);}
   .prog-card-empty{border:1.5px dashed rgba(255,255,255,0.12);border-radius:10px;padding:12px;background:transparent;display:flex;align-items:center;justify-content:center;min-height:80px;}
+  /* Library rows. Same min-width:0 / ellipsis discipline as .prog-card above — a long
+     program name must clip, never widen the row and push the meta off screen. */
+  .prog-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,0.02);cursor:pointer;min-width:0;}
+  .prog-row.active{border-color:var(--accent);background:rgba(232,255,60,0.07);}
+  .prog-row-main{flex:1;min-width:0;}
+  .prog-row-name{font-size:14px;font-weight:600;color:var(--text);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .prog-row-meta{font-size:11px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .tpl-card{border:1px solid var(--border);border-radius:10px;padding:12px;background:rgba(255,255,255,0.02);cursor:pointer;min-width:0;}
+  .tpl-name{font-size:14px;font-weight:600;color:var(--text);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .tpl-desc{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.45;}
+  .tpl-copy{background:var(--accent);color:#000;border:none;border-radius:7px;padding:7px 14px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;flex-shrink:0;}
+  .prog-linkbtn{background:none;border:none;color:var(--accent);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;padding:8px 0;}
   .prog-overlay{position:fixed;inset:0;background:var(--bg);z-index:300;display:flex;flex-direction:column;overflow:hidden;transform:translateX(100%);transition:transform 0.28s cubic-bezier(0.4,0,0.2,1);}
   .prog-overlay.open{transform:translateX(0);}
   .prog-header{display:flex;align-items:center;gap:10px;padding:18px 20px 14px;border-bottom:1px solid var(--border);flex-shrink:0;}
@@ -673,7 +685,7 @@ async function copyDataToStage(){
 function wipeLocalCache(){if(!confirm('Clear all locally cached data? The app will reload and re-fetch everything from the backend. You will stay signed in.'))return;var _t=window.localStorage.getItem('google_token');var _e=window.localStorage.getItem('google_email');var _s=window.localStorage.getItem('session_token');window.localStorage.clear();if(_t)window.localStorage.setItem('google_token',_t);if(_e)window.localStorage.setItem('google_email',_e);if(_s)window.localStorage.setItem('session_token',_s);window.location.reload();}
 async function syncSettingsFromAgent(){try{const r=await fetch(AGENT_URL+'/user-settings',{headers:authHeaders()});if(!r.ok)return;const s=await r.json();if(!s)return;if(s['wkt-tab-vis']){_pageVis=Object.assign({},PAGE_DEFAULTS,s['wkt-tab-vis']);setData('wkt-tab-vis',s['wkt-tab-vis']);applyTabVis();buildTabsSettingsCard();}if(s['template_weights']){Object.entries(s['template_weights']).forEach(function(e){setData('template_weights_day'+e[0],e[1]);});}if(s['wkt-profile']){var _sp=s['wkt-profile'];if(_sp&&typeof _sp==='object'){setData('wkt-profile',Object.assign({},getData('wkt-profile',{}),_sp));if(typeof buildProfileCard==='function')buildProfileCard();}}if(s['wkt-theme']&&getData('wkt-theme',null)!==s['wkt-theme']&&typeof applyTheme==='function')applyTheme(s['wkt-theme']);if(s['wkt-chart-scale']){_chartScale=s['wkt-chart-scale'];setData('wkt-chart-scale',s['wkt-chart-scale']);}if(s['user_sex']||s['user_height']||s['user_weight']||s['user_age']){var _wp=getData('wkt-profile',{});if(s['user_sex'])_wp.gender=s['user_sex']==='female'?'female':'male';if(s['user_height'])_wp.height=parseFloat(s['user_height']);if(s['user_weight'])_wp.weight=parseFloat(s['user_weight']);if(s['user_age'])_wp.age=parseInt(s['user_age']);setData('wkt-profile',_wp);}if(s['wo_db_toggles']){Object.entries(s['wo_db_toggles']).forEach(function(e){localStorage.setItem('wk-db-'+e[0],String(e[1]));});}if(s['wo_gear_toggles']){Object.entries(s['wo_gear_toggles']).forEach(function(e){localStorage.setItem('wk-gear-'+e[0],String(e[1]));});}if(s['wo_cable2_toggles']){Object.entries(s['wo_cable2_toggles']).forEach(function(e){localStorage.setItem('wk-cable2-'+e[0],String(e[1]));});}if(s['wkt-unit']){localStorage.setItem('wkt-unit',String(s['wkt-unit']));_refreshUnitUI();}if(s['wkt-deload']!==undefined){var _dlPrev=!!_deloadActive;_deloadActive=!!s['wkt-deload'];setData('wkt-deload',_deloadActive);var _ppD=document.getElementById('page-program');if(_ppD&&_ppD.classList&&_ppD.classList.contains('active'))renderWorkout(_selectedProgramDay);if(_dlPrev!==!!_deloadActive){var _lpD=document.getElementById('page-log');if(_lpD&&_lpD.classList&&_lpD.classList.contains('active')){var _lcD=document.getElementById('structured-log');var _hrD=_lcD&&Array.from(_lcD.querySelectorAll('input[data-type="reps"]')).some(function(i){return parseInt(i.value)>0;});if(!_hrD){var _ldD=document.getElementById('log-day');if(_ldD&&_ldD.value)prefillLog(_ldD.value);}}}}var _pp=document.getElementById('ppanel-overview');if(_pp&&!_pp.classList.contains('hidden')){drawBmiChart();drawLbmChart();}}catch(e){}}
 function buildTabsSettingsCard(){var card=document.getElementById('s-tabs-card');if(!card)return;var rows=Object.entries(PAGE_LABELS).map(function(e){var id=e[0];var label=e[1];var on=!!_pageVis[id];return'<div style="padding:11px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)"><span style="font-size:13px;color:var(--text)">'+label+'</span><button onclick="toggleTabVis(\''+id+'\')" style="background:'+(on?'var(--accent)':'var(--surface2)')+';color:'+(on?'#000':'var(--muted)')+';border:1px solid '+(on?'transparent':'var(--border)')+';border-radius:20px;padding:4px 14px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;min-width:48px">'+(on?'ON':'OFF')+'</button></div>';}).join('');card.innerHTML='<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:14px">'+sSecHdr('tabs','Tabs')+sSecBody('tabs')+rows+'<div style="padding:8px 16px 10px;font-size:11px;color:var(--muted)">Settings is always visible</div></div></div>';}
-const EX_OPTS_HTML='<optgroup label="Legs"><option>Squat</option><option>Romanian Deadlift</option><option>Deadlift</option><option>Leg Press</option><option>45° Leg Press</option><option>Bilateral Leg Press</option><option>Smith Machine Squat</option><option>Leg Curl</option><option>Leg Extension</option><option>Calf Raises</option><option>Lunges</option><option>Bulgarian Split Squat</option><option>Hip Thrust</option><option>Hip Adductor (inside hips)</option><option>Hip Abductor (outside hips)</option><option>Hack Squat</option><option>Seated Calf Raise</option></optgroup><optgroup label="Back"><option>Pull-ups</option><option>Weighted Pull-ups</option><option>Chin-ups</option><option>Barbell Row</option><option>Cable Row</option><option>Lat Pulldown</option><option>Drape Pulldowns</option><option>T-Bar Row</option><option>Face Pulls</option><option>Rear Delt Fly</option><option>Rear Delt Cable Fly</option><option>Shrug</option><option>Chest-Supported Row</option><option>Assisted Pull-up Machine</option><option>Muscle Up</option><option>Assisted Muscle Up</option></optgroup><optgroup label="Chest"><option>Chest Machine Press</option><option>Incline DB Press</option><option>Bench Press</option><option>Incline Bench Press</option><option>Cable Fly</option><option>Low-to-high Cable Fly</option><option>Push-ups</option><option>Dips</option><option>Pec Deck (chest fly machine)</option><option>Assisted Dip Machine</option></optgroup><optgroup label="Shoulders"><option>Landmine Press</option><option>Overhead Press</option><option>Arnold Press</option><option>Lateral Raise</option><option>Cable Lateral Raise</option><option>Y-Raise</option><option>Front Raise</option><option>Upright Row</option><option>Cable External Rotation</option><option>Shoulder Press Machine</option><option>Machine Lateral Raise</option><option>Behind the Neck Press</option></optgroup><optgroup label="Arms"><option>Barbell Curl</option><option>Hammer Curl</option><option>EZ Bar Curl</option><option>Preacher Curl</option><option>Overhead Tricep Cable</option><option>Tricep Pushdown</option><option>Skull Crushers</option><option>Close Grip Press</option><option>Bicep Curl Machine</option><option>Tricep Extension Machine</option><option>Cable Bicep Curl</option></optgroup>';
+const EX_OPTS_HTML='<optgroup label="Legs"><option>Squat</option><option>Romanian Deadlift</option><option>Deadlift</option><option>Leg Press</option><option>45° Leg Press</option><option>Bilateral Leg Press</option><option>Smith Machine Squat</option><option>Leg Curl</option><option>Leg Extension</option><option>Calf Raises</option><option>Lunges</option><option>Bulgarian Split Squat</option><option>Hip Thrust</option><option>Hip Adductor (inside hips)</option><option>Hip Abductor (outside hips)</option><option>Hack Squat</option><option>Seated Calf Raise</option></optgroup><optgroup label="Back"><option>Pull-ups</option><option>Weighted Pull-ups</option><option>Chin-ups</option><option>Barbell Row</option><option>Cable Row</option><option>Lat Pulldown</option><option>Drape Pulldowns</option><option>Straight-Arm Lat Pushdown</option><option>T-Bar Row</option><option>Face Pulls</option><option>Rear Delt Fly</option><option>Rear Delt Cable Fly</option><option>Shrug</option><option>Chest-Supported Row</option><option>Assisted Pull-up Machine</option><option>Muscle Up</option><option>Assisted Muscle Up</option><option>Clapping Pull-ups</option></optgroup><optgroup label="Chest"><option>Chest Machine Press</option><option>Incline DB Press</option><option>Bench Press</option><option>Incline Bench Press</option><option>Cable Fly</option><option>Low-to-high Cable Fly</option><option>Push-ups</option><option>Dips</option><option>Pec Deck (chest fly machine)</option><option>Assisted Dip Machine</option><option>Plyo Push-ups</option></optgroup><optgroup label="Shoulders"><option>Landmine Press</option><option>Overhead Press</option><option>Arnold Press</option><option>Lateral Raise</option><option>Cable Lateral Raise</option><option>Y-Raise</option><option>Front Raise</option><option>Upright Row</option><option>Cable External Rotation</option><option>Shoulder Press Machine</option><option>Machine Lateral Raise</option><option>Behind the Neck Press</option></optgroup><optgroup label="Arms"><option>Barbell Curl</option><option>Hammer Curl</option><option>EZ Bar Curl</option><option>Preacher Curl</option><option>Overhead Tricep Cable</option><option>Tricep Pushdown</option><option>Skull Crushers</option><option>Close Grip Press</option><option>Bicep Curl Machine</option><option>Tricep Extension Machine</option><option>Cable Bicep Curl</option></optgroup>';
 async function fetchAllMarkers(){let milestones=[];try{const r=await fetch(AGENT_URL+'/stack-milestones',{headers:authHeaders()});if(r.ok)milestones=await r.json();}catch(e){}let trt=[];try{const r2=await fetch(AGENT_URL+'/peptide-log',{headers:authHeaders()});if(r2.ok){const log=await r2.json();const seen=new Set();log.forEach(entry=>{(entry.doses||[]).forEach(id=>{let trtType=null;if(id.startsWith('testo_'))trtType='enanthate';else if(id.startsWith('nebido_'))trtType='nebido';if(!trtType)return;const k=entry.date+'_'+trtType;if(seen.has(k))return;seen.add(k);const p=entry.date.split('-');const nd=p[0]+'-'+p[1].padStart(2,'0')+'-'+p[2].padStart(2,'0');trt.push({date:nd,label:trtType==='nebido'?'TRT-N':'TRT-E',color:'#c084fc',trtType});});});}}catch(e){}return[...milestones,...trt].sort((a,b)=>a.date.localeCompare(b.date));}let logs=getData('workout_logs',[]);
 function _normDt(s){if(!s)return s;var p=s.split('-');return p.length===3?p[0]+'-'+p[1].padStart(2,'0')+'-'+p[2].padStart(2,'0'):s;}
 let weights=(function(){var _wl=getData('weight_log',[]);var _ch=false;var _n=_wl.map(function(w){var nd=_normDt(w.date);if(nd!==w.date){_ch=true;return{date:nd,weight:w.weight};}return w;});if(_ch)setData('weight_log',_n);return _n;})();
@@ -694,7 +706,7 @@ async function checkAgentStatus(){const dot=document.getElementById('agent-dot')
 //  * mechanical advantage, where the kg field is the plate load but the machine only passes a
 //    fraction of it to you (45° leg press: the sled rides a ramp, so the force along the rail
 //    is weight x sin45 = 0.71) — nothing to do with body weight, so those carry mechFactor:1.
-const MUSCLE_MAP=[["legs",["squat","deadlift","leg press","leg curl","leg extension","lunge","bulgarian","romanian","rdl","calf","hack squat","adductor","abductor"]],["back",["pull-up","pullup","chin-up","chinup","pull up","chin up","muscle up","muscle-up","barbell row","cable row","lat pulldown","pulldown","shrug","t-bar"]],["shoulders",["landmine press","shoulder press","overhead press","behind the neck","ohp","lateral raise","front raise","y-raise","y raise","upright row","arnold","face pull","rear delt"]],["chest",["bench","incline","decline","chest press","chest fly","cable fly","cable crossover","pec","push-up","pushup"]],["arms",["curl","tricep","overhead tricep","pushdown","push-down","skullcrusher","skull crush","skull-crush","close grip","hammer","preacher"]],["chest",["dip","fly","chest machine","machine press","cable chest"]],["back",["row"]],["chest",["press"]]];const EXERCISE_SPLITS=[["external rotation",{shoulders:1}],["adductor",{legs:1}],["abductor",{legs:1}],["leg curl",{legs:1}],["leg extension",{legs:1}],["45° leg press",{legs:1,factor:0.71,mechFactor:1}],["leg press",{legs:1}],["calf",{legs:1}],["lunge",{legs:1}],["bulgarian",{legs:1}],["hip thrust",{legs:1}],["hack squat",{legs:1}],["squat",{legs:1}],["romanian",{legs:0.7,back:0.3}],["rdl",{legs:0.7,back:0.3}],["deadlift",{legs:0.6,back:0.4}],["rear delt",{shoulders:1}],["machine lateral raise",{shoulders:1}],["lateral raise",{shoulders:1,cable:1}],["face pull",{shoulders:0.55,back:0.45,cable:1}],["y-raise",{shoulders:1}],["y raise",{shoulders:1}],["front raise",{shoulders:1}],["upright row",{shoulders:0.7,back:0.3}],["shrug",{back:1}],["chin-up",{back:0.6,arms:0.4}],["chinup",{back:0.6,arms:0.4}],["pull-up",{back:0.65,arms:0.35}],["pullup",{back:0.65,arms:0.35}],["muscle up",{back:0.45,arms:0.3,chest:0.15,shoulders:0.1}],["muscle-up",{back:0.45,arms:0.3,chest:0.15,shoulders:0.1}],["drape pulldown",{back:0.8,arms:0.2,cable:1}],["lat pulldown",{back:0.65,arms:0.35,cable:1}],["pulldown",{back:0.65,arms:0.35,cable:1}],["t-bar",{back:0.75,arms:0.25}],["barbell row",{back:0.7,arms:0.3}],["cable row",{back:0.75,arms:0.25,cable:1}],["cable fly",{chest:0.85,shoulders:0.15,cable:1}],["chest fly",{chest:0.85,shoulders:0.15}],["cable crossover",{chest:0.85,shoulders:0.15,cable:1}],["pec",{chest:0.9,shoulders:0.1}],["chest machine",{chest:0.65,shoulders:0.2,arms:0.15}],["incline",{chest:0.55,shoulders:0.3,arms:0.15}],["decline",{chest:0.6,shoulders:0.25,arms:0.15}],["chest press",{chest:0.6,shoulders:0.25,arms:0.15}],["bench",{chest:0.6,shoulders:0.25,arms:0.15}],["push-up",{chest:0.55,shoulders:0.3,arms:0.15,factor:0.64}],["pushup",{chest:0.55,shoulders:0.3,arms:0.15,factor:0.64}],["dip",{chest:0.5,shoulders:0.3,arms:0.2,factor:0.7}],["landmine",{shoulders:0.55,chest:0.3,arms:0.15}],["overhead tricep",{arms:1,cable:1}],["behind the neck",{shoulders:0.75,arms:0.25}],["overhead press",{shoulders:0.7,arms:0.2,chest:0.1}],["ohp",{shoulders:0.7,arms:0.2,chest:0.1}],["shoulder press",{shoulders:0.7,arms:0.2,chest:0.1}],["arnold",{shoulders:0.7,arms:0.2,chest:0.1}],["tricep",{arms:1}],["pushdown",{arms:1,cable:1}],["push-down",{arms:1,cable:1}],["skullcrusher",{arms:1}],["skull crush",{arms:1}],["skull-crush",{arms:1}],["close grip",{arms:0.7,chest:0.3}],["preacher",{arms:1}],["hammer",{arms:1}],["curl",{arms:1}],["fly",{chest:0.85,shoulders:0.15}],["row",{back:0.7,arms:0.3}],["press",{chest:0.5,shoulders:0.35,arms:0.15}]];
+const MUSCLE_MAP=[["legs",["squat","deadlift","leg press","leg curl","leg extension","lunge","bulgarian","romanian","rdl","calf","hack squat","adductor","abductor"]],["back",["pull-up","pullup","chin-up","chinup","pull up","chin up","muscle up","muscle-up","barbell row","cable row","lat pulldown","pulldown","shrug","t-bar"]],["shoulders",["landmine press","shoulder press","overhead press","behind the neck","ohp","lateral raise","front raise","y-raise","y raise","upright row","arnold","face pull","rear delt"]],["chest",["bench","incline","decline","chest press","chest fly","cable fly","cable crossover","pec","push-up","pushup"]],["back",["straight-arm lat","straight arm lat"]],["arms",["curl","tricep","overhead tricep","pushdown","push-down","skullcrusher","skull crush","skull-crush","close grip","hammer","preacher"]],["chest",["dip","fly","chest machine","machine press","cable chest"]],["back",["row"]],["chest",["press"]]];const EXERCISE_SPLITS=[["external rotation",{shoulders:1}],["adductor",{legs:1}],["abductor",{legs:1}],["leg curl",{legs:1}],["leg extension",{legs:1}],["45° leg press",{legs:1,factor:0.71,mechFactor:1}],["leg press",{legs:1}],["calf",{legs:1}],["lunge",{legs:1}],["bulgarian",{legs:1}],["hip thrust",{legs:1}],["hack squat",{legs:1}],["squat",{legs:1}],["romanian",{legs:0.7,back:0.3}],["rdl",{legs:0.7,back:0.3}],["deadlift",{legs:0.6,back:0.4}],["rear delt",{shoulders:1}],["machine lateral raise",{shoulders:1}],["lateral raise",{shoulders:1,cable:1}],["face pull",{shoulders:0.55,back:0.45,cable:1}],["y-raise",{shoulders:1}],["y raise",{shoulders:1}],["front raise",{shoulders:1}],["upright row",{shoulders:0.7,back:0.3}],["shrug",{back:1}],["chin-up",{back:0.6,arms:0.4}],["chinup",{back:0.6,arms:0.4}],["pull-up",{back:0.65,arms:0.35}],["pullup",{back:0.65,arms:0.35}],["muscle up",{back:0.45,arms:0.3,chest:0.15,shoulders:0.1}],["muscle-up",{back:0.45,arms:0.3,chest:0.15,shoulders:0.1}],["straight-arm lat",{back:0.9,shoulders:0.1,cable:1}],["straight arm lat",{back:0.9,shoulders:0.1,cable:1}],["drape pulldown",{back:0.8,arms:0.2,cable:1}],["lat pulldown",{back:0.65,arms:0.35,cable:1}],["pulldown",{back:0.65,arms:0.35,cable:1}],["t-bar",{back:0.75,arms:0.25}],["barbell row",{back:0.7,arms:0.3}],["cable row",{back:0.75,arms:0.25,cable:1}],["cable fly",{chest:0.85,shoulders:0.15,cable:1}],["chest fly",{chest:0.85,shoulders:0.15}],["cable crossover",{chest:0.85,shoulders:0.15,cable:1}],["pec",{chest:0.9,shoulders:0.1}],["chest machine",{chest:0.65,shoulders:0.2,arms:0.15}],["incline",{chest:0.55,shoulders:0.3,arms:0.15}],["decline",{chest:0.6,shoulders:0.25,arms:0.15}],["chest press",{chest:0.6,shoulders:0.25,arms:0.15}],["bench",{chest:0.6,shoulders:0.25,arms:0.15}],["push-up",{chest:0.55,shoulders:0.3,arms:0.15,factor:0.64}],["pushup",{chest:0.55,shoulders:0.3,arms:0.15,factor:0.64}],["dip",{chest:0.5,shoulders:0.3,arms:0.2,factor:0.7}],["landmine",{shoulders:0.55,chest:0.3,arms:0.15}],["overhead tricep",{arms:1,cable:1}],["behind the neck",{shoulders:0.75,arms:0.25}],["overhead press",{shoulders:0.7,arms:0.2,chest:0.1}],["ohp",{shoulders:0.7,arms:0.2,chest:0.1}],["shoulder press",{shoulders:0.7,arms:0.2,chest:0.1}],["arnold",{shoulders:0.7,arms:0.2,chest:0.1}],["tricep",{arms:1}],["pushdown",{arms:1,cable:1}],["push-down",{arms:1,cable:1}],["skullcrusher",{arms:1}],["skull crush",{arms:1}],["skull-crush",{arms:1}],["close grip",{arms:0.7,chest:0.3}],["preacher",{arms:1}],["hammer",{arms:1}],["curl",{arms:1}],["fly",{chest:0.85,shoulders:0.15}],["row",{back:0.7,arms:0.3}],["press",{chest:0.5,shoulders:0.35,arms:0.15}]];
 const GROUP_COLORS={legs:"#e8ff3c",back:"#3cffa0",chest:"#ff6b2b",shoulders:"#c084fc",arms:"#3b9eff"};
 function getExSplits(name){const n=name.toLowerCase();for(const[kw,sp]of EXERCISE_SPLITS){if(n.includes(kw))return sp;}const g=getExGroup(name);return g?{[g]:1}:{};}function isCableEx(name){return /cable|rope|push[\s-]?down|pull[\s-]?down/i.test(name)||getExSplits(name).cable===1;}function isPressEx(name){return /press|raise|fly|curl/i.test(name);}function isCompoundEx(name){var n=(name||'').toLowerCase();if(/smith|hack|cable|machine/.test(n))return false;return /squat|deadlift|romanian|rdl|bench|overhead press|barbell row|pull-?up|chin-?up|weighted|dips?$|hip thrust|lunge/.test(n);}
 function _unitLb(){return (localStorage.getItem('wkt-unit')||'kg')==='lb';}
@@ -1002,7 +1014,20 @@ function _deloadScheme(s){return String(s).replace(/^(\d+)\s*×/,function(m,n){r
 function _deloadKg(kg){return kg>0?Math.round(kg*0.65):kg;}
 function _deloadBannerHtml(){var on=_deloadActive;return '<div style="display:flex;align-items:center;justify-content:space-between;background:'+(on?'var(--accent2)':'var(--surface2)')+';border:1px solid '+(on?'var(--accent2)':'var(--border)')+';border-radius:10px;padding:10px 14px;margin-bottom:12px;"><div style="min-width:0"><div style="font-size:13px;font-weight:700;color:'+(on?'#000':'var(--text)')+'">Deload'+(on?' — active':'')+'</div><div style="font-size:11px;color:'+(on?'#000':'var(--muted)')+'">'+(on?'~½ the sets at ~65% load':'Reduce volume &amp; load for recovery')+'</div></div><button onclick="toggleDeload()" style="background:'+(on?'#000':'var(--surface)')+';color:'+(on?'var(--accent2)':'var(--muted)')+';border:1px solid '+(on?'#000':'var(--border)')+';border-radius:20px;padding:5px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0">'+(on?'ON':'OFF')+'</button></div>';}
 function toggleDeload(){_deloadActive=!_deloadActive;setData('wkt-deload',_deloadActive);pushSettingsToAgent({'wkt-deload':_deloadActive});renderWorkout(_selectedProgramDay);var _lp=document.getElementById('page-log');if(_lp&&_lp.classList&&_lp.classList.contains('active')){var _ld=document.getElementById('log-day');prefillLog(parseInt(_ld&&_ld.value)||_selectedProgramDay);}}
-function renderWorkout(num){var day=getActiveProgramDay(num);if(!day)return;var prog=getActiveProgram();var tc={strength:'tag-strength',volume:'tag-volume',rehab:'tag-rehab'};var tl={strength:'Strength',volume:'Volume',rehab:'🔧 Rehab'};var savedW=getData('template_weights_day'+num,{});var restLabel=getProgramRest(prog);var html='<div class="workout-detail">'+_deloadBannerHtml()+'<div class="workout-header"><div><div class="workout-title">'+day.name+'</div><div style="font-size:11px;color:var(--muted);margin-top:2px">⏱ '+restLabel+'</div></div>'+'</div>';var effExs=_applyRehabSubs(day.exercises,prog);effExs.forEach(function(ex){var lastKg=savedW[ex.name];if((lastKg==null||lastKg===0)&&ex._rehabOrig)lastKg=savedW[ex._rehabOrig];if((lastKg==null||lastKg===0)&&logs.length){var _fl=getBestKgFromLogs(ex.name)||(ex._rehabOrig?getBestKgFromLogs(ex._rehabOrig):null);if(_fl)lastKg=_fl;}if(_deloadActive&&lastKg>0){lastKg=_deloadKg(lastKg);if(isBarbellEx(ex.name))lastKg=roundBarbellKg(lastKg);}var kgStr=lastKg!=null&&lastKg>0?'<span style="color:var(--accent);font-weight:600;margin-left:6px">'+kgToUnit(lastKg)+unitLabel()+'</span>':'';var nameHtml=_escP(ex.name)+(ex._rehabOrig?'<span style="color:#ff9b3c;font-size:10px;margin-left:6px" title="Rehab sub for '+_escP(ex._rehabOrig)+'">↺ rehab</span>':'');html+='<div class="exercise-row"><div class="ex-info"><div class="ex-name">'+nameHtml+'</div><div class="ex-scheme">'+_escP(_deloadActive?_deloadScheme(ex.scheme)+' · deload':ex.scheme)+kgStr+'</div></div><span class="ex-tag '+(tc[ex.tag]||'tag-volume')+'">'+(tl[ex.tag]||ex.tag)+'</span></div>';});html+='</div>';document.getElementById('workout-display').innerHTML=html;}
+// The banner answers the question the chips only hint at: this day opens with someone else's
+// block, here is which one and which of its days you are on.
+function _dayTplBannerHtml(day,prog){
+  var first=(day&&day.exercises||[]).filter(_isTplEx);
+  if(!first.length)return '';
+  var t=_findTemplate(first[0]._tpl);
+  var label=first[0]._tplDay||'';
+  var names=first.map(function(e){return e.name;}).join(' \u00b7 ');
+  return '<div style="border:1px solid rgba(124,196,255,0.35);background:rgba(124,196,255,0.07);border-radius:10px;padding:9px 12px;margin-bottom:12px;">'+
+    '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#7cc4ff;">\u26a1 '+_escP(label)+'</div>'+
+    '<div style="font-size:11px;color:var(--muted);margin-top:3px;line-height:1.5;">This day starts with '+first.length+' exercise'+(first.length!==1?'s':'')+' from the <b>'+_escP(t?t.name:'template')+'</b> template, not from '+_escP((prog&&prog.name)||'this program')+': '+_escP(names)+'</div>'+
+    '</div>';
+}
+function renderWorkout(num){var day=getActiveProgramDay(num);if(!day)return;var prog=getActiveProgram();var tc={strength:'tag-strength',volume:'tag-volume',rehab:'tag-rehab'};var tl={strength:'Strength',volume:'Volume',rehab:'🔧 Rehab'};var savedW=getData('template_weights_day'+num,{});var restLabel=getProgramRest(prog);var html='<div class="workout-detail">'+_deloadBannerHtml()+_dayTplBannerHtml(day,prog)+'<div class="workout-header"><div><div class="workout-title">'+day.name+'</div><div style="font-size:11px;color:var(--muted);margin-top:2px">⏱ '+restLabel+'</div></div>'+'</div>';var effExs=_applyRehabSubs(day.exercises,prog);effExs.forEach(function(ex){var lastKg=savedW[ex.name];if((lastKg==null||lastKg===0)&&ex._rehabOrig)lastKg=savedW[ex._rehabOrig];if((lastKg==null||lastKg===0)&&logs.length){var _fl=getBestKgFromLogs(ex.name)||(ex._rehabOrig?getBestKgFromLogs(ex._rehabOrig):null);if(_fl)lastKg=_fl;}if(_deloadActive&&lastKg>0){lastKg=_deloadKg(lastKg);if(isBarbellEx(ex.name))lastKg=roundBarbellKg(lastKg);}var kgStr=lastKg!=null&&lastKg>0?'<span style="color:var(--accent);font-weight:600;margin-left:6px">'+kgToUnit(lastKg)+unitLabel()+'</span>':'';var nameHtml=_escP(ex.name)+(ex._rehabOrig?'<span style="color:#ff9b3c;font-size:10px;margin-left:6px" title="Rehab sub for '+_escP(ex._rehabOrig)+'">↺ rehab</span>':'')+_tplChipHtml(ex);html+='<div class="exercise-row"><div class="ex-info"><div class="ex-name">'+nameHtml+'</div><div class="ex-scheme">'+_escP(_deloadActive?_deloadScheme(ex.scheme)+' · deload':ex.scheme)+kgStr+'</div></div><span class="ex-tag '+(tc[ex.tag]||'tag-volume')+'">'+(tl[ex.tag]||ex.tag)+'</span></div>';});html+='</div>';document.getElementById('workout-display').innerHTML=html;}
 var _lsDbgKeys=[];
 // Built with DOM nodes and textContent, never innerHTML: every value here is an
 // exception message or a URL — exactly the untrusted-text-into-HTML shape CodeQL
@@ -1079,7 +1104,32 @@ function showPage(name,btn){localStorage.setItem('wkt-last-page',name);_currentP
     var _stale=_lc&&!_hasReps&&((_lc.dataset.deload!==undefined&&_lc.dataset.deload!==(_deloadActive?'1':'0'))||(_lc.dataset.unit!==undefined&&_lc.dataset.unit!==unitLabel()));
     if(!_lc||!_lc.querySelectorAll('.ex-card').length||(!_hasReps&&_curDay!==_selectedProgramDay)){document.getElementById('log-day').value=_selectedProgramDay;prefillLog(_selectedProgramDay);}else if(_stale){prefillLog(_curDay||_selectedProgramDay);}}}
 // ── Program Management ───────────────────────────────────────────────────────
-let _programs=[],_activeProgramIndex=0,_progReadOnly=false,_progEditBuf=null,_progEditIdx=-1,_progWiz=null,_progIsNew=false;
+let _programs=[],_activeProgramIndex=0,_progReadOnly=false,_progEditBuf=null,_progEditIdx=-1,_progWiz=null,_progIsNew=false,_progTemplateId=null,_progTplPick=false;
+// The library was capped at 4 because the card had exactly 4 slots (Henrik, 2026-09-21: "Not
+// just the 4 as today"). The 4 slots stay as the at-a-glance row; everything past them lives
+// in the list underneath. The cap is now only a guard on the size of the blob that goes to
+// localStorage and the backend on every save, not a UI limit.
+var MAX_PROGRAMS=20;
+var PROG_CARD_SLOTS=4;
+function _nowStamp(){return new Date().toISOString();}
+// "4 most recent" needs a notion of recent, which stored programs did not have. touchedAt is
+// written on the actions a user takes on a program — creating, editing, activating it — and
+// NEVER backfilled on load: a program that predates this field keeps its array position and
+// sorts after the stamped ones, so nobody's library reshuffles itself just from opening the
+// app. This is the narrow, user-initiated exception to "never mutate stored programs".
+function _touchProgram(i){if(_programs[i])_programs[i].touchedAt=_nowStamp();}
+// Array indices are the app's identity for a program (_activeProgramIndex, the overlay, the
+// log's day lookup), so recency is a VIEW: this returns indices, never a reordered array.
+function _programsByRecency(){
+  var idx=_programs.map(function(p,i){return i;});
+  return idx.sort(function(a,b){
+    var ta=(_programs[a]||{}).touchedAt||'',tb=(_programs[b]||{}).touchedAt||'';
+    if(ta&&tb)return ta<tb?1:(ta>tb?-1:a-b);
+    if(ta)return -1;
+    if(tb)return 1;
+    return a-b;
+  });
+}
 var _selectedProgramDay=1;
 function _escP(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function _seedDefaultProgram(){
@@ -1183,9 +1233,20 @@ function rebuildLogDaySelect(){
   sel.innerHTML=html;
   if(prev&&parseInt(prev)>=1&&parseInt(prev)<=prog.days.length)sel.value=prev;
 }
+function _progActivateToggle(i,isActive,marginBottom){
+  return '<div onclick="event.stopPropagation();_activateProg('+i+')" style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;margin-bottom:'+(marginBottom||'0')+';"><div style="width:34px;height:18px;border-radius:9px;background:'+(isActive?'var(--accent)':'rgba(255,255,255,0.15)')+';position:relative;flex-shrink:0;"><div style="position:absolute;width:14px;height:14px;border-radius:50%;background:#fff;top:2px;left:'+(isActive?'18px':'2px')+';box-shadow:0 1px 3px rgba(0,0,0,0.35);"></div></div><span style="font-size:10px;font-weight:600;color:'+(isActive?'var(--accent)':'var(--muted)')+';letter-spacing:0.3px;">'+(isActive?'Active':'Inactive')+'</span></div>';
+}
 function buildProgramSettingsCard(){
   var card=document.getElementById('s-programs-card');if(!card)return;
-  var SLOTS=4;
+  card.innerHTML=_programLibraryHtml()+_templateLibraryHtml();
+}
+// Pure: builds the markup, touches no DOM. Split out from buildProgramSettingsCard so the
+// grid can be asserted directly — the display order is recency while every onclick carries
+// the ARRAY index, and a test that cannot read the rendered HTML cannot catch the two
+// drifting apart.
+function _programLibraryHtml(){
+  var SLOTS=PROG_CARD_SLOTS;
+  var order=_programsByRecency();
   var html='<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:0">';
   html+=sSecHdr('programs','Programs')+sSecBody('programs');
   // ⚠️ minmax(0,1fr), NOT 1fr — A LONG PROGRAM NAME MUST NOT RESIZE THE GRID.
@@ -1200,12 +1261,15 @@ function buildProgramSettingsCard(){
   // all three are needed: the track can only shrink if the item can, the item can
   // only shrink if the track lets it, and the name only clips once it must.
   html+='<div style="padding:12px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;">';
-  for(var i=0;i<Math.min(_programs.length,SLOTS);i++){
+  for(var s4=0;s4<Math.min(order.length,SLOTS);s4++){
+    var i=order[s4];
     var prog=_programs[i];var isActive=i===_activeProgramIndex;
     html+='<div class="prog-card'+(isActive?' active':'')+'" onclick="viewProgram('+i+')">';
-    html+='<div onclick="event.stopPropagation();_activateProg('+i+')" style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;margin-bottom:6px;"><div style="width:34px;height:18px;border-radius:9px;background:'+(isActive?'var(--accent)':'rgba(255,255,255,0.15)')+';position:relative;flex-shrink:0;"><div style="position:absolute;width:14px;height:14px;border-radius:50%;background:#fff;top:2px;left:'+(isActive?'18px':'2px')+';box-shadow:0 1px 3px rgba(0,0,0,0.35);"></div></div><span style="font-size:10px;font-weight:600;color:'+(isActive?'var(--accent)':'var(--muted)')+';letter-spacing:0.3px;">'+(isActive?'Active':'Inactive')+'</span></div>';
+    html+=_progActivateToggle(i,isActive,'6px');
     html+='<div class="prog-card-name">'+_escP(prog.name)+'</div>';
+    var _ce=_progExtension(prog);
     html+='<div class="prog-card-meta">'+prog.days.length+' day'+(prog.days.length!==1?'s':'')+'</div>';
+    if(_ce)html+='<div class="prog-row-meta" style="color:#7cc4ff;margin-top:0;">\u26a1 '+_escP(_ce.noun||_ce.name)+'</div>';
     html+='</div>';
   }
   var firstEmpty=true;
@@ -1214,19 +1278,126 @@ function buildProgramSettingsCard(){
     if(firstEmpty){html+='<button onclick="createNewProgram()" style="background:none;border:none;color:var(--muted);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;font-family:inherit;font-size:12px;padding:8px;line-height:1;"><span style="font-size:22px;font-weight:300;">+</span><span>Add Program</span></button>';firstEmpty=false;}
     html+='</div>';
   }
-  html+='</div></div></div>';card.innerHTML=html;
+  html+='</div>';
+  // Everything past the four slots. The grid is the at-a-glance row; this is the library.
+  if(order.length>SLOTS){
+    html+='<div style="padding:0 12px 4px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--muted);">More programs · '+(order.length-SLOTS)+'</div>';
+    html+='<div style="padding:0 12px 12px;display:flex;flex-direction:column;gap:8px;">';
+    for(var r=SLOTS;r<order.length;r++){
+      var ri=order[r];var rp=_programs[ri];var rActive=ri===_activeProgramIndex;
+      html+='<div class="prog-row'+(rActive?' active':'')+'" onclick="viewProgram('+ri+')">';
+      html+='<div class="prog-row-main"><div class="prog-row-name">'+_escP(rp.name)+'</div>';
+      var _re=_progExtension(rp);
+      html+='<div class="prog-row-meta">'+rp.days.length+' day'+(rp.days.length!==1?'s':'')+
+        (_re?'<span style="color:#7cc4ff;"> \u00b7 \u26a1 '+_escP(_re.noun||_re.name)+'</span>':'')+'</div></div>';
+      html+=_progActivateToggle(ri,rActive,'0');
+      html+='</div>';
+    }
+    html+='</div>';
+  }
+  // The "+" tile only exists while a slot is empty, so a full library needs its own way in.
+  if(_programs.length>=SLOTS){
+    html+='<div style="padding:0 12px 12px;"><button class="prog-linkbtn" onclick="createNewProgram()">+ New program</button></div>';
+  }
+  html+='</div></div>';
+  return html;
+}
+// ── Templates card ────────────────────────────────────────────────────────────
+function _templateLibraryHtml(){
+  var html='<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:14px;">';
+  html+=sSecHdr('progtemplates','Templates')+sSecBody('progtemplates');
+  html+='<div style="padding:0 12px 8px;font-size:11px;color:var(--muted);line-height:1.5;">Pick one to copy it into your own programs. The copy is yours to edit — the template never changes.</div>';
+  html+='<div style="padding:0 12px 12px;display:flex;flex-direction:column;gap:10px;">';
+  PROGRAM_TEMPLATES.forEach(function(t){
+    var nEx=t.days.reduce(function(a,d){return a+(d.exercises||[]).length;},0);
+    html+='<div class="tpl-card" onclick="previewTemplate(\''+t.id+'\')">';
+    html+='<div style="display:flex;align-items:flex-start;gap:10px;">';
+    html+='<div style="flex:1;min-width:0;"><div class="tpl-name">'+_escP(t.name)+'</div>';
+    html+='<div class="prog-row-meta">'+t.days.length+' day'+(t.days.length!==1?'s':'')+' · '+nEx+' exercises</div></div>';
+    html+='<button class="tpl-copy" onclick="event.stopPropagation();copyTemplate(\''+t.id+'\')">Copy</button>';
+    html+='</div>';
+    html+='<div class="tpl-desc">'+_escP(t.desc)+'</div>';
+    html+='</div>';
+  });
+  html+='</div></div></div>';
+  return html;
 }
 function viewProgram(idx){_progReadOnly=true;_progEditIdx=idx;_progEditBuf=JSON.parse(JSON.stringify(_programs[idx]));_openProgOverlay();}
-function _activateProg(i){if(i===_activeProgramIndex)return;_activeProgramIndex=i;savePrograms();rebuildDayGrid();rebuildLogDaySelect();clearDraft();var _ls=document.getElementById('log-day');if(_ls&&_ls.value)prefillLog(_ls.value);buildProgramSettingsCard();}
+function _activateProg(i){if(i===_activeProgramIndex)return;_activeProgramIndex=i;_touchProgram(i);savePrograms();rebuildDayGrid();rebuildLogDaySelect();clearDraft();var _ls=document.getElementById('log-day');if(_ls&&_ls.value)prefillLog(_ls.value);buildProgramSettingsCard();}
 function createNewProgram(){
-  if(_programs.length>=4){alert('Maximum 4 programs');return;}
+  if(_programs.length>=MAX_PROGRAMS){alert('Maximum '+MAX_PROGRAMS+' programs');return;}
   _progWiz={step:0,goal:null,sub:null,nDays:4,setsPerMuscle:12,injuries:[],name:''};
   _openProgOverlay();
 }
+function _renderTemplateOverlay(title,body,footer){
+  var t=_findTemplate(_progTemplateId);
+  if(!t){_progTemplateId=null;closeProgramOverlay();return;}
+  if(title)title.textContent='TEMPLATE';
+  var html='<div style="margin-bottom:14px;"><span style="background:var(--surface2);color:var(--muted);padding:3px 12px;border-radius:4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Template</span></div>';
+  html+='<div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:6px;">'+_escP(t.name)+'</div>';
+  html+='<div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:20px;">'+_escP(t.desc)+'</div>';
+  t.days.forEach(function(day,i){
+    html+='<div style="margin-bottom:16px;">';
+    html+='<div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:4px;">Day '+(i+1)+(day.warmup?' \ud83d\udd25':'')+'</div>';
+    html+='<div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;">'+_escP(day.name)+'</div>';
+    html+='<div style="font-size:12px;color:var(--muted);line-height:1.8;">'+day.exercises.map(function(ex){return _escP(ex.name)+(ex.scheme?'<span style="color:#777;font-size:11px;"> '+_escP(ex.scheme)+'</span>':'');}).join('<br>')+'</div>';
+    html+='</div>';
+  });
+  if(t.notes&&t.notes.length){
+    html+='<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">';
+    html+='<div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px;">How to run it</div>';
+    html+='<ul style="margin:0;padding-left:18px;font-size:12px;color:var(--muted);line-height:1.7;">';
+    t.notes.forEach(function(n){html+='<li>'+_escP(n)+'</li>';});
+    html+='</ul></div>';
+  }
+  body.innerHTML=html;
+  var _extBtn=t.extendable?'<button onclick="_tplStartPick()" style="background:var(--surface2);border:1px solid #7cc4ff;color:#7cc4ff;border-radius:8px;padding:12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;flex:1;">\u26a1 Add to a program</button>':'';
+  footer.innerHTML='<div style="display:flex;gap:10px;flex-wrap:wrap;">'+
+    '<button onclick="closeProgramOverlay()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:12px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;flex:1;">Close</button>'+
+    _extBtn+
+    '<button onclick="copyTemplate(\''+t.id+'\')" style="background:var(--accent);border:none;color:#000;border-radius:8px;padding:12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;flex:1;">Copy to my programs</button>'+
+    '</div>';
+}
+function _tplStartPick(){_progTplPick=true;_renderProgOverlay();}
+function _tplCancelPick(){_progTplPick=false;_renderProgOverlay();}
+// Which program to bolt the block onto. Rendered from _programs so the labels are the user's
+// own names, and each row carries the ARRAY index, same discipline as the library card.
+function _renderTplPick(title,body,footer){
+  var t=_findTemplate(_progTemplateId);
+  if(!t){_progTplPick=false;_progTemplateId=null;closeProgramOverlay();return;}
+  if(title)title.textContent='ADD TO A PROGRAM';
+  var html='<div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:6px;">'+_escP(t.name)+'</div>';
+  var _where=t.extendOn==='push-legs'?'push and leg day':'day';
+  html+='<div style="font-size:13px;color:var(--muted);line-height:1.55;margin-bottom:18px;">Pick a program. Each of its '+_where+'s will start with a '+_escP(t.extendNoun||t.name)+' block, cycling through the template\u2019s '+t.days.length+' days \u2014 '+
+    t.days.map(function(d,i){return _escP(_tplDayShort(d,i));}).join(', ')+', and round again.'+
+    (t.extendOn==='push-legs'?' Pull days are left alone: the block is explosive pulling, so it goes where it does not stack onto more pulling.':'')+
+    ' Your own exercises stay where they are, underneath.</div>';
+  if(!_programs.length){
+    html+='<div style="font-size:13px;color:var(--muted);">You have no programs yet. Copy a template or build one first.</div>';
+  }else{
+    html+='<div style="display:flex;flex-direction:column;gap:8px;">';
+    _programsByRecency().forEach(function(i){
+      var p=_programs[i];var ext=_progExtension(p);
+      html+='<div class="prog-row" onclick="extendProgramWithTemplate('+i+',\''+t.id+'\')">';
+      html+='<div class="prog-row-main"><div class="prog-row-name">'+_escP(p.name)+'</div>';
+      var _hits=_extendPlan(p.days,t).filter(function(x){return x.label;}).length;
+      html+='<div class="prog-row-meta">'+p.days.length+' day'+(p.days.length!==1?'s':'')+
+        ' \u00b7 '+(_hits?(_hits+' would get the block'):'no push or leg day')+
+        (ext?' \u00b7 \u26a1 already extended with '+_escP(ext.name):'')+
+        (i===_activeProgramIndex?' \u00b7 active':'')+'</div></div>';
+      html+='<span style="color:#7cc4ff;font-size:18px;flex-shrink:0;">\u203a</span>';
+      html+='</div>';
+    });
+    html+='</div>';
+  }
+  body.innerHTML=html;
+  footer.innerHTML='<button onclick="_tplCancelPick()" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:12px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Back</button>';
+}
 function _openProgOverlay(){var ov=document.getElementById('prog-overlay');ov.classList.add('open');document.body.classList.add('locked');_renderProgOverlay();}
-function closeProgramOverlay(){if(_progIsNew){(function(){var _p=_programs[_progEditIdx];if(_p&&_p.name==='6-Day Hypertrophy — Upper'){try{localStorage.setItem('wkt-hyp-deleted','1');}catch(e){}}})();_programs.splice(_progEditIdx,1);if(_activeProgramIndex>=_programs.length)_activeProgramIndex=Math.max(0,_programs.length-1);savePrograms();buildProgramSettingsCard();}_progIsNew=false;var ov=document.getElementById('prog-overlay');ov.classList.remove('open');document.body.classList.remove('locked');_progWiz=null;}
+function closeProgramOverlay(){if(_progTemplateId!==null){_progTemplateId=null;_progTplPick=false;_progReadOnly=false;var _tov=document.getElementById('prog-overlay');if(_tov)_tov.classList.remove('open');document.body.classList.remove('locked');return;}
+  if(_progIsNew){(function(){var _p=_programs[_progEditIdx];if(_p&&_p.name==='6-Day Hypertrophy — Upper'){try{localStorage.setItem('wkt-hyp-deleted','1');}catch(e){}}})();_programs.splice(_progEditIdx,1);if(_activeProgramIndex>=_programs.length)_activeProgramIndex=Math.max(0,_programs.length-1);savePrograms();buildProgramSettingsCard();}_progIsNew=false;var ov=document.getElementById('prog-overlay');ov.classList.remove('open');document.body.classList.remove('locked');_progWiz=null;}
 function _exOpts(di,ei,cur){
-  var groups={'Legs':['Squat','Romanian Deadlift','Deadlift','Leg Press','45° Leg Press','Bilateral Leg Press','Smith Machine Squat','Leg Curl','Leg Extension','Calf Raises','Lunges','Bulgarian Split Squat','Hip Thrust','Hip Adductor (inside hips)','Hip Abductor (outside hips)','Hack Squat','Seated Calf Raise'],'Back':['Pull-ups','Weighted Pull-ups','Chin-ups','Barbell Row','Barbell Row (heavy)','Cable Row','Lat Pulldown','Drape Pulldowns','T-Bar Row','Face Pulls','Rear Delt Fly','Rear Delt Cable Fly','Shrug','Chest-Supported Row','Assisted Pull-up Machine','Muscle Up','Assisted Muscle Up'],'Chest':['Chest Machine Press','Bench Press','Incline Bench Press','Incline DB Press','Cable Fly','Low-to-high Cable Fly','Push-ups','Push-ups (weighted/elevated)','Dips','Pec Deck (chest fly machine)','Assisted Dip Machine'],'Shoulders':['Landmine Press','Overhead Press','Arnold Press','Lateral Raise','Cable Lateral Raise','Y-Raise','Front Raise','Upright Row','Shoulder Press Machine','Machine Lateral Raise','Behind the Neck Press'],'Arms':['Barbell Curl','Hammer Curl','EZ Bar Curl','Preacher Curl','Overhead Tricep Cable','Tricep Pushdown','Skull Crushers','Close Grip Press','Curl variation','Bicep Curl Machine','Tricep Extension Machine','Cable Bicep Curl']};
+  var groups={'Legs':['Squat','Romanian Deadlift','Deadlift','Leg Press','45° Leg Press','Bilateral Leg Press','Smith Machine Squat','Leg Curl','Leg Extension','Calf Raises','Lunges','Bulgarian Split Squat','Hip Thrust','Hip Adductor (inside hips)','Hip Abductor (outside hips)','Hack Squat','Seated Calf Raise'],'Back':['Pull-ups','Weighted Pull-ups','Chin-ups','Barbell Row','Barbell Row (heavy)','Cable Row','Lat Pulldown','Drape Pulldowns','Straight-Arm Lat Pushdown','T-Bar Row','Face Pulls','Rear Delt Fly','Rear Delt Cable Fly','Shrug','Chest-Supported Row','Assisted Pull-up Machine','Muscle Up','Assisted Muscle Up','Clapping Pull-ups'],'Chest':['Chest Machine Press','Bench Press','Incline Bench Press','Incline DB Press','Cable Fly','Low-to-high Cable Fly','Push-ups','Push-ups (weighted/elevated)','Dips','Pec Deck (chest fly machine)','Assisted Dip Machine','Plyo Push-ups'],'Shoulders':['Landmine Press','Overhead Press','Arnold Press','Lateral Raise','Cable Lateral Raise','Y-Raise','Front Raise','Upright Row','Shoulder Press Machine','Machine Lateral Raise','Behind the Neck Press'],'Arms':['Barbell Curl','Hammer Curl','EZ Bar Curl','Preacher Curl','Overhead Tricep Cable','Tricep Pushdown','Skull Crushers','Close Grip Press','Curl variation','Bicep Curl Machine','Tricep Extension Machine','Cable Bicep Curl']};
   var allEx=[];Object.values(groups).forEach(function(g){g.forEach(function(e){allEx.push(e);});});
   var curGroup=null;Object.keys(groups).forEach(function(grp){if(groups[grp].includes(cur))curGroup=grp;});
   var orderedKeys=curGroup?[curGroup].concat(Object.keys(groups).filter(function(g){return g!==curGroup;})):Object.keys(groups);
@@ -1302,24 +1473,48 @@ function _progSetSets(di,ei,n,reps){
 }
 var _PROG_TAG_CLASS={strength:'tag-strength',volume:'tag-volume',rehab:'tag-rehab'};
 function _progTagLabel(t){return{strength:'Strength',volume:'Volume',rehab:'Rehab'}[t]||t||'';}
+function _progViewHtml(prog,isActive,progIdx){
+  var html='';
+  if(isActive)html+='<div style="margin-bottom:14px;"><span style="background:var(--accent);color:#000;padding:3px 12px;border-radius:4px;font-size:11px;font-weight:700;text-transform:uppercase;">ACTIVE</span></div>';
+  html+='<div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:20px;">'+_escP(prog.name)+'</div>';
+  var _ext=_progExtension(prog);
+  // The banner is where the extension is announced, so it is where the way out belongs — one
+  // control, next to the thing it undoes, rather than a button at the far bottom of the list.
+  if(_ext){
+    html+='<div style="border:1px solid rgba(124,196,255,0.35);background:rgba(124,196,255,0.07);border-radius:10px;padding:10px 12px;margin-bottom:18px;font-size:12px;color:var(--muted);line-height:1.5;">'+
+      '<span style="color:#7cc4ff;font-weight:700;">\u26a1 Extended with '+_escP(_ext.name)+'</span><br>The marked days start with a block from that template. The rest of the program is unchanged.'+
+      '<div style="margin-top:10px;"><button onclick="removeProgramExtension('+progIdx+')" style="background:none;border:1px solid var(--danger);color:var(--danger);border-radius:7px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Remove '+_escP(_ext.noun||_ext.name)+' from this program</button></div>'+
+      '</div>';
+  }
+  prog.days.forEach(function(day,i){
+    html+='<div style="margin-bottom:16px;">';
+    html+='<div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:4px;">Day '+(i+1)+(day.warmup?' \ud83d\udd25':'')+'</div>';
+    html+='<div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;">'+_escP(day.name)+'</div>';
+    // Split so the template block reads as a block, not as exercises the program chose.
+    var _tplExs=day.exercises.filter(_isTplEx),_ownExs=day.exercises.filter(function(e){return !_isTplEx(e);});
+    var _fmt=function(ex){return _escP(ex.name)+(ex.scheme?'<span style="color:#555;font-size:11px;"> '+_escP(ex.scheme)+'</span>':'');};
+    if(_tplExs.length){
+      html+='<div style="border-left:2px solid #7cc4ff;padding-left:8px;margin-bottom:6px;">';
+      html+='<div style="font-size:10px;font-weight:700;color:#7cc4ff;letter-spacing:0.5px;margin-bottom:2px;">\u26a1 '+_escP(_tplExs[0]._tplDay||'From template')+'</div>';
+      html+='<div style="font-size:12px;color:var(--muted);line-height:1.8;">'+_tplExs.map(_fmt).join(' · ')+'</div></div>';
+    }
+    if(_ownExs.length)html+='<div style="font-size:12px;color:var(--muted);line-height:1.8;">'+_ownExs.map(_fmt).join(' · ')+'</div>';
+    html+='</div>';
+  });
+  return html;
+}
 function _renderProgOverlay(){
   var title=document.getElementById('prog-title');
   var body=document.getElementById('prog-body');var footer=document.getElementById('prog-footer');if(!body||!footer)return;
   if(_progWiz!==null){_renderProgWiz(title,body,footer);return;}
+  if(_progTemplateId!==null){
+    if(_progTplPick){_renderTplPick(title,body,footer);return;}
+    _renderTemplateOverlay(title,body,footer);return;}
   var buf=_progEditBuf;var prog=_programs[_progEditIdx];var isActive=_progEditIdx===_activeProgramIndex;
   if(title)title.textContent=_progReadOnly?(prog.name||'PROGRAM'):'EDIT PROGRAM';
   var html='';
   if(_progReadOnly){
-    if(isActive)html+='<div style="margin-bottom:14px;"><span style="background:var(--accent);color:#000;padding:3px 12px;border-radius:4px;font-size:11px;font-weight:700;text-transform:uppercase;">ACTIVE</span></div>';
-    html+='<div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:20px;">'+_escP(prog.name)+'</div>';
-    prog.days.forEach(function(day,i){
-      html+='<div style="margin-bottom:16px;">';
-      html+='<div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:4px;">Day '+(i+1)+(day.warmup?' 🔥':'')+'</div>';
-      html+='<div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;">'+_escP(day.name)+'</div>';
-      html+='<div style="font-size:12px;color:var(--muted);line-height:1.8;">'+day.exercises.map(function(ex){return _escP(ex.name)+(ex.scheme?'<span style="color:#555;font-size:11px;"> '+_escP(ex.scheme)+'</span>':'');}).join(' · ')+'</div>';
-      html+='</div>';
-    });
-    body.innerHTML=html;
+    body.innerHTML=_progViewHtml(prog,isActive,_progEditIdx);
     footer.innerHTML='<div style="display:flex;gap:10px;">'+'<button onclick="closeProgramOverlay()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:12px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Close</button>'+'<button onclick="_progReadOnly=false;_renderProgOverlay()" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:12px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Edit</button>'+(isActive?'':'<button onclick="_useProg()" style="flex:1;background:var(--accent);border:none;color:#000;border-radius:8px;padding:12px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Use Program</button>')+'</div>'+'<div><button onclick="_deleteProg()" style="width:100%;background:none;border:1px solid var(--danger);color:var(--danger);border-radius:8px;padding:11px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;opacity:0.7;">Delete Program</button></div>';
     return;
   }
@@ -1335,7 +1530,8 @@ function _renderProgOverlay(){
     html+='</div></div>';
     html+='<div class="prog-day-body">';
     day.exercises.forEach(function(ex,ei){
-      html+='<div style="border-bottom:1px solid var(--border);padding:10px 0;">';
+      html+='<div style="border-bottom:1px solid var(--border);padding:10px 0;'+(_isTplEx(ex)?'border-left:2px solid #7cc4ff;padding-left:8px;':'')+'">';
+      if(_isTplEx(ex))html+='<div style="font-size:10px;font-weight:700;color:#7cc4ff;letter-spacing:0.5px;margin-bottom:4px;">\u26a1 '+_escP(ex._tplDay||'From template')+'</div>';
       html+=_exOpts(di,ei,ex.name);
       html+='<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;align-items:center;">';
       html+='<input type="text" id="prog-scheme-'+di+'-'+ei+'" value="'+_escP(ex.scheme)+'" oninput="_progEditBuf.days['+di+'].exercises['+ei+'].scheme=this.value" placeholder="Scheme e.g. 5×5" style="flex:1;min-width:0;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-size:11px;font-family:var(--font-ui);outline:none;">';
@@ -1401,7 +1597,7 @@ function _refreshActiveProgramViews(){
   var sel=document.getElementById('log-day');
   if(sel&&sel.value)prefillLog(sel.value);
 }
-function _saveProgEdit(){_progIsNew=false;_programs[_progEditIdx]=_progEditBuf;savePrograms();if(_progEditIdx===_activeProgramIndex){rebuildDayGrid();rebuildLogDaySelect();_refreshActiveProgramViews();}buildProgramSettingsCard();closeProgramOverlay();}
+function _saveProgEdit(){_progIsNew=false;_progEditBuf.touchedAt=_nowStamp();_programs[_progEditIdx]=_progEditBuf;savePrograms();if(_progEditIdx===_activeProgramIndex){rebuildDayGrid();rebuildLogDaySelect();_refreshActiveProgramViews();}buildProgramSettingsCard();closeProgramOverlay();}
 function _applyRehabSubs(exercises,prog){var subs=(prog||{}).rehabSubs||{};if(!Object.keys(subs).length)return exercises;return exercises.map(function(ex){var eff=subs[ex.name];return eff?Object.assign({},ex,{name:eff,_rehabOrig:ex.name}):ex;});}
 function _rehabSetSub(orig,val){if(!_progEditBuf.rehabSubs)_progEditBuf.rehabSubs={};_progEditBuf.rehabSubs[orig]=val;}
 function _rehabRemoveSub(orig){if(_progEditBuf.rehabSubs)delete _progEditBuf.rehabSubs[orig];_renderProgOverlay();}
@@ -1480,6 +1676,7 @@ function _progWizDefaultName(){
 function _progWizGenerate(){
   var wiz=_progWiz;var name=(wiz.name&&wiz.name.trim())||_progWizDefaultName();
   var prog=_generateWorkoutProgram(wiz.goal,wiz.sub,wiz.nDays,name,wiz.setsPerMuscle||12,wiz.injuries);
+  prog.touchedAt=_nowStamp();
   _programs.push(prog);buildProgramSettingsCard();
   _progWiz=null;_progReadOnly=false;_progEditIdx=_programs.length-1;_progEditBuf=JSON.parse(JSON.stringify(_programs[_progEditIdx]));_progIsNew=true;_renderProgOverlay();
 }
@@ -1496,6 +1693,7 @@ function _progWizGenerate(){
 // weighted pull-up Henrik named.
 var ONE_RM_TESTABLE=['Squat','Bench Press','Deadlift','Barbell Row','Overhead Press','Weighted Pull-ups'];
 var ONE_RM_PROGRAM_NAME='1RM Test';
+var MUSCLE_UP_PROGRAM_NAME='Muscle-Up Power (RFD)';
 // Prescription: ONE top set of 3 after warming up, per Henrik's rule — "go for a 2-3 rep max on
 // a given weight after warm up". 3 is a legal strength prescription since the band was widened
 // to 2-6 in this same change; before that snapReps() would have forced it to 4.
@@ -1504,19 +1702,246 @@ var ONE_RM_PROGRAM_NAME='1RM Test';
 // fills each lift from the user's own saved/history weight.
 // Days pair two lifts each and NEVER put Squat with a conventional Deadlift, honouring the
 // leg-day CNS rule — a limit single on both in one session is exactly what that rule prevents.
-function _oneRmTestProgram(){
-  function tx(n){return{name:n,scheme:'1×3 — work up to a 3-rep max',tag:'strength',sets:'3',kg:0};}
-  return{name:ONE_RM_PROGRAM_NAME,goal:'strength',days:[
-    {name:'Day 1 — Squat & Bench Max',warmup:true,exercises:[tx('Squat'),tx('Bench Press')]},
-    {name:'Day 2 — Deadlift & Row Max',warmup:true,exercises:[tx('Deadlift'),tx('Barbell Row')]},
-    {name:'Day 3 — Press & Pull-up Max',warmup:true,exercises:[tx('Overhead Press'),tx('Weighted Pull-ups')]}
-  ]};
+// ── Program template library ─────────────────────────────────────────────────
+// Henrik, 2026-09-21: "there should be prefilled templates under a Template heading, where a
+// user picks a template and 'copies' to their own programs. Move the 1RM max programs into
+// templates."
+//
+// A template is a READ-ONLY blueprint. It is never activated, never edited and never logged
+// against — picking one deep-copies it into _programs, and from that moment the copy is the
+// user's own program like any other. That is what keeps "never mutate stored programs" intact
+// in both directions: editing your copy cannot touch the library, and shipping a new template
+// version cannot touch a copy you already made.
+//
+// `notes` is guidance the days cannot carry — how often, how hard, when to stop a set. It is
+// shown in the preview before you copy, not stored on the program.
+function _tplEx(n,scheme,sets){return{name:n,scheme:scheme,tag:'strength',sets:sets,kg:0};}
+var PROGRAM_TEMPLATES=[
+  // Moved here 2026-09-21 from its own Progress-tab button, which still works and now builds
+  // from this entry. Prescription unchanged: ONE top set of 3 after warming up, per the
+  // 2026-08-08 rule, on the six lifts it is common and sensible to max.
+  {id:'1rm-test',name:ONE_RM_PROGRAM_NAME,goal:'strength',
+   desc:'Three sessions, each warming up then ONE top set of 3 reps. A 2-3 rep max is what produces a trustworthy 1RM estimate.',
+   notes:['Warm up properly, then take ONE top set. The estimate comes from that set.',
+          'Log the reps you actually hit — a set of 2-3 is what the estimator trusts.',
+          'Squat and conventional Deadlift never share a day: a limit single on both in one session is exactly what the leg-day CNS rule prevents.'],
+   days:[
+    {name:'Day 1 — Squat & Bench Max',warmup:true,exercises:[_tplEx('Squat','1×3 — work up to a 3-rep max','3'),_tplEx('Bench Press','1×3 — work up to a 3-rep max','3')]},
+    {name:'Day 2 — Deadlift & Row Max',warmup:true,exercises:[_tplEx('Deadlift','1×3 — work up to a 3-rep max','3'),_tplEx('Barbell Row','1×3 — work up to a 3-rep max','3')]},
+    {name:'Day 3 — Press & Pull-up Max',warmup:true,exercises:[_tplEx('Overhead Press','1×3 — work up to a 3-rep max','3'),_tplEx('Weighted Pull-ups','1×3 — work up to a 3-rep max','3')]}
+   ]},
+  // Henrik, 2026-09-21. Rate of Force Development work for the muscle-up: power is force x
+  // velocity, heavy pull-ups build the force, this builds the velocity. Everything here is
+  // 2-4 reps at maximal intent, which sits inside TAG_RANGES.strength (2-6) — the tag is still
+  // derived from the reps, never set by hand.
+  //
+  // Bar-to-sternum work is prescribed as `Pull-ups` and the speed work as `Weighted Pull-ups`
+  // with the intent in the scheme, NOT as new "Explosive"/"Speed" exercise names: one
+  // movement, one 1RM (rule 2026-08-08), and a separate name would split the history of the
+  // very lift this program exists to move.
+  // extendable:true — this one also works as a BLOCK bolted onto the front of another
+  // program's days (Henrik, 2026-09-24), which is why its days carry a short label: that label
+  // is what the program view and the log card show to explain where the exercises came from.
+  {id:'muscle-up-power',name:MUSCLE_UP_PROGRAM_NAME,goal:'strength',extendable:true,
+   extendNoun:'Muscle Up',extendOn:'push-legs',
+   desc:'Rate-of-force-development work for the muscle-up. Two sessions a week, explosive pulls first while fresh, every rep at maximum speed.',
+   notes:['Maximal intent: every concentric rep at maximum speed. If speed drops more than ~10%, the set is over.',
+          'Low reps only — 2 to 4. Higher reps turn a power stimulus into metabolic fatigue.',
+          'Rest 2-3 minutes between sets. Power adaptation needs full CNS recovery, not a pump.',
+          'Run it twice a week, at the START of the session before any heavy or volume work.',
+          'Pull height is the stop signal: chest to lower sternum/navel. Stop the set the rep it degrades.',
+          'C-shape pull: start slightly behind the bar so the body travels in an arc, leaving room for the shoulders to cross the top.',
+          'At sternum height, drive chest and head forward over the bar and switch from a hanging grip to a false/top grip.'],
+   days:[
+    {name:'Day 1 — Explosive Pull A',short:'Muscle Up A',warmup:true,exercises:[
+      _tplEx('Pull-ups','4×3 — explosive, bar to lower sternum','3-3-3-3'),
+      _tplEx('Weighted Pull-ups','4×3 — +10-20% BW, max speed up, 2-3s down','3-3-3-3'),
+      _tplEx('Straight-Arm Lat Pushdown','3×6 — straight arms, explode to thighs','6-6-6'),
+      _tplEx('Clapping Pull-ups','3×3 — CNS primer, stop if height drops','3-3-3')]},
+    {name:'Day 2 — Explosive Pull B',short:'Muscle Up B',warmup:true,exercises:[
+      _tplEx('Clapping Pull-ups','3×3 — CNS primer, first while fresh','3-3-3'),
+      _tplEx('Pull-ups','5×2 — maximal intent, stop when height drops','2-2-2-2-2'),
+      _tplEx('Assisted Muscle Up','3×3 — transition practice, C-curve pull','3-3-3'),
+      _tplEx('Straight-Arm Lat Pushdown','3×6 — straight arms, explode to thighs','6-6-6')]}
+   ]}
+];
+function _findTemplate(id){for(var i=0;i<PROGRAM_TEMPLATES.length;i++){if(PROGRAM_TEMPLATES[i].id===id)return PROGRAM_TEMPLATES[i];}return null;}
+// Deep copy, then run the same tagging pass generated programs get, so a template can never
+// ship a prescription the rest of the app considers illegal. `desc`/`notes`/`id` are library
+// metadata and deliberately do NOT travel onto the program.
+function _templateToProgram(t){
+  if(!t)return null;
+  var days=JSON.parse(JSON.stringify(t.days));
+  days.forEach(function(day){(day.exercises||[]).forEach(applyTagFromReps);});
+  return{name:t.name,goal:t.goal,days:days,fromTemplate:t.id,touchedAt:_nowStamp()};
 }
+function _oneRmTestProgram(){return _templateToProgram(_findTemplate('1rm-test'));}
+// Two copies of the same template are a legitimate thing to want (a second 1RM block in a
+// different lift order). Name them apart rather than refusing.
+function _uniqueProgramName(base){
+  var names={};_programs.forEach(function(p){if(p&&p.name)names[p.name]=1;});
+  if(!names[base])return base;
+  for(var n=2;n<100;n++){if(!names[base+' '+n])return base+' '+n;}
+  return base+' '+Date.now();
+}
+function copyTemplate(id){
+  var t=_findTemplate(id);if(!t)return;
+  if(_programs.length>=MAX_PROGRAMS){alert('Maximum '+MAX_PROGRAMS+' programs. Delete one before copying another template.');return;}
+  var prog=_templateToProgram(t);
+  prog.name=_uniqueProgramName(t.name);
+  var nEx=prog.days.reduce(function(a,d){return a+(d.exercises||[]).length;},0);
+  if(!confirm('Copy "'+t.name+'" into your programs?\n\n'+prog.days.length+' days, '+nEx+' exercises.\n\nIt is added as your own program — edit it freely, the template is untouched. Your active program is not changed.'))return;
+  _programs.push(prog);
+  // savePrograms() writes localStorage AND pushes to the backend in one call.
+  savePrograms();buildProgramSettingsCard();rebuildDayGrid();rebuildLogDaySelect();
+  closeProgramOverlay();
+  alert('"'+prog.name+'" added to your programs. Pick it on the Program tab when you want to run it.');
+}
+// ── Extending a program with a template (Henrik, 2026-09-24) ─────────────────
+// "every day program starts with a muscle up prep program day ... So PushA starts with Muscle
+// Up A, then Pull A gets Muscle Up B first etc."
+//
+// The template's days are prepended to the HOST program's days, cycling: host day i takes
+// template day i % nTemplateDays. A 6-day push/pull/legs against the 2-day muscle-up template
+// therefore reads A, B, A, B, A, B.
+//
+// The exercises are spliced in for real rather than overlaid at render time, so the log, the
+// volume charts and the editor all see ordinary exercises and need no plumbing. What makes
+// them removable — and visible as someone else's work — is the marker each one carries:
+//   _tpl     the template id it came from
+//   _tplDay  the short label of the template day ("Muscle Up A")
+function _tplChipHtml(ex){
+  if(!_isTplEx(ex))return '';
+  var t=_findTemplate(ex._tpl);
+  var full=(t?t.name:'a template');
+  return '<span data-tpl-chip="1" style="color:#7cc4ff;font-size:10px;font-weight:600;margin-left:6px;white-space:nowrap;" title="From the '+_escP(full)+' template, not from this program">\u26a1 '+_escP(ex._tplDay||'template')+'</span>';
+}
+// IS THIS A PUSH DAY? DECIDED BY CONTENT, NOT BY NAME — same principle as _isLegDay, and for
+// the same reason: the generator authors push days called "Upper Push", "Chest & Shoulders",
+// "Push A", "Day 3 — Push" and plain "Day 3", and a name test misses most of them.
+//
+// Chest and shoulders together must DOMINATE at 0.6, the same bar legs clear. A real push day
+// sits at 0.8-0.95; an upper day that pairs a bench press with rows lands near 0.5 and is
+// correctly NOT a push day — it already has pulling in it, which is exactly what this filter
+// exists to avoid stacking onto.
+function _isPushDay(day){
+  if(!day)return false;
+  var nm=String(day.name||'');
+  if(/full\s*body|full\s*light|—\s*full\s*$/i.test(nm))return false;
+  var exs=day.exercises||[];
+  if(!exs.length)return false;
+  var pushVol=0,totVol=0;
+  exs.forEach(function(ex){
+    var sp=(typeof getExSplits==='function')?getExSplits(ex.name):{};
+    var n=String(ex.sets||'').split('-').filter(Boolean).length||1;
+    ['legs','back','chest','shoulders','arms'].forEach(function(g){
+      var f=sp[g]||0;if(!f)return;
+      totVol+=n*f;
+      if(g==='chest'||g==='shoulders')pushVol+=n*f;
+    });
+  });
+  if(totVol>0)return pushVol/totVol>0.6;
+  // Only when nothing in the day can be classified does the name get a vote.
+  return /push|chest/i.test(nm);
+}
+// Henrik, 2026-09-24: "I'd rather only add it to push and leg days." The block is explosive
+// PULLING, so putting it on a pull day means pulling twice in one session; on push and leg
+// days it spreads the pull volume across the week instead of stacking it.
+function _tplDayEligible(day,mode){
+  if(mode==='push-legs')return _isPushDay(day)||_isLegDay(day);
+  return true;
+}
+function _tplDayShort(day,i){return (day&&day.short)||(day&&day.name)||('Day '+(i+1));}
+function _isTplEx(ex){return !!(ex&&ex._tpl);}
+// Derived, never trusted from the stored field alone: editing a program can delete the last
+// injected exercise, and an extension nothing carries a marker for is not an extension.
+function _progExtension(prog){
+  if(!prog||!prog.extension)return null;
+  var any=(prog.days||[]).some(function(d){return (d.exercises||[]).some(_isTplEx);});
+  return any?prog.extension:null;
+}
+function _stripProgramExtension(prog){
+  if(!prog)return 0;
+  var removed=0;
+  (prog.days||[]).forEach(function(d){
+    var before=(d.exercises||[]).length;
+    d.exercises=(d.exercises||[]).filter(function(ex){return !_isTplEx(ex);});
+    removed+=before-d.exercises.length;
+  });
+  delete prog.extension;
+  return removed;
+}
+// Pure so it can be asserted directly: returns the days a host program would end up with.
+function _extendDaysWithTemplate(days,t){
+  if(!t||!t.days||!t.days.length)return days;
+  // The cycle advances per PLACED block, not per host day: skipping the pull days of a
+  // push/pull/legs split must still alternate A, B, A, B across the days that DO get one,
+  // not repeat A because the host indices happen to share a parity.
+  var placed=0;
+  return days.map(function(day){
+    var rest=(day.exercises||[]).filter(function(ex){return !_isTplEx(ex);});
+    if(!_tplDayEligible(Object.assign({},day,{exercises:rest}),t.extendOn))return Object.assign({},day,{exercises:rest});
+    var k=placed%t.days.length;placed++;
+    var td=t.days[k];
+    var label=_tplDayShort(td,k);
+    var injected=JSON.parse(JSON.stringify(td.exercises||[])).map(function(ex){
+      applyTagFromReps(ex);ex._tpl=t.id;ex._tplDay=label;return ex;
+    });
+    return Object.assign({},day,{exercises:injected.concat(rest)});
+  });
+}
+// What extending WOULD do, as a list the confirm dialog and the picker can show. Same walk as
+// above, so neither can ever promise a placement the splice does not make.
+function _extendPlan(days,t){
+  var placed=0;
+  return (days||[]).map(function(day){
+    var own=Object.assign({},day,{exercises:(day.exercises||[]).filter(function(ex){return !_isTplEx(ex);})});
+    if(!_tplDayEligible(own,t.extendOn))return{name:day.name,label:null};
+    var k=placed%t.days.length;placed++;
+    return{name:day.name,label:_tplDayShort(t.days[k],k)};
+  });
+}
+function extendProgramWithTemplate(progIdx,templateId){
+  var t=_findTemplate(templateId);var prog=_programs[progIdx];
+  if(!t||!prog)return;
+  if(!t.extendable){alert('"'+t.name+'" is a standalone program, not a block you bolt onto another one. Copy it instead.');return;}
+  var had=_progExtension(prog);
+  var plan=_extendPlan(prog.days,t);
+  var hits=plan.filter(function(p){return p.label;});
+  if(!hits.length){
+    alert('No day in "'+prog.name+'" is a push or leg day, so there is nowhere to put the '+t.name+' block.\n\nIt goes on push and leg days only — the work is explosive pulling, and stacking it onto a pull day means pulling twice in one session.');
+    return;
+  }
+  var lines=plan.map(function(p){return p.label?(p.label+' → '+p.name):('— skipped → '+p.name);});
+  var msg='Start the push and leg days of "'+prog.name+'" with '+t.name+'?\n\n'+lines.join('\n')+
+    '\n\n'+hits.length+' of '+plan.length+' days. Pull days are left alone — the block is explosive pulling, so it goes where it does not stack onto more pulling.'+
+    '\n\nThe exercises go first on each of those days and stay marked as coming from the template, so you can see why they are there and remove them in one go later.';
+  if(had)msg='"'+prog.name+'" already starts with '+had.name+'.\n\nReplace that with '+t.name+'?\n\n'+lines.join('\n');
+  if(!confirm(msg))return;
+  _stripProgramExtension(prog);
+  prog.days=_extendDaysWithTemplate(prog.days,t);
+  prog.extension={templateId:t.id,name:t.name,noun:t.extendNoun||t.name};
+  prog.touchedAt=_nowStamp();
+  savePrograms();rebuildDayGrid();rebuildLogDaySelect();buildProgramSettingsCard();
+  if(progIdx===_activeProgramIndex){clearDraft();_refreshActiveProgramViews();}
+  closeProgramOverlay();
+  alert(t.name+' added to the front of '+hits.length+' day'+(hits.length!==1?'s':'')+' in "'+prog.name+'".');
+}
+function removeProgramExtension(progIdx){
+  var prog=_programs[progIdx];var ext=prog&&_progExtension(prog);if(!ext)return;
+  if(!confirm('Remove the '+ext.name+' exercises from every day of "'+prog.name+'"?\n\nThe rest of the program is left exactly as it is.'))return;
+  _stripProgramExtension(prog);
+  prog.touchedAt=_nowStamp();
+  savePrograms();rebuildDayGrid();rebuildLogDaySelect();buildProgramSettingsCard();
+  if(progIdx===_activeProgramIndex){clearDraft();_refreshActiveProgramViews();}
+  closeProgramOverlay();
+}
+function previewTemplate(id){var t=_findTemplate(id);if(!t)return;_progTemplateId=id;_progReadOnly=true;_openProgOverlay();}
 function _findOneRmProgram(){for(var i=0;i<_programs.length;i++){if(_programs[i]&&_programs[i].name===ONE_RM_PROGRAM_NAME)return i;}return -1;}
 function createOneRmProgram(){
   var existing=_findOneRmProgram();
   if(existing>=0){alert('You already have a "'+ONE_RM_PROGRAM_NAME+'" program — open it from the Program tab.');return;}
-  if(_programs.length>=4){alert('Maximum 4 programs. Delete one before adding the '+ONE_RM_PROGRAM_NAME+' program.');return;}
+  if(_programs.length>=MAX_PROGRAMS){alert('Maximum '+MAX_PROGRAMS+' programs. Delete one before adding the '+ONE_RM_PROGRAM_NAME+' program.');return;}
   var names=ONE_RM_TESTABLE.join(', ');
   if(!confirm('Create a "'+ONE_RM_PROGRAM_NAME+'" program?\n\n3 sessions, each warming up then ONE top set of 3 reps:\n'+names+'\n\nIt is added as a separate program — your active program is not changed.'))return;
   _programs.push(_oneRmTestProgram());
@@ -1528,8 +1953,8 @@ function createOneRmProgram(){
   alert('"'+ONE_RM_PROGRAM_NAME+'" created. Pick it on the Program tab when you want to test.\n\nLog the reps you actually hit — a set of 2-3 is what produces a trustworthy estimate here.');
 }
 function _progBuildManual(){
-  if(_programs.length>=4){alert('Maximum 4 programs');return;}
-  var prog={name:'My Program',goal:'hypertrophy',days:[{name:'Day 1',warmup:false,exercises:[{name:'',scheme:'3×10',tag:'volume',sets:'10-10-10',kg:0}]}]};
+  if(_programs.length>=MAX_PROGRAMS){alert('Maximum '+MAX_PROGRAMS+' programs');return;}
+  var prog={name:'My Program',goal:'hypertrophy',touchedAt:_nowStamp(),days:[{name:'Day 1',warmup:false,exercises:[{name:'',scheme:'3×10',tag:'volume',sets:'10-10-10',kg:0}]}]};
   _programs.push(prog);buildProgramSettingsCard();
   _progWiz=null;_progReadOnly=false;_progEditIdx=_programs.length-1;_progEditBuf=JSON.parse(JSON.stringify(_programs[_progEditIdx]));_progIsNew=true;_renderProgOverlay();
 }
@@ -1964,7 +2389,7 @@ var EXERCISE_ROM=[["external rotation",0.35],["leg curl",0.35],["leg extension",
   ["hack squat",0.50],["squat",0.55],["romanian",0.45],["rdl",0.45],["deadlift",0.55],
   ["rear delt",0.40],["lateral raise",0.50],["face pull",0.40],["y-raise",0.50],["y raise",0.50],
   ["front raise",0.55],["upright row",0.40],["shrug",0.15],["chin-up",0.60],["chinup",0.60],
-  ["pull-up",0.60],["pullup",0.60],["drape pulldown",0.90],["lat pulldown",0.55],["pulldown",0.55],["t-bar",0.40],
+  ["pull-up",0.60],["pullup",0.60],["straight-arm lat",0.65],["straight arm lat",0.65],["drape pulldown",0.90],["lat pulldown",0.55],["pulldown",0.55],["t-bar",0.40],
   ["barbell row",0.45],["cable row",0.50],["cable fly",0.55],["chest fly",0.55],
   ["cable crossover",0.55],["pec",0.50],["chest machine",0.45],["incline",0.45],["decline",0.40],
   ["chest press",0.45],["bench",0.45],["push-up",0.40],["pushup",0.40],["dip",0.45],
@@ -2118,7 +2543,7 @@ function getBestKgFromLogs(exName){for(const log of logs){const ex=(log.exercise
 function getLastKgFromLogs(exName){for(var i=0;i<logs.length;i++){var ex=(logs[i].exercises||[]).find(function(e){return e.name===exName;});if(!ex)continue;var sets=ex.sets||[];for(var j=sets.length-1;j>=0;j--){if((sets[j].kg||0)>0&&(sets[j].reps||0)>0)return sets[j].kg;}}return null;}
 function _clearAutoPrefill(card){if(!card||card.dataset.prefillKg===undefined)return;card.querySelectorAll('input[data-type="kg"]').forEach(function(inp){if(inp.value===card.dataset.prefillKg)inp.value='';});delete card.dataset.prefillKg;}
 function _prefillKgFromHistory(card,name){if(!card||!name)return;if(isBWExName(name))return;var kg=getLastKgFromLogs(name);if(!(kg>0))return;if(_deloadActive){kg=_deloadKg(kg);if(isBarbellEx(name))kg=roundBarbellKg(kg);}var val=String(kgToUnit(kg));card.querySelectorAll('input[data-type="kg"]').forEach(function(inp){if(inp.value==='')inp.value=val;});card.dataset.prefillKg=val;}
-function prefillLog(day){var _di=getActiveProgramDay(parseInt(day));if(!_di)return;_logStartedAt=null;var tmpl=_applyRehabSubs(_di.exercises,getActiveProgram());const saved=getData('template_weights_day'+day,{});const container=document.getElementById('structured-log');if(!container)return;container.innerHTML='';container.dataset.logDay=String(day);container.dataset.deload=_deloadActive?'1':'0';container.dataset.unit=unitLabel();tmpl.forEach((ex,exIdx)=>{const _isWPU=/weighted\s*(pull|chin)/i.test(ex._rehabOrig||ex.name);const isBodyweight=(ex.kg===0||isBWExName(ex._rehabOrig||ex.name))&&!_isWPU;const bwDefault=weights.length?weights[weights.length-1].weight:'';const histKg=getBestKgFromLogs(ex.name)||(ex._rehabOrig?getBestKgFromLogs(ex._rehabOrig):null);const origSaved=ex._rehabOrig?saved[ex._rehabOrig]:undefined;let lastKg=isBodyweight?bwDefault:(saved[ex.name]!==undefined?saved[ex.name]:(origSaved!==undefined?origSaved:(histKg!==null?histKg:ex.kg)));if(_deloadActive&&!isBodyweight&&lastKg>0){lastKg=_deloadKg(lastKg);if(isBarbellEx(ex.name))lastKg=roundBarbellKg(lastKg);}const repsArr=(_deloadActive?_deloadSets(ex.sets):ex.sets).split('-');const card=document.createElement('div');card.className='ex-card';card.dataset.exIdx=exIdx;card.dataset.tplName=ex.name;if(isBodyweight)card.dataset.bw='1';const _gst=_savedGearState(ex.name);card.dataset.gearHalf=_gst.half;card.dataset.gear2x=_gst.two;card.dataset.db=_gst.db;card.dataset.gear=_gst.half*_gst.two*_gst.db;const gearBtnHtml=_gearBtnsHtml(ex.name,_gst.half,_gst.two,_gst.db);const dbBtnHtml='';const _restSecs=restSecsForTag(ex.tag);const _restLabel='⏱ '+Math.floor(_restSecs/60)+((_restSecs%60)<10?':0':':')+(_restSecs%60);const _timerBtnHtml='<button onclick="startRest('+_restSecs+')" style="background:none;border:1px solid var(--border);color:var(--accent);font-size:14px;font-weight:600;border-radius:6px;padding:4px 10px;cursor:pointer;font-family:var(--font-ui);margin-right:auto;">'+_restLabel+'</button>';card.style.cssText='background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px;';let setsHtml=repsArr.map((r,i)=>{const repsVal='';const kgVal=(lastKg&&Number(lastKg)>0)?kgToUnit(lastKg):(lastKg||'');return '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;min-width:38px;"><div style="font-size:10px;color:var(--muted)">S'+(i+1)+'</div>'+('<input type="text" inputmode="decimal" value="'+kgVal+'" placeholder="'+unitLabel()+'" data-ex="'+exIdx+'" data-set="'+i+'" data-type="kg" oninput="propagateWeight(this)" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 2px;color:var(--accent);font-weight:600;text-align:center;font-size:13px;outline:none;">')+'<input type="text" inputmode="numeric" pattern="[0-9]*" value="'+repsVal+'" placeholder="reps" data-ex="'+exIdx+'" data-set="'+i+'" data-type="reps" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 2px;color:var(--text);text-align:center;font-size:12px;outline:none;"></div>';}).join('');card.innerHTML='<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div style="font-size:14px;font-weight:600;color:var(--text)" data-ex-name="1">'+ex.name+(ex._rehabOrig?'<span style="color:#ff9b3c;font-size:10px;margin-left:5px" title="Rehab sub for '+ex._rehabOrig+'">↺</span>':'')+(_isWPU?'<span data-bw-chip="1" style="color:var(--muted);font-size:11px;font-weight:400;margin-left:6px" title="Body weight is included automatically — enter added weight only">'+(bwDefault?'+ '+kgToUnit(bwDefault)+' '+unitLabel()+' BW':'+ BW')+'</span>':'')+'</div><div style="display:flex;align-items:center;gap:8px"><button onclick="swapExercise(this)" title="Swap exercise" style="background:none;border:1px solid var(--border);color:var(--muted);font-size:11px;border-radius:6px;padding:2px 6px;cursor:pointer;font-family:var(--font-ui);line-height:1.4">⇄</button><button onclick="removeExCard(this)" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:0;line-height:1;opacity:0.6">×</button></div></div><div style="font-size:13px;color:var(--accent);margin-top:2px">'+(_deloadActive?_deloadSets(ex.sets):ex.sets)+'</div></div><div class="sets-row" style="display:flex;flex-wrap:nowrap;gap:4px;overflow-x:auto;">'+setsHtml+'</div><div class="card-btn-row" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">'+ _timerBtnHtml + gearBtnHtml + dbBtnHtml +'<button onclick="removeSet(this)" style="background:none;border:1px solid var(--border);color:var(--text);font-size:14px;border-radius:6px;padding:4px 10px;cursor:pointer;font-family:var(--font-ui);">− set</button><button onclick="addSet(this)" style="background:none;border:1px solid var(--border);color:var(--text);font-size:14px;border-radius:6px;padding:4px 10px;cursor:pointer;font-family:var(--font-ui);">+ set</button></div>';container.appendChild(card);});const addBtn=document.createElement('button');addBtn.className='add-ex-btn btn';addBtn.textContent='+ ADD EXERCISE';addBtn.style.cssText='width:100%;margin-top:4px;background:var(--surface2);color:var(--muted);border:1px solid var(--border);';addBtn.onclick=function(){addCustomExercise();};container.appendChild(addBtn);var _lwInput=document.getElementById('log-weight');if(_lwInput&&!_lwInput.value&&weights.length)_lwInput.value=kgToUnit(weights[weights.length-1].weight);document.getElementById('log-date').value=new Date().toISOString().split('T')[0];restoreDraft(day);container.oninput=scheduleDraft;saveDraft();}
+function prefillLog(day){var _di=getActiveProgramDay(parseInt(day));if(!_di)return;_logStartedAt=null;var tmpl=_applyRehabSubs(_di.exercises,getActiveProgram());const saved=getData('template_weights_day'+day,{});const container=document.getElementById('structured-log');if(!container)return;container.innerHTML='';container.dataset.logDay=String(day);container.dataset.deload=_deloadActive?'1':'0';container.dataset.unit=unitLabel();tmpl.forEach((ex,exIdx)=>{const _isWPU=/weighted\s*(pull|chin)/i.test(ex._rehabOrig||ex.name);const isBodyweight=(ex.kg===0||isBWExName(ex._rehabOrig||ex.name))&&!_isWPU;const bwDefault=weights.length?weights[weights.length-1].weight:'';const histKg=getBestKgFromLogs(ex.name)||(ex._rehabOrig?getBestKgFromLogs(ex._rehabOrig):null);const origSaved=ex._rehabOrig?saved[ex._rehabOrig]:undefined;let lastKg=isBodyweight?bwDefault:(saved[ex.name]!==undefined?saved[ex.name]:(origSaved!==undefined?origSaved:(histKg!==null?histKg:ex.kg)));if(_deloadActive&&!isBodyweight&&lastKg>0){lastKg=_deloadKg(lastKg);if(isBarbellEx(ex.name))lastKg=roundBarbellKg(lastKg);}const repsArr=(_deloadActive?_deloadSets(ex.sets):ex.sets).split('-');const card=document.createElement('div');card.className='ex-card';card.dataset.exIdx=exIdx;card.dataset.tplName=ex.name;if(isBodyweight)card.dataset.bw='1';const _gst=_savedGearState(ex.name);card.dataset.gearHalf=_gst.half;card.dataset.gear2x=_gst.two;card.dataset.db=_gst.db;card.dataset.gear=_gst.half*_gst.two*_gst.db;const gearBtnHtml=_gearBtnsHtml(ex.name,_gst.half,_gst.two,_gst.db);const dbBtnHtml='';const _restSecs=restSecsForTag(ex.tag);const _restLabel='⏱ '+Math.floor(_restSecs/60)+((_restSecs%60)<10?':0':':')+(_restSecs%60);const _timerBtnHtml='<button onclick="startRest('+_restSecs+')" style="background:none;border:1px solid var(--border);color:var(--accent);font-size:14px;font-weight:600;border-radius:6px;padding:4px 10px;cursor:pointer;font-family:var(--font-ui);margin-right:auto;">'+_restLabel+'</button>';card.style.cssText='background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px;';let setsHtml=repsArr.map((r,i)=>{const repsVal='';const kgVal=(lastKg&&Number(lastKg)>0)?kgToUnit(lastKg):(lastKg||'');return '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;min-width:38px;"><div style="font-size:10px;color:var(--muted)">S'+(i+1)+'</div>'+('<input type="text" inputmode="decimal" value="'+kgVal+'" placeholder="'+unitLabel()+'" data-ex="'+exIdx+'" data-set="'+i+'" data-type="kg" oninput="propagateWeight(this)" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 2px;color:var(--accent);font-weight:600;text-align:center;font-size:13px;outline:none;">')+'<input type="text" inputmode="numeric" pattern="[0-9]*" value="'+repsVal+'" placeholder="reps" data-ex="'+exIdx+'" data-set="'+i+'" data-type="reps" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 2px;color:var(--text);text-align:center;font-size:12px;outline:none;"></div>';}).join('');card.innerHTML='<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div style="font-size:14px;font-weight:600;color:var(--text)" data-ex-name="1">'+ex.name+(ex._rehabOrig?'<span style="color:#ff9b3c;font-size:10px;margin-left:5px" title="Rehab sub for '+ex._rehabOrig+'">↺</span>':'')+_tplChipHtml(ex)+(_isWPU?'<span data-bw-chip="1" style="color:var(--muted);font-size:11px;font-weight:400;margin-left:6px" title="Body weight is included automatically — enter added weight only">'+(bwDefault?'+ '+kgToUnit(bwDefault)+' '+unitLabel()+' BW':'+ BW')+'</span>':'')+'</div><div style="display:flex;align-items:center;gap:8px"><button onclick="swapExercise(this)" title="Swap exercise" style="background:none;border:1px solid var(--border);color:var(--muted);font-size:11px;border-radius:6px;padding:2px 6px;cursor:pointer;font-family:var(--font-ui);line-height:1.4">⇄</button><button onclick="removeExCard(this)" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:0;line-height:1;opacity:0.6">×</button></div></div><div style="font-size:13px;color:var(--accent);margin-top:2px">'+(_deloadActive?_deloadSets(ex.sets):ex.sets)+'</div></div><div class="sets-row" style="display:flex;flex-wrap:nowrap;gap:4px;overflow-x:auto;">'+setsHtml+'</div><div class="card-btn-row" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">'+ _timerBtnHtml + gearBtnHtml + dbBtnHtml +'<button onclick="removeSet(this)" style="background:none;border:1px solid var(--border);color:var(--text);font-size:14px;border-radius:6px;padding:4px 10px;cursor:pointer;font-family:var(--font-ui);">− set</button><button onclick="addSet(this)" style="background:none;border:1px solid var(--border);color:var(--text);font-size:14px;border-radius:6px;padding:4px 10px;cursor:pointer;font-family:var(--font-ui);">+ set</button></div>';container.appendChild(card);});const addBtn=document.createElement('button');addBtn.className='add-ex-btn btn';addBtn.textContent='+ ADD EXERCISE';addBtn.style.cssText='width:100%;margin-top:4px;background:var(--surface2);color:var(--muted);border:1px solid var(--border);';addBtn.onclick=function(){addCustomExercise();};container.appendChild(addBtn);var _lwInput=document.getElementById('log-weight');if(_lwInput&&!_lwInput.value&&weights.length)_lwInput.value=kgToUnit(weights[weights.length-1].weight);document.getElementById('log-date').value=new Date().toISOString().split('T')[0];restoreDraft(day);container.oninput=scheduleDraft;saveDraft();}
 
 function removeExCard(btn){btn.closest('.ex-card').remove();}
 // ── Mid-workout exercise change — completed sets belong to the exercise that was
