@@ -823,7 +823,7 @@ console.log('\n── Key functions ──────────────�
   // fetch is read synchronously by the call, so swap it only around the call and put back
   // whatever is there now (other async blocks install their own stubs meanwhile).
   const run = (resp) => { const cur = G.fetch; G.fetch = async () => { if (resp instanceof Error) throw resp; return resp; }; const p = G._pushSavedLog({id: 1, date: '2026-09-29'}); G.fetch = cur; return p; };
-  run({ok: false, status: 401}).then(function(err){
+  globalThis.__uploadChecks = run({ok: false, status: 401}).then(function(err){
     check('a rejected upload reports its status', err === 'HTTP 401', String(err));
     check('…and the user is told the workout did not reach the account',
       alerts.length === 1 && /did NOT reach your account \(HTTP 401\)/.test(alerts[0]) && /Settings/.test(alerts[0]), alerts.join(' | '));
@@ -836,6 +836,61 @@ console.log('\n── Key functions ──────────────�
     G.alert = sv.alert;
   });
   check('saveLog uploads through the reporting path', /_logStartedAt=null;_pushSavedLog\(newLog\);/.test(html));
+})();
+
+// Henrik 2026-09-30, at the gym: "updating the PWA build wiped my progress from Log ... I want
+// in progress logs to be saved in backend as well and remembered and recovered if app is
+// updated, and never deleted until the final Log is saved permanently."
+(function(){
+  const sv = {alert: G.alert};
+  const draft = (extra) => Object.assign({ v: 2, day: '2', date: '2026-09-30', tmpl: { 'Bench Press': { kg: ['80'], reps: ['8'] } }, custom: [] }, extra || {});
+  const run = (resp, logId) => { const cur = G.fetch; G.fetch = async () => resp; const p = G._pushSavedLog({ id: logId, date: '2026-09-30' }); G.fetch = cur; return p; };
+  // Runs after the upload-report block above: both stub the shared fetch/alert.
+  globalThis.__uploadChecks.then(function(){
+  G.alert = () => {};
+  G.setData('wkt-draft', draft());
+  check('an unsaved workout with reps is the active draft', !!G._activeDraft());
+  G.setData('wkt-draft', draft({ savedLogId: 111 }));
+  check('once saved as a log it stops being the active draft (never restored twice)', G._activeDraft() === null);
+  check('…but it is still stored until the upload succeeds', G.getData('wkt-draft', null) !== null);
+  run({ ok: false, status: 401 }, 111).then(function(){
+    check('a failed upload keeps the saved workout\'s draft', G.getData('wkt-draft', null) !== null);
+    return run({ ok: true, status: 200 }, 999);
+  }).then(function(){
+    check('another log\'s upload does not delete this draft', G.getData('wkt-draft', null) !== null);
+    return run({ ok: true, status: 200 }, 111);
+  }).then(function(){
+    check('the draft is deleted once ITS log reached the backend', G.getData('wkt-draft', null) === null);
+    // Backend copy vs phone copy: the newer one wins.
+    G.setData('wkt-draft', draft({ updatedAt: 2000, date: 'phone' }));
+    const cur = G.fetch; G.fetch = async () => ({ ok: true, json: async () => draft({ updatedAt: 1000, date: 'backend' }) });
+    const p = G.syncWorkoutDraftFromAgent(); G.fetch = cur; return p;
+  }).then(function(){
+    check('an older backend copy never overwrites the phone\'s newer workout', (G.getData('wkt-draft', {}) || {}).date === 'phone');
+    G.localStorage.removeItem('wkt-draft');
+    const cur = G.fetch; G.fetch = async () => ({ ok: true, json: async () => draft({ updatedAt: 1000, date: 'backend', savedLogId: 5 }) });
+    const p = G.syncWorkoutDraftFromAgent(); G.fetch = cur; return p;
+  }).then(function(){
+    check('a phone that lost its copy (update, wipe) gets it back from the backend', (G.getData('wkt-draft', {}) || {}).date === 'backend');
+    G.localStorage.removeItem('wkt-draft'); G.alert = sv.alert;
+  });
+  });
+  // Structural: the only deletes left are the one after a confirmed upload and the one when
+  // the backend's log list already holds the saved workout.
+  const callers = (html.match(/clearDraft\(\)/g) || []).length;
+  check('draft deletion happens only after the log is safely on the backend', callers === 3, 'clearDraft() occurrences: ' + callers);
+  check('saveLog marks the draft saved instead of deleting it', /_markDraftSaved\(newLog\.id\);_logStartedAt=null;_pushSavedLog\(newLog\)/.test(html));
+  check('the Log page opens on the in-progress workout\'s day', /var _ad=_activeDraft\(\);if\(_ad\)\{var _adn=parseInt\(_ad\.day\)/.test(html));
+})();
+
+// Henrik 2026-09-30: "one need to be able to train more than once a day". A second session on
+// the same date is its own log: saveLog no longer offers to overwrite the first, and the two
+// one-time "one log per date" cleanups (which re-ran on every fresh install or wiped cache and
+// deleted same-date sessions from the phone AND the backend) are gone.
+(function(){
+  const fn = String(G.saveLog || '');
+  check('saving never replaces another log on the same date', !/already saved\. Overwrite/.test(fn) && !/logs\.splice\(existingIdx/.test(fn));
+  check('no startup cleanup deletes same-date logs', !/workout_dedup_v1/.test(html) && !/dedup-dates/.test(html));
 })();
 
 // Henrik 2026-09-29: "make sure choices for cable gears and sets are on one line not
@@ -1239,14 +1294,19 @@ check('clearDraft: removes wkt-draft from localStorage', G.getData('wkt-draft', 
 G.clearDraft(); // second call
 check('clearDraft: idempotent (no throw on second call)',  G.getData('wkt-draft', null) === null);
 
-// saveDraft only persists once a session is started (≥1 rep). With no reps logged
-// (the mock log has none) it must NOT write a weights-only draft — it clears instead,
-// so an abandoned weights-only draft never resurfaces odd per-set weights later.
+// saveDraft only persists once a session is started (≥1 rep). With no reps on the page
+// (the mock log has none) it writes nothing — and it must NOT delete an existing draft.
+// Henrik 2026-09-30, after an app update wiped a workout mid-session: in-progress logs are
+// "never deleted until the final Log is saved permanently". An empty page is what every
+// reload shows before the draft is restored, so clearing here WAS the wipe.
 const _todayStr = new Date().toISOString().split('T')[0];
-G.setData('wkt-draft', { stale: 1, savedDate: _todayStr });
+G.clearDraft(); G.saveDraft();
+check('saveDraft: does not create a no-rep (weights-only) draft', G.getData('wkt-draft', null) === null);
+G.setData('wkt-draft', { day: '2', savedDate: _todayStr, tmpl: { 'Bench Press': { kg: ['80'], reps: ['8'] } }, custom: [] });
 G.saveDraft();
 const _draft30 = G.getData('wkt-draft', null);
-check('saveDraft: does not persist a no-rep (weights-only) draft', _draft30 === null);
+check('saveDraft: an empty page never deletes the in-progress workout',
+  _draft30 && _draft30.tmpl && _draft30.tmpl['Bench Press'].reps[0] === '8', JSON.stringify(_draft30));
 
 // restoreDraft: day mismatch → returns early, no throw
 G.setData('wkt-draft', { day: '3', date: '2026-06-01', weight: '80', tmpl: {}, custom: [] });
@@ -1263,10 +1323,11 @@ const _yesterday = (() => { const d = new Date(); d.setDate(d.getDate()-1); retu
 G.setData('wkt-draft', { day: '1', date: '2026-07-01', savedDate: _yesterday, weight: '', tmpl: { '0': { kg: ['100','100','100','100','100','100','100','100'], reps: ['8','8','8','8','8','8','8','8'] } }, custom: [] });
 try {
   G.restoreDraft('1');
-  check('restoreDraft: stale savedDate → skipped (no throw)', true);
+  check('restoreDraft: an earlier day\'s unsaved workout restores without throwing', true);
 } catch(e) {
-  check('restoreDraft: stale savedDate → skipped (no throw)', false, e.message);
+  check('restoreDraft: an earlier day\'s unsaved workout restores without throwing', false, e.message);
 }
+check('restoreDraft: it is kept, not deleted (kept until the log is saved)', G.getData('wkt-draft', null) !== null);
 
 // restoreDraft: no draft → no throw
 G.clearDraft();
@@ -2241,14 +2302,18 @@ console.log('\n── 48. Program wizard days/sets ─────────�
       check('prefillLog date-reset (caught)', false, String(e));
     }
 
-    // restoreDraft: today's draft with extra sets (user pressed + set) must be restored
-    // Protection against cross-day pollution is the savedDate check, not removing the while-loop
+    // restoreDraft: a draft with extra sets (user pressed + set) must be restored.
+    // Superseded 2026-09-30: an unsaved workout is kept and restored whatever day it was
+    // started ("never deleted until the final Log is saved"). Cross-day pollution is now
+    // prevented by the day match and by savedLogId (a workout already saved as a log never
+    // restores), not by a same-date gate.
     try {
       const fn = G.restoreDraft.toString();
-      check('restoreDraft: has savedDate guard to prevent stale draft restore',
-        fn.includes('savedDate') && fn.includes('_today'));
-      check('restoreDraft: restores extra sets from same-day draft (while-loop present)',
-        fn.includes('while(sr.children.length<td.kg.length)addSetToCard'));
+      check('restoreDraft: no same-date gate (an unsaved workout is kept until saved)',
+        !fn.includes("savedDate!==_today"));
+      check('restoreDraft: a workout already saved as a log never restores', fn.includes('d.savedLogId'));
+      check('restoreDraft: restores extra sets (bounded loop present)',
+        fn.includes('sr.children.length<td.kg.length&&_g<40;_g++)addSetToCard'));
     } catch(e) {
       check('restoreDraft draft-state (caught)', false, String(e));
     }
@@ -3323,7 +3388,7 @@ check('saveLog records started_at/ended_at/duration_min',
 check('duration_min spread into the saved log', /id:editId\|\|Date\.now\(\),\.\.\._timing\}/.test(rawScript));
 check('editing preserves original timing (no wipe)',
   /if\(editId\)\{var _origT=logs\.find/.test(rawScript));
-check('start time captured when first set logged', /_hasReps&&!_logStartedAt\)_logStartedAt=new Date/.test(rawScript));
+check('start time captured when first set logged', /if\(!_hasReps\)return;d\.updatedAt=Date\.now\(\);if\(!_logStartedAt\)_logStartedAt=new Date/.test(rawScript));
 check('duration shown in History list', /l\.duration_min!=null\?' · ⏱ '\+_fmtDur\(l\.duration_min\)/.test(rawScript));
 check('duration shown in session detail', /log\.duration_min!=null\)parts\.push\('⏱ '\+_fmtDur\(log\.duration_min\)\)/.test(rawScript));
 
@@ -5356,8 +5421,8 @@ console.log('\n── Swap keeps completed sets / blank-exercise save guard ─�
       fn.includes('_focusFirstIncompleteEx();return;'));
     check('saveLog names the blank exercises in the prompt',
       fn.includes('_blank.map(_exCardName)'));
-    check('saveLog asks before the overwrite/date prompts, not after the log is built',
-      fn.indexOf('_incompleteExCards()') < fn.indexOf('already saved. Overwrite it?'));
+    check('saveLog asks before the date prompt, not after the log is built',
+      fn.indexOf('_incompleteExCards()') < fn.indexOf('Save anyway?'));
   }
 }
 
@@ -5917,9 +5982,10 @@ console.log('\n── Editing a log keeps its own date ────────�
       pf.includes('restoreDraft(') &&
       String(G.restoreDraft || '').includes('dateEl.value=d.date'));
   }
-  // Why it mattered: saveLog finds the session to replace by date
-  check('saveLog still matches an existing session by date (why a wrong date could clobber one)',
-    String(G.saveLog || '').includes('l.date===date'));
+  // Why it mattered: saveLog used to find a session to replace by date. Since 2026-09-30
+  // (more than one session a day) it never does, so a wrong date can no longer clobber one.
+  check('saveLog no longer replaces a session by date (a wrong date cannot clobber one)',
+    !String(G.saveLog || '').includes('l.date===date'));
 
   delete _idStore['log-date']; delete _idStore['log-day']; delete _idStore['log-weight'];
 }
@@ -7129,8 +7195,10 @@ console.log('\n── Extending a program with a template ───────�
     !!G._programs[0].touchedAt);
   check('…persists to the BACKEND, not just localStorage',
     String(G.extendProgramWithTemplate).includes('savePrograms()'));
-  check('…drops the in-progress draft, whose cards no longer match the day',
-    String(G.extendProgramWithTemplate).includes('clearDraft()'));
+  // Superseded 2026-09-30 ("never deleted until the final Log is saved"): the draft is kept.
+  // It restores by exercise name, so logged sets land on the same exercises after extending.
+  check('…keeps the in-progress workout (never deleted until the log is saved)',
+    !String(G.extendProgramWithTemplate).includes('clearDraft()'));
   check('…and told the user how many days it landed on',
     /added to the front of 4 days/.test(alerts.join(' ')), alerts.join(' | '));
 
