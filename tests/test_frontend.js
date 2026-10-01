@@ -893,6 +893,75 @@ console.log('\n── Key functions ──────────────�
   check('no startup cleanup deletes same-date logs', !/workout_dedup_v1/.test(html) && !/dedup-dates/.test(html));
 })();
 
+// Henrik 2026-09-30: "Allow edit duration of a History log, when I added yesterday's it reads
+// that the workout took seconds". Tapping the duration in the session detail asks for h:mm or
+// minutes, keeps started_at, moves ended_at with it, and saves to the phone AND the backend.
+(function(){
+  check('duration input: h:mm', G._parseDurInput('1:15') === 75);
+  check('duration input: plain minutes', G._parseDurInput(' 90 ') === 90);
+  check('duration input: nonsense is refused', G._parseDurInput('1:75') === null && G._parseDurInput('abc') === null && G._parseDurInput('') === null);
+  globalThis.__uploadChecks = globalThis.__uploadChecks.then(function(){
+    const sv = {alert: G.alert, prompt: G.prompt, logs: G.logs}; const alerts = []; const posts = [];
+    G.alert = (m) => alerts.push(m);
+    G.logs = [{id: 555, date: '2026-09-29', day: '1', started_at: '2026-09-29T17:00:00.000Z', ended_at: '2026-09-29T17:00:05.000Z', duration_min: 0, exercises: []}];
+    G.prompt = () => '1:20';
+    const cur = G.fetch; G.fetch = async (u, o) => { posts.push(JSON.parse(o.body)); return {ok: true, status: 200}; };
+    const p = G.editLogDuration(555); G.fetch = cur;
+    return p.then(function(err){
+      const l = G.getData('workout_logs', []).find(x => x.id === 555) || {};
+      check('edited duration is stored on the phone', l.duration_min === 80, JSON.stringify(l));
+      check('…start kept, end moved with it', l.started_at === '2026-09-29T17:00:00.000Z' && l.ended_at === '2026-09-29T18:20:00.000Z', l.ended_at);
+      check('…and sent to the backend', err === '' && posts.length === 1 && posts[0].duration_min === 80 && posts[0].id === 555, JSON.stringify(posts));
+      G.prompt = () => 'soon';
+      return G.editLogDuration(555);
+    }).then(function(){
+      check('an invalid entry changes nothing and says why', G.logs[0].duration_min === 80 && alerts.filter(a => /like 1:15 or 75/.test(a)).length === 1, alerts.join('|'));
+      G.alert = sv.alert; G.prompt = sv.prompt; G.logs = sv.logs;
+    });
+  });
+})();
+
+// Henrik 2026-10-01: "when I start the pwa app yesterdays almost complete log is still in
+// progress even though it is saved in history". His 30 Sep log (started_at 10:56:08.410Z) was on
+// the backend; the draft of that same session came back. Draft requests were independent, so a
+// slow autosave PUT could land after the post-save DELETE. Now: a draft sharing a saved log's
+// start time IS that log and never restores, and draft requests go out strictly in order.
+(function(){
+  const st = '2026-09-30T10:56:08.410Z';
+  const d = { v: 2, day: '2', date: '2026-09-30', startedAt: st, updatedAt: 1, tmpl: { 'Pull-ups': { kg: ['85.2'], reps: ['12'] } }, custom: [] };
+  const sv = { logs: G.logs };
+  G.logs = [{ id: 1790769301363, date: '2026-09-30', day: 2, started_at: st, exercises: [] }];
+  G.setData('wkt-draft', d);
+  check('a draft whose session is already a saved log is not in progress', G._activeDraft() === null);
+  check('…and is recognised as that log', (G._draftLog(d) || {}).id === 1790769301363);
+  G.logs = [{ id: 5, date: '2026-09-30', day: 2, started_at: '2026-09-30T09:00:00.000Z', exercises: [] }];
+  check('a different session on the same day does not hide it', G._activeDraft() !== null);
+  check('a log with no start time never matches', G._draftLog(Object.assign({}, d, { startedAt: undefined })) === null);
+  G.logs = sv.logs; G.localStorage.removeItem('wkt-draft');
+  globalThis.__uploadChecks = globalThis.__uploadChecks.then(function(){
+    // Ordering: the first PUT is slow; the DELETE must not start until it has finished.
+    const seen = []; let release; const cur = G.fetch;
+    G.fetch = (u, o) => { seen.push(o.method + ':start'); if (o.method === 'PUT') return new Promise(r => { release = () => { seen.push('PUT:end'); r({ ok: true }); }; }); seen.push(o.method + ':end'); return Promise.resolve({ ok: true }); };
+    G._draftNet(d); const last = G._draftNet(null);
+    return new Promise(r => setTimeout(r, 5)).then(function(){
+      check('a later draft request waits for the earlier one', seen.join(',') === 'PUT:start', seen.join(','));
+      release(); return last;
+    }).then(function(){
+      check('…and then runs, in order', seen.join(',') === 'PUT:start,PUT:end,DELETE:start,DELETE:end', seen.join(','));
+      // The real case: the stale draft is on the phone, the log arrives from the backend.
+      const calls = [];
+      G.setData('wkt-draft', d);
+      const keep = { logs: G.logs, stored: G.getData('workout_logs', []) };
+      G.fetch = async (u, o) => { calls.push((o && o.method) || 'GET'); return (o && o.method) ? { ok: true } : { ok: true, json: async () => [{ id: 1790769301363, date: '2026-09-30', day: 2, started_at: st, exercises: [] }] }; };
+      const p = G.syncWorkoutLogsFromAgent(); G.fetch = cur;
+      return p.then(() => G._draftQ).then(function(){
+        check('the backend holding the saved session deletes the stale draft', G.getData('wkt-draft', null) === null && calls.indexOf('DELETE') >= 0, calls.join(','));
+        G.fetch = cur; G.logs = keep.logs; G.setData('workout_logs', keep.stored);
+      });
+    });
+  });
+})();
+
 // Henrik 2026-09-29: "make sure choices for cable gears and sets are on one line not
 // breaking". Every Log Workout card's control row (timer, ½ gear, 2× cable, DB, − set, + set)
 // is a .card-btn-row, and the stylesheet keeps that row from wrapping; its buttons shrink
@@ -3390,7 +3459,7 @@ check('editing preserves original timing (no wipe)',
   /if\(editId\)\{var _origT=logs\.find/.test(rawScript));
 check('start time captured when first set logged', /if\(!_hasReps\)return;d\.updatedAt=Date\.now\(\);if\(!_logStartedAt\)_logStartedAt=new Date/.test(rawScript));
 check('duration shown in History list', /l\.duration_min!=null\?' · ⏱ '\+_fmtDur\(l\.duration_min\)/.test(rawScript));
-check('duration shown in session detail', /log\.duration_min!=null\)parts\.push\('⏱ '\+_fmtDur\(log\.duration_min\)\)/.test(rawScript));
+check('duration shown in session detail (tappable to edit, 2026-09-30)', /parts\.push\('<span onclick="editLogDuration\('\+log\.id\+'\)"[^']*'\+\(log\.duration_min!=null\?_fmtDur\(log\.duration_min\)/.test(rawScript));
 
 // ── Deload toggle ─────────────────────────────────────────────────────────────
 console.log('\n── Deload toggle ──────────────────────────────────────────');
