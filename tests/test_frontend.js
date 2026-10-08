@@ -2808,8 +2808,12 @@ console.log('\n── prefillLog — WPU / reps / scheme label ─────�
   // 62a. WPU detector: _isWPU excludes WPU from isBodyweight
   check('prefillLog: _isWPU detector present',
     fn.includes('_isWPU') && fn.includes("weighted\\s*(pull|chin)"));
+  // The literal this pinned used to be (ex.kg===0||isBWExName(...))&&!_isWPU. The
+  // kg===0 half was the 2026-10-08 body-weight-as-dumbbell-weight bug, not part of
+  // what this check is for; the check's subject — the !_isWPU gate — is unchanged, and
+  // the dropped half is asserted gone by its own checks in the bodyweight section.
   check('prefillLog: isBodyweight excludes WPU (_isWPU gate)',
-    fn.includes('(ex.kg===0||isBWExName(ex._rehabOrig||ex.name))&&!_isWPU'));
+    fn.includes('isBWExName(ex._rehabOrig||ex.name)&&!_isWPU'));
 
   // 62b. Reps inputs are always empty (never pre-filled from template)
   check('prefillLog: repsVal is always empty string',
@@ -3974,8 +3978,11 @@ if (typeof G._swapResetWeights === 'function') {
     _saveFn.includes('if(kg>0&&reps>0)lastKg=kg'));
   check('saveLog never stores a bodyweight card\'s prefill as a template weight',
     /_bwCard/.test(_saveFn) && _saveFn.includes('lastKg!==null&&!_bwCard'));
+  // Was "isBWExName(ex.name))&&!_isWPU" — the closing paren belonged to the ex.kg===0
+  // disjunct that caused the 2026-10-08 body-weight-as-dumbbell-weight bug. The subject
+  // of this check, the name fallback, is now the whole test rather than half of it.
   check('the bodyweight test falls back to the name when the card is gone',
-    _saveFn.includes("isBWExName(ex.name))&&!_isWPU"));
+    _saveFn.includes("isBWExName(ex.name)&&!_isWPU"));
 }
 // The body-weight refill helpers must agree on the display unit — _refreshCardGearBtns wrote a
 // raw kg number into a lb field, and clearing on swap makes that path reachable every swap.
@@ -7349,6 +7356,97 @@ console.log('\n── Extending a program with a template ───────�
 
   G._programs = _savedProgs; G._activeProgramIndex = _savedActive;
   G.confirm = _savedConfirm; G.alert = _savedAlert;
+  }
+}
+
+// ── Section 99: kg:0 is "no weight set yet", never "bodyweight" ──────────────
+// Henrik 2026-10-08: "rear delt flys has my bodyweight as dumbbell weight?" — 85.2 kg
+// prefilled into all three boxes of a dumbbell exercise. prefillLog read ex.kg===0 as
+// "this is a bodyweight exercise" and filled in his body weight, but kg:0 is also what
+// every program-building path writes for an exercise whose weight has not been set yet.
+// Worse, it was self-sustaining: a bodyweight card is deliberately kept out of
+// template_weights_dayN by saveLog, so the correct weight could never be learned.
+console.log('\n── kg:0 is not a bodyweight signal ──────────────────────────');
+{
+  const prefillSrc = String(G.prefillLog || '');
+  const saveSrc    = String(G.saveLog || '');
+
+  check('prefillLog decides bodyweight by NAME, not by a zero weight',
+    prefillSrc.includes('isBWExName(ex._rehabOrig||ex.name)&&!_isWPU') &&
+    !prefillSrc.includes('ex.kg===0'), prefillSrc.slice(0, 0) || undefined);
+  check('saveLog’s no-card fallback decides the same way',
+    saveSrc.includes("_bwCard=_exCard?_exCard.dataset.bw==='1':(isBWExName(ex.name)&&!_isWPU)"));
+
+  // Nothing genuinely bodyweight loses its handling: every kg:0 exercise in the shipped
+  // day templates is recognised by name, which is why dropping the kg test is safe.
+  const tplBw = [];
+  Object.keys(G.DAY_TEMPLATES || {}).forEach(d => (G.DAY_TEMPLATES[d] || [])
+    .forEach(ex => { if (ex.kg === 0) tplBw.push(ex.name); }));
+  check('every kg:0 exercise in DAY_TEMPLATES is name-matched by isBWExName',
+    tplBw.length > 0 && tplBw.every(n => G.isBWExName(n)),
+    tplBw.filter(n => !G.isBWExName(n)).join(', '));
+
+  // …and the kg:0 that means "not set yet" is not mistaken for bodyweight.
+  check('an exercise added in the program editor is not bodyweight',
+    String(G._progAddEx || '').includes('kg:0') &&
+    !G.isBWExName('Rear Delt Fly') && !G.isBWExName(''));
+  check('an exercise copied from a template is not bodyweight',
+    (() => { const e = G._tplEx('Band Pull-Apart', '3×15', '15-15-15');
+             return e.kg === 0 && !G.isBWExName(e.name); })());
+  check('a real bodyweight exercise still is, however it was added',
+    ['Pull-ups', 'Pull-Up', 'Push-ups', 'Dips', 'Muscle-ups'].every(n => G.isBWExName(n)));
+  check('…and a weighted pull-up still is not',
+    !G.isBWExName('Weighted Pull-ups') && !G.isBWExName('Assisted Dips'));
+}
+
+// ── Section 100: Save never discards a workout in silence ────────────────────
+// Henrik 2026-10-08: "Yesterday's log isnt in history and is still half filled in in the
+// Log view. But I saved it yesterday after training." saveLog rebuilt the exercise list
+// from the ACTIVE program's day and, when that day was gone, returned with no alert and
+// no write — the only path out of saveLog that loses a finished workout without saying
+// so. dataset.logDay outlives the program it was prefilled from, so a null day with a
+// full form on screen is reachable: activating another program, removing a day, or a
+// program list arriving from the backend (which skips re-prefilling exactly because reps
+// are already entered). The cards hold everything a save needs.
+console.log('\n── Save never discards a workout in silence ─────────────────');
+{
+  const saveSrc = String(G.saveLog || '');
+  check('saveLog no longer returns on a missing program day',
+    !saveSrc.includes('if(!_saveDay)return'), saveSrc.slice(0, 0) || undefined);
+  check('…it falls back to the cards on screen',
+    saveSrc.includes('_cardsAsTemplate(container)'));
+  check('…and an empty form says so instead of doing nothing',
+    /Nothing to save/.test(saveSrc) && saveSrc.includes('alert('));
+
+  const HAVE = typeof G._cardsAsTemplate === 'function';
+  check('_cardsAsTemplate exists', HAVE);
+  if (HAVE) {
+    const card = (exIdx, tplName, swapped, custom) => ({
+      dataset: Object.assign({ exIdx: String(exIdx) },
+        tplName ? { tplName } : {}, swapped ? { swappedName: swapped } : {},
+        custom ? { custom: 'true' } : {}),
+      querySelector: () => null,
+    });
+    const box = cards => ({ querySelectorAll: () => cards });
+
+    const t1 = G._cardsAsTemplate(box([card(0, 'Squat'), card(1, 'Leg Press'), card(2, 'Calf Raises')]));
+    check('the cards on screen become the exercise list, in card order',
+      t1.length === 3 && t1.map(e => e.name).join('|') === 'Squat|Leg Press|Calf Raises',
+      JSON.stringify(t1));
+    check('…indexed by data-ex-idx, which is what saveLog reads inputs by',
+      (() => { const t = G._cardsAsTemplate(box([card(2, 'Third'), card(0, 'First')]));
+               return t[0].name === 'First' && t[2].name === 'Third'; })());
+    check('…a swapped card keeps the exercise actually performed',
+      G._cardsAsTemplate(box([card(0, 'Squat', 'Hack Squat')]))[0].name === 'Hack Squat');
+    check('…a gap never leaves a hole for the map to trip on',
+      (() => { const t = G._cardsAsTemplate(box([card(0, 'First'), card(2, 'Third')]));
+               return t.length === 3 && t.every(e => e && typeof e.name === 'string'); })());
+    check('…a nameless card still gets saved, under a placeholder',
+      (() => { const t = G._cardsAsTemplate(box([card(0)])); return t[0].name === 'Exercise 1'; })());
+    check('…no container means no exercises, not a crash',
+      G._cardsAsTemplate(null).length === 0);
+    check('…and the kg it reports is not mistaken for bodyweight',
+      G._cardsAsTemplate(box([card(0, 'Rear Delt Fly')]))[0].kg !== 0);
   }
 }
 
