@@ -1,5 +1,11 @@
 # Workout App — Claude Instructions
 
+## Answer first (Henrik, 2026-10-10)
+
+- **Answer first, then say what you will do before doing it** ("You're right. I'll answer first and say what I'm doing before I start."). A question gets its answer in the first lines, before any tool call. Before starting any work (a workflow, a PR, a deploy, waiting on CI), say in one line what you are about to do and why; never disappear into tool calls on a simple question.
+- **Every request carries context** (Henrik, 2026-10-10: "add context to requests so I have a clue what you are talking about"). When you ask Henrik to do or check something, say what it is for, where it fits in the overall task (step N of what), and what he should see when it worked. Never a bare instruction that assumes he remembers the thread.
+- **Every step Henrik must do comes with its commands, in the same message** (Henrik, 2026-10-10: "you must always provide detailed instructions and commands for stuff like this"). When a reply mentions anything he will have to do (merge, deploy, change a config, restart, check), give the full instructions and the exact, complete, copy-paste commands right there, saying which machine each runs on. Never "I'll give you the command when…" or "deploy as usual": he should never have to ask for the how.
+
 ## 🔒 PROD IS READ-ONLY — DO NOT TOUCH WITHOUT EXPLICIT PERMISSION
 This repo (`workout`) is **PRODUCTION**. Claude may read, inspect, and
 diagnose anything here freely (view files, check workflow runs, look at commit
