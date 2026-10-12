@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.json">
@@ -32,7 +32,7 @@
   #login-screen.hidden{display:none;}
   .login-logo{font-family:var(--font-display);font-size:36px;letter-spacing:3px;color:var(--accent);margin-bottom:8px;}
   .login-sub{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:48px;}
-  .header{padding:22px 20px 0;display:flex;align-items:flex-start;justify-content:space-between;}
+  .header{padding:calc(22px + env(safe-area-inset-top,0px)) 20px 0;display:flex;align-items:flex-start;justify-content:space-between;}
   .header-title{font-family:var(--font-display);font-size:34px;letter-spacing:3px;color:var(--accent);line-height:1;}
   .header-sub{font-size:13px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;display:flex;align-items:center;gap:5px;margin-top:3px;}
   .weight-badge{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;text-align:right;cursor:pointer;flex-shrink:0;margin-left:12px;}
@@ -80,8 +80,9 @@
   .log-date{font-size:14px;color:var(--muted);}
   .log-detail{font-size:15px;color:var(--text);font-weight:500;margin-top:2px;}
   .log-weight{font-family:var(--font-display);font-size:28px;color:var(--accent);}
-  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;padding:20px;overflow-y:auto;}
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;padding:20px;padding-top:calc(20px + env(safe-area-inset-top,0px));overflow-y:auto;}
   .modal-overlay.open{display:flex;align-items:flex-start;justify-content:center;}
+  #exSketchContent svg{max-width:100%;height:auto;display:block}
   .modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:480px;margin-top:20px;overflow:hidden;}
   .modal-header{background:var(--surface2);padding:16px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);}
   .modal-title{font-family:var(--font-display);font-size:22px;letter-spacing:1px;color:var(--accent2);}
@@ -145,7 +146,7 @@
   .tpl-desc{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.45;}
   .tpl-copy{background:var(--accent);color:#000;border:none;border-radius:7px;padding:7px 14px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;flex-shrink:0;}
   .prog-linkbtn{background:none;border:none;color:var(--accent);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;padding:8px 0;}
-  .prog-overlay{position:fixed;inset:0;background:var(--bg);z-index:300;display:flex;flex-direction:column;overflow:hidden;transform:translateX(100%);transition:transform 0.28s cubic-bezier(0.4,0,0.2,1);}
+  .prog-overlay{position:fixed;inset:0;background:var(--bg);z-index:300;display:flex;flex-direction:column;overflow:hidden;padding-top:env(safe-area-inset-top,0px);transform:translateX(100%);transition:transform 0.28s cubic-bezier(0.4,0,0.2,1);}
   .prog-overlay.open{transform:translateX(0);}
   .prog-header{display:flex;align-items:center;gap:10px;padding:18px 20px 14px;border-bottom:1px solid var(--border);flex-shrink:0;}
   .prog-title{font-family:var(--font-display);font-size:21px;letter-spacing:1px;color:var(--accent);flex:1;}
@@ -162,7 +163,7 @@
   .wiz-sub-card:active{border-color:var(--accent);}
   .wiz-day-card{border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;cursor:pointer;background:rgba(255,255,255,0.03);display:flex;align-items:center;justify-content:space-between;transition:border-color 0.15s;}
   .wiz-day-card:active{border-color:var(--accent);}
-  #onboarding-overlay{position:fixed;inset:0;background:var(--bg);z-index:10000;display:flex;flex-direction:column;overflow:hidden;}
+  #onboarding-overlay{position:fixed;inset:0;background:var(--bg);z-index:10000;display:flex;flex-direction:column;overflow:hidden;padding-top:env(safe-area-inset-top,0px);}
   #onboarding-overlay.hidden{display:none;}
   .ob-header{padding:20px 20px 0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
   .ob-dots{display:flex;gap:6px;align-items:center;}
@@ -188,10 +189,43 @@
   .s-chev{font-size:18px;color:var(--muted);transition:transform 0.2s;}
   .s-sec-hdr.open .s-chev{transform:rotate(180deg);}
   .s-sec-body.collapsed{display:none;}
-  /* Log Workout card controls (rest timer, gear toggles, DB, - set, + set) stay on ONE line
-     (Henrik 2026-09-29): tighter padding/font, and the buttons may shrink rather than wrap. */
-  .card-btn-row{flex-wrap:nowrap!important;gap:3px!important;}
-  .card-btn-row>button{white-space:nowrap;flex:0 1 auto;min-width:0;padding:4px 6px!important;font-size:11px!important;}
+  /* The iOS status bar is see-through (black-translucent): this strip keeps scrolled content from showing under the clock. */
+  body::before{content:'';position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:150;pointer-events:none;}
+  /* Log Workout (redesign 2026-10-12): name, ? and ⋯ on top; one plain prescription line; one row per set.
+     Yellow is for Save and the numbers you type; blue is help; green is a finished exercise. */
+  .ex-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 12px 10px;margin-bottom:10px;}
+  .ex-card.ex-done{border-color:#2f6b4a;}
+  .exc-head{display:flex;align-items:flex-start;gap:8px;}
+  .exc-name{flex:1;min-width:0;font-size:16px;font-weight:650;color:var(--text);line-height:1.3;padding-top:8px;}
+  .exc-head select{flex:1;min-width:0;font-size:16px;font-weight:600;}
+  .exc-more{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:8px;border:1px solid var(--border);background:none;color:var(--muted);font-size:20px;line-height:1;padding:0;cursor:pointer;flex-shrink:0;font-family:var(--font-ui);}
+  .exc-rx{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;font-size:13px;color:var(--muted);margin-top:4px;line-height:1.4;}
+  .exc-tag{font-size:11px;padding:1px 7px;}
+  .exc-gear{font-size:11px;font-weight:600;color:var(--text);border:1px solid var(--border-strong);border-radius:20px;padding:1px 7px;}
+  .exc-last{font-family:var(--font-mono);font-size:12px;color:var(--muted);margin-top:6px;}
+  .exc-gear[hidden],.exc-last[hidden],.set-bw[hidden]{display:none;}
+  .sets-row{display:grid;gap:6px;margin-top:10px;}
+  .set-row{display:grid;grid-template-columns:30px 1fr 1fr;gap:6px;align-items:center;}
+  .ex-card[data-load="none"] .set-row{grid-template-columns:30px 1fr;}
+  .set-n{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;}
+  input.set-in{height:40px;padding:0 6px;border:1px solid var(--border-strong);text-align:center;font-size:16px;font-weight:650;font-variant-numeric:tabular-nums;}
+  input.set-kg{color:var(--accent);}
+  input.set-reps{color:var(--text);}
+  input.set-in::placeholder{color:#8f897e;font-weight:400;}
+  .set-bw{height:40px;display:flex;align-items:center;justify-content:center;border:1px dashed var(--border-strong);border-radius:8px;font-size:13px;color:var(--muted);}
+  .card-btn-row{display:flex;justify-content:flex-end;gap:8px;margin-top:8px;}
+  .set-btn{background:none;border:1px solid var(--border);color:var(--text);font-size:14px;border-radius:8px;padding:6px 12px;cursor:pointer;font-family:var(--font-ui);}
+  .log-top{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;}
+  .log-top select{flex:1 1 100%;min-width:0;font-size:16px;font-weight:600;}
+  .log-top input[type="date"]{flex:0 0 150px;width:150px;font-size:15px;padding:7px 10px;}
+  .log-savebar{position:sticky;bottom:calc(72px + env(safe-area-inset-bottom,0px));z-index:5;margin:4px -16px -16px;padding:16px 16px 12px;background:linear-gradient(rgba(21,19,15,0),var(--surface) 26%);border-radius:0 0 12px 12px;}
+  #log-progress{text-align:center;font-size:12px;color:var(--muted);margin-top:6px;min-height:15px;}
+  .exm-row{display:flex;width:100%;align-items:center;justify-content:space-between;gap:10px;background:none;border:0;border-bottom:1px solid var(--border);border-radius:0;padding:13px 12px;color:var(--text);font-size:15px;text-align:left;cursor:pointer;font-family:var(--font-ui);}
+  .exm-row:last-child{border-bottom:0;}
+  .exm-row small{display:block;font-size:12px;color:var(--muted);margin-top:2px;}
+  .exm-danger{color:var(--danger);}
+  .exm-st{font-size:12px;font-weight:700;padding:3px 9px;border-radius:20px;border:1px solid var(--border-strong);color:var(--muted);flex-shrink:0;}
+  .exm-st.on{background:var(--accent);color:#000;border-color:var(--accent);}
 </style>
 </head>
 <body class="login-locked">
@@ -204,24 +238,12 @@
 <div class="header">
   <div>
     <div class="header-title">HENRIK'S TRAINING</div>
-    <div class="header-sub"><span style="color:var(--accent);font-weight:600" id="header-version"></span></div>
+    <div class="header-sub"><span style="color:var(--muted);font-weight:600" id="header-version"></span></div>
   </div>
   <div class="weight-badge" onclick="showWeightModal()">
     <div class="val" id="currentWeight">—</div>
     <div class="lbl" id="hdr-unit-lbl">kg today</div>
   </div>
-</div>
-<!-- Rest timer bar — fixed above nav, hidden until started -->
-<div id="rest-timer-bar" style="display:none;position:fixed;bottom:calc(64px + env(safe-area-inset-bottom,0px));left:0;right:0;background:var(--surface);border-top:2px solid var(--accent);padding:10px 16px;z-index:300;align-items:center;gap:10px;">
-  <div style="display:flex;gap:6px;flex:1">
-    <button onclick="startRest(60)"  style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);font-size:12px;font-weight:600;border-radius:6px;padding:7px 10px;cursor:pointer;font-family:var(--font-ui);flex:1;">60s</button>
-    <button onclick="startRest(90)"  style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);font-size:12px;font-weight:600;border-radius:6px;padding:7px 10px;cursor:pointer;font-family:var(--font-ui);flex:1;">90s</button>
-    <button onclick="startRest(120)" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);font-size:12px;font-weight:600;border-radius:6px;padding:7px 10px;cursor:pointer;font-family:var(--font-ui);flex:1;">2m</button>
-    <button onclick="startRest(180)" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);font-size:12px;font-weight:600;border-radius:6px;padding:7px 10px;cursor:pointer;font-family:var(--font-ui);flex:1;">3m</button>
-    <button onclick="startRest(300)" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);font-size:12px;font-weight:600;border-radius:6px;padding:7px 10px;cursor:pointer;font-family:var(--font-ui);flex:1;">5m</button>
-  </div>
-  <div id="rest-timer-display" style="font-family:var(--font-display);font-size:30px;color:var(--accent);line-height:1;min-width:52px;text-align:center"></div>
-  <button onclick="cancelRest()" style="background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;line-height:1;padding:0 4px;">×</button>
 </div>
 <div class="tabs" id="subtabs" style="display:none">
   <button class="tab active" id="tab-btn-program" onclick="showPage('program')">Program</button>
@@ -240,11 +262,8 @@
   <div class="page" id="page-log">
     <div class="log-form">
       <input type="hidden" id="log-edit-id" value="">
-      <div class="form-label">Date</div>
-      <div class="form-row"><div class="form-group"><input type="date" id="log-date"></div></div>
-      <div class="form-label">Day</div>
-      <div class="form-row"><div class="form-group">
-        <select id="log-day" onchange="prefillLog(this.value)">
+      <div class="log-top">
+        <select id="log-day" aria-label="Day" onchange="prefillLog(this.value)">
           <option value="1">Day 1 — Lower Strength</option>
           <option value="2">Day 2 — Pull</option>
           <option value="3">Day 3 — Push</option>
@@ -252,12 +271,10 @@
           <option value="5">Day 5 — Upper Full</option>
           <option value="6">Full Body</option>
         </select>
-      </div></div>
-      <div id="structured-log"></div>
-      <div style="margin-top:12px"><button class="btn btn-primary" onclick="saveLog()">SAVE WORKOUT</button></div>
-      <div style="margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px">
-        <button onclick="showRestTimer()" style="background:none;border:1px solid var(--border);color:var(--muted);font-size:12px;font-weight:600;border-radius:6px;padding:8px 16px;cursor:pointer;font-family:var(--font-ui);letter-spacing:0.5px;">⏱ REST TIMER</button>
+        <input type="date" id="log-date" aria-label="Date">
       </div>
+      <div id="structured-log"></div>
+      <div class="log-savebar"><button class="btn btn-primary" onclick="saveLog()">SAVE WORKOUT</button><div id="log-progress"></div></div>
     </div>
   </div>
   <div class="page" id="page-history">
@@ -445,6 +462,18 @@
       <input type="text" inputmode="decimal" id="weight-input" placeholder="93.0" style="margin-bottom:16px">
       <button class="btn btn-primary" onclick="saveWeight()">SAVE</button>
     </div>
+  </div>
+</div>
+<div class="modal-overlay" id="exMenuModal" style="z-index:500">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title" id="exMenuTitle">EXERCISE</div><button class="modal-close" onclick="closeModal('exMenuModal')">×</button></div>
+    <div class="modal-body" id="exMenuBody" style="padding:4px 8px 8px"></div>
+  </div>
+</div>
+<div class="modal-overlay" id="exSketchModal" style="z-index:500">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title" id="exSketchTitle">EXERCISE</div><button class="modal-close" onclick="closeModal('exSketchModal')">×</button></div>
+    <div class="modal-body" id="exSketchContent" style="max-height:75vh;overflow-y:auto;padding:16px 16px 20px"></div>
   </div>
 </div>
 <div class="modal-overlay" id="logDetailModal">
@@ -1099,7 +1128,7 @@ function _dayTplBannerHtml(day,prog){
     '<div style="font-size:11px;color:var(--muted);margin-top:3px;line-height:1.5;">This day starts with '+first.length+' exercise'+(first.length!==1?'s':'')+' from the <b>'+_escP(t?t.name:'template')+'</b> template, not from '+_escP((prog&&prog.name)||'this program')+': '+_escP(names)+'</div>'+
     '</div>';
 }
-function renderWorkout(num){var day=getActiveProgramDay(num);if(!day)return;var prog=getActiveProgram();var tc={strength:'tag-strength',volume:'tag-volume',rehab:'tag-rehab'};var tl={strength:'Strength',volume:'Volume',rehab:'🔧 Rehab'};var savedW=getData('template_weights_day'+num,{});var restLabel=getProgramRest(prog);var html='<div class="workout-detail">'+_deloadBannerHtml()+_dayTplBannerHtml(day,prog)+'<div class="workout-header"><div><div class="workout-title">'+day.name+'</div><div style="font-size:11px;color:var(--muted);margin-top:2px">⏱ '+restLabel+'</div></div>'+'</div>';var effExs=_applyRehabSubs(day.exercises,prog);effExs.forEach(function(ex){var lastKg=savedW[ex.name];if((lastKg==null||lastKg===0)&&ex._rehabOrig)lastKg=savedW[ex._rehabOrig];if((lastKg==null||lastKg===0)&&logs.length){var _fl=getBestKgFromLogs(ex.name)||(ex._rehabOrig?getBestKgFromLogs(ex._rehabOrig):null);if(_fl)lastKg=_fl;}if(_deloadActive&&lastKg>0){lastKg=_deloadKg(lastKg);if(isBarbellEx(ex.name))lastKg=roundBarbellKg(lastKg);}var kgStr=lastKg!=null&&lastKg>0?'<span style="color:var(--accent);font-weight:600;margin-left:6px">'+kgToUnit(lastKg)+unitLabel()+'</span>':'';var nameHtml=_escP(ex.name)+(ex._rehabOrig?'<span style="color:#ff9b3c;font-size:10px;margin-left:6px" title="Rehab sub for '+_escP(ex._rehabOrig)+'">↺ rehab</span>':'')+_tplChipHtml(ex);html+='<div class="exercise-row"><div class="ex-info"><div class="ex-name">'+nameHtml+'</div><div class="ex-scheme">'+_escP(_deloadActive?_deloadScheme(ex.scheme)+' · deload':ex.scheme)+kgStr+'</div></div><span class="ex-tag '+(tc[ex.tag]||'tag-volume')+'">'+(tl[ex.tag]||ex.tag)+'</span></div>';});html+='</div>';document.getElementById('workout-display').innerHTML=html;}
+function renderWorkout(num){var day=getActiveProgramDay(num);if(!day)return;var prog=getActiveProgram();var tc={strength:'tag-strength',volume:'tag-volume',rehab:'tag-rehab'};var tl={strength:'Strength',volume:'Volume',rehab:'🔧 Rehab'};var savedW=getData('template_weights_day'+num,{});var restLabel=getProgramRest(prog);var html='<div class="workout-detail">'+_deloadBannerHtml()+_dayTplBannerHtml(day,prog)+'<div class="workout-header"><div><div class="workout-title">'+day.name+'</div><div style="font-size:11px;color:var(--muted);margin-top:2px">⏱ '+restLabel+'</div></div>'+'</div>';var effExs=_applyRehabSubs(day.exercises,prog);effExs.forEach(function(ex){var lastKg=savedW[ex.name];if((lastKg==null||lastKg===0)&&ex._rehabOrig)lastKg=savedW[ex._rehabOrig];if((lastKg==null||lastKg===0)&&logs.length){var _fl=getBestKgFromLogs(ex.name)||(ex._rehabOrig?getBestKgFromLogs(ex._rehabOrig):null);if(_fl)lastKg=_fl;}if(_deloadActive&&lastKg>0){lastKg=_deloadKg(lastKg);if(isBarbellEx(ex.name))lastKg=roundBarbellKg(lastKg);}var kgStr=lastKg!=null&&lastKg>0?'<span style="color:var(--accent);font-weight:600;margin-left:6px">'+kgToUnit(lastKg)+unitLabel()+'</span>':'';var nameHtml=_escP(ex.name)+(ex._rehabOrig?'<span style="color:#ff9b3c;font-size:10px;margin-left:6px" title="Rehab sub for '+_escP(ex._rehabOrig)+'">↺ rehab</span>':'')+_tplChipHtml(ex);html+='<div class="exercise-row"><div class="ex-info"><div class="ex-name">'+nameHtml+'</div><div class="ex-scheme">'+_escP(_deloadActive?_deloadScheme(ex.scheme)+' · deload':ex.scheme)+kgStr+'</div></div><div style="display:flex;align-items:center;gap:8px;flex-shrink:0"><span class="ex-tag '+(tc[ex.tag]||'tag-volume')+'">'+(tl[ex.tag]||ex.tag)+'</span>'+_exSketchBtnHtml('_openExSketch('+JSON.stringify(ex.name)+')')+'</div></div>';});html+='</div>';document.getElementById('workout-display').innerHTML=html;}
 var _lsDbgKeys=[];
 // Built with DOM nodes and textContent, never innerHTML: every value here is an
 // exception message or a URL — exactly the untrusted-text-into-HTML shape CodeQL
@@ -1605,7 +1634,7 @@ function _renderProgOverlay(){
     day.exercises.forEach(function(ex,ei){
       html+='<div style="border-bottom:1px solid var(--border);padding:10px 0;'+(_isTplEx(ex)?'border-left:2px solid #7cc4ff;padding-left:8px;':'')+'">';
       if(_isTplEx(ex))html+='<div style="font-size:10px;font-weight:700;color:#7cc4ff;letter-spacing:0.5px;margin-bottom:4px;">\u26a1 '+_escP(ex._tplDay||'From template')+'</div>';
-      html+=_exOpts(di,ei,ex.name);
+      html+='<div style="display:flex;align-items:center;gap:8px;"><div style="flex:1;min-width:0;">'+_exOpts(di,ei,ex.name)+'</div>'+_exSketchBtnHtml('_openExSketch(_progEditBuf.days['+di+'].exercises['+ei+'].name)')+'</div>';
       html+='<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;align-items:center;">';
       html+='<input type="text" id="prog-scheme-'+di+'-'+ei+'" value="'+_escP(ex.scheme)+'" oninput="_progEditBuf.days['+di+'].exercises['+ei+'].scheme=this.value" placeholder="Scheme e.g. 5×5" style="flex:1;min-width:0;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-size:11px;font-family:var(--font-ui);outline:none;">';
       html+=_progSetsSelects(di,ei,ex.sets);
@@ -2431,7 +2460,7 @@ function _setGearBtnActive(btn,active){btn.style.background=active?'var(--accent
 function toggleGear(btn,exName){const card=btn.closest('.ex-card');const cur=parseFloat(card.dataset.gearHalf)||1;const next=cur===0.5?1:0.5;card.dataset.gearHalf=next;btn.dataset.gear=next;_setGearBtnActive(btn,next===0.5);localStorage.setItem('wk-gear-'+(exName||btn.dataset.exn),next);_pushGearSettings('wk-gear-','wo_gear_toggles');card.dataset.gear=_cardGearProduct(card);}
 function toggleGear2(btn,exName){const card=btn.closest('.ex-card');const cur=parseFloat(card.dataset.gear2x)||1;const next=cur===2?1:2;card.dataset.gear2x=next;btn.dataset.gear2=next;_setGearBtnActive(btn,next===2);localStorage.setItem('wk-cable2-'+(exName||btn.dataset.exn),next);_pushGearSettings('wk-cable2-','wo_cable2_toggles');card.dataset.gear=_cardGearProduct(card);}
 function _gearBtnStyle(active){return 'background:'+(active?'var(--accent)':'var(--surface2)')+';color:'+(active?'#000':'var(--muted)')+';border:1px solid var(--border);font-size:12px;border-radius:6px;padding:4px 10px;cursor:pointer;font-family:var(--font-ui);';}
-function _gearBtnsHtml(name,half,two,db){var h='';if(isCableEx(name)){h+='<button onclick="toggleGear(this,this.dataset.exn)" data-exn="'+name+'" data-gear="'+half+'" title="Machine gearing: listed weight is half the actual load" style="'+_gearBtnStyle(half===0.5)+'">\u00bd gear</button>';h+='<button onclick="toggleGear2(this,this.dataset.exn)" data-exn="'+name+'" data-gear2="'+two+'" title="Using two cable stacks \u2014 entered weight counts double" style="'+_gearBtnStyle(two===2)+'">2\u00d7 cable</button>';}if(isPressEx(name)){h+='<button onclick="toggleDb(this,this.dataset.exn)" data-exn="'+name+'" data-db="'+db+'" title="Two dumbbells \u2014 entered weight counts double" style="'+_gearBtnStyle(db===2)+'">DB</button>';}return h;}
+function _gearBtnsHtml(name,half,two,db){var h='';if(_isUnloadedEx(name)||isBWExName(name))return h;if(isCableEx(name)){h+='<button onclick="toggleGear(this,this.dataset.exn)" data-exn="'+name+'" data-gear="'+half+'" title="Machine gearing: listed weight is half the actual load" style="'+_gearBtnStyle(half===0.5)+'">\u00bd gear</button>';h+='<button onclick="toggleGear2(this,this.dataset.exn)" data-exn="'+name+'" data-gear2="'+two+'" title="Using two cable stacks \u2014 entered weight counts double" style="'+_gearBtnStyle(two===2)+'">2\u00d7 cable</button>';}if(isPressEx(name)){h+='<button onclick="toggleDb(this,this.dataset.exn)" data-exn="'+name+'" data-db="'+db+'" title="Two dumbbells \u2014 entered weight counts double" style="'+_gearBtnStyle(db===2)+'">DB</button>';}return h;}
 function _savedGearState(name){var half=1,two=1,db=1;if(isCableEx(name)){var _g=parseFloat(localStorage.getItem('wk-gear-'+name));if(_g===0.5)half=0.5;var _t=parseFloat(localStorage.getItem('wk-cable2-'+name));if(_t===2||_g===2)two=2;}if(isPressEx(name)){if(parseFloat(localStorage.getItem('wk-db-'+name))===2)db=2;}return{half:half,two:two,db:db};}
 // A swapped card must never carry the PREVIOUS exercise's weight (2026-08-08). This is what
 // let body weight follow a card onto a loaded lift: the kg boxes on a bodyweight card are
@@ -2442,9 +2471,9 @@ function _savedGearState(name){var half=1,two=1,db=1;if(isCableEx(name)){var _g=
 // data-bw is re-derived from the NEW name so _refreshBWPrefill stops topping the card up with
 // body weight too; _refreshCardGearBtns runs straight after and re-fills body weight only when
 // the new exercise really is a bodyweight one.
-function _swapResetWeights(card,name){if(!card)return;card.querySelectorAll('input[data-type="kg"]').forEach(function(inp){inp.value='';});if(isBWExName(name))card.dataset.bw='1';else delete card.dataset.bw;}
-function _refreshCardGearBtns(card,name){if(!card||!name)return;card.querySelectorAll('[data-gear],[data-gear2],[data-db]').forEach(function(b){b.remove();});var st=_savedGearState(name);card.dataset.gearHalf=st.half;card.dataset.gear2x=st.two;card.dataset.db=st.db;card.dataset.gear=st.half*st.two*st.db;var row=card.querySelector('.card-btn-row');if(row&&row.firstElementChild)row.firstElementChild.insertAdjacentHTML('afterend',_gearBtnsHtml(name,st.half,st.two,st.db));if(isBWExName(name)&&weights.length){var _bw=weights[weights.length-1].weight;card.querySelectorAll('input[data-type="kg"]').forEach(function(inp){if(inp.value==='')inp.value=kgToUnit(_bw);});}}
-function onCustomExPicked(sel){var card=sel.closest('.ex-card');_clearAutoPrefill(card);_refreshCardGearBtns(card,sel.value);_prefillKgFromHistory(card,sel.value);}
+function _swapResetWeights(card,name){if(!card)return;card.querySelectorAll('input[data-type="kg"]').forEach(function(inp){inp.value='';});if(isBWExName(name))card.dataset.bw='1';else delete card.dataset.bw;_applyLoadMode(card,name);}
+function _refreshCardGearBtns(card,name){if(!card||!name)return;card.querySelectorAll('[data-gear],[data-gear2],[data-db]').forEach(function(b){b.remove();});var st=_savedGearState(name);card.dataset.gearHalf=st.half;card.dataset.gear2x=st.two;card.dataset.db=st.db;card.dataset.gear=st.half*st.two*st.db;var slot=card.querySelector('.gear-slot');if(slot)slot.insertAdjacentHTML('beforeend',_gearBtnsHtml(name,st.half,st.two,st.db));_renderGearChip(card);if(isBWExName(name)&&weights.length){var _bw=weights[weights.length-1].weight;card.querySelectorAll('input[data-type="kg"]').forEach(function(inp){if(inp.value==='')inp.value=kgToUnit(_bw);});}}
+function onCustomExPicked(sel){var card=sel.closest('.ex-card');_clearAutoPrefill(card);_applyLoadMode(card,sel.value);_refreshCardGearBtns(card,sel.value);_prefillKgFromHistory(card,sel.value);}
 function toggleDb(btn,exName){const card=btn.closest('.ex-card');const cur=parseFloat(card.dataset.db)||parseFloat(btn.dataset.db)||1;const next=cur===1?2:1;card.dataset.db=next;btn.dataset.db=next;btn.textContent='DB';_setGearBtnActive(btn,next===2);localStorage.setItem('wk-db-'+(exName||btn.dataset.exn),next);_pushGearSettings('wk-db-','wo_db_toggles');card.dataset.gear=_cardGearProduct(card);}
 let _draftTimer=null;
 let _logStartedAt=null;
@@ -2701,9 +2730,9 @@ function _prefillKgFromHistory(card,name){if(!card||!name)return;if(isBWExName(n
 // left out of template_weights_dayN by saveLog, so the real weight could never be
 // learned and overwrite it. Every genuine bodyweight entry in the shipped programs
 // (Pull-ups, Push-ups, Dips) is matched by name, so nothing loses its BW handling.
-function prefillLog(day){var _di=getActiveProgramDay(parseInt(day));if(!_di)return;_logStartedAt=null;var tmpl=_applyRehabSubs(_di.exercises,getActiveProgram());const saved=getData('template_weights_day'+day,{});const container=document.getElementById('structured-log');if(!container)return;container.innerHTML='';container.dataset.logDay=String(day);container.dataset.deload=_deloadActive?'1':'0';container.dataset.unit=unitLabel();tmpl.forEach((ex,exIdx)=>{const _isWPU=/weighted\s*(pull|chin)/i.test(ex._rehabOrig||ex.name);const isBodyweight=isBWExName(ex._rehabOrig||ex.name)&&!_isWPU;const bwDefault=weights.length?weights[weights.length-1].weight:'';const histKg=getBestKgFromLogs(ex.name)||(ex._rehabOrig?getBestKgFromLogs(ex._rehabOrig):null);const origSaved=ex._rehabOrig?saved[ex._rehabOrig]:undefined;let lastKg=isBodyweight?bwDefault:(saved[ex.name]!==undefined?saved[ex.name]:(origSaved!==undefined?origSaved:(histKg!==null?histKg:ex.kg)));if(_deloadActive&&!isBodyweight&&lastKg>0){lastKg=_deloadKg(lastKg);if(isBarbellEx(ex.name))lastKg=roundBarbellKg(lastKg);}const repsArr=(_deloadActive?_deloadSets(ex.sets):ex.sets).split('-');const card=document.createElement('div');card.className='ex-card';card.dataset.exIdx=exIdx;card.dataset.tplName=ex.name;if(isBodyweight)card.dataset.bw='1';const _gst=_savedGearState(ex.name);card.dataset.gearHalf=_gst.half;card.dataset.gear2x=_gst.two;card.dataset.db=_gst.db;card.dataset.gear=_gst.half*_gst.two*_gst.db;const gearBtnHtml=_gearBtnsHtml(ex.name,_gst.half,_gst.two,_gst.db);const dbBtnHtml='';const _restSecs=restSecsForTag(ex.tag);const _restLabel='⏱ '+Math.floor(_restSecs/60)+((_restSecs%60)<10?':0':':')+(_restSecs%60);const _timerBtnHtml='<button onclick="startRest('+_restSecs+')" style="background:none;border:1px solid var(--border);color:var(--accent);font-size:14px;font-weight:600;border-radius:6px;padding:4px 10px;cursor:pointer;font-family:var(--font-ui);margin-right:auto;">'+_restLabel+'</button>';card.style.cssText='background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px;';let setsHtml=repsArr.map((r,i)=>{const repsVal='';const kgVal=(lastKg&&Number(lastKg)>0)?kgToUnit(lastKg):(lastKg||'');return '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;min-width:38px;"><div style="font-size:10px;color:var(--muted)">S'+(i+1)+'</div>'+('<input type="text" inputmode="decimal" value="'+kgVal+'" placeholder="'+unitLabel()+'" data-ex="'+exIdx+'" data-set="'+i+'" data-type="kg" oninput="propagateWeight(this)" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 2px;color:var(--accent);font-weight:600;text-align:center;font-size:13px;outline:none;">')+'<input type="text" inputmode="numeric" pattern="[0-9]*" value="'+repsVal+'" placeholder="reps" data-ex="'+exIdx+'" data-set="'+i+'" data-type="reps" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 2px;color:var(--text);text-align:center;font-size:12px;outline:none;"></div>';}).join('');card.innerHTML='<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div style="font-size:14px;font-weight:600;color:var(--text)" data-ex-name="1">'+ex.name+(ex._rehabOrig?'<span style="color:#ff9b3c;font-size:10px;margin-left:5px" title="Rehab sub for '+ex._rehabOrig+'">↺</span>':'')+_tplChipHtml(ex)+(_isWPU?'<span data-bw-chip="1" style="color:var(--muted);font-size:11px;font-weight:400;margin-left:6px" title="Body weight is included automatically — enter added weight only">'+(bwDefault?'+ '+kgToUnit(bwDefault)+' '+unitLabel()+' BW':'+ BW')+'</span>':'')+'</div><div style="display:flex;align-items:center;gap:8px"><button onclick="swapExercise(this)" title="Swap exercise" style="background:none;border:1px solid var(--border);color:var(--muted);font-size:11px;border-radius:6px;padding:2px 6px;cursor:pointer;font-family:var(--font-ui);line-height:1.4">⇄</button><button onclick="removeExCard(this)" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:0;line-height:1;opacity:0.6">×</button></div></div><div style="font-size:13px;color:var(--accent);margin-top:2px">'+(_deloadActive?_deloadSets(ex.sets):ex.sets)+'</div></div><div class="sets-row" style="display:flex;flex-wrap:nowrap;gap:4px;overflow-x:auto;">'+setsHtml+'</div><div class="card-btn-row" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">'+ _timerBtnHtml + gearBtnHtml + dbBtnHtml +'<button onclick="removeSet(this)" style="background:none;border:1px solid var(--border);color:var(--text);font-size:14px;border-radius:6px;padding:4px 10px;cursor:pointer;font-family:var(--font-ui);">− set</button><button onclick="addSet(this)" style="background:none;border:1px solid var(--border);color:var(--text);font-size:14px;border-radius:6px;padding:4px 10px;cursor:pointer;font-family:var(--font-ui);">+ set</button></div>';container.appendChild(card);});const addBtn=document.createElement('button');addBtn.className='add-ex-btn btn';addBtn.textContent='+ ADD EXERCISE';addBtn.style.cssText='width:100%;margin-top:4px;background:var(--surface2);color:var(--muted);border:1px solid var(--border);';addBtn.onclick=function(){addCustomExercise();};container.appendChild(addBtn);var _lwInput=document.getElementById('log-weight');if(_lwInput&&!_lwInput.value&&weights.length)_lwInput.value=kgToUnit(weights[weights.length-1].weight);document.getElementById('log-date').value=new Date().toISOString().split('T')[0];restoreDraft(day);container.oninput=scheduleDraft;saveDraft();}
+function prefillLog(day){var _di=getActiveProgramDay(parseInt(day));if(!_di)return;_logStartedAt=null;var tmpl=_applyRehabSubs(_di.exercises,getActiveProgram());const saved=getData('template_weights_day'+day,{});const container=document.getElementById('structured-log');if(!container)return;container.innerHTML='';container.dataset.logDay=String(day);container.dataset.deload=_deloadActive?'1':'0';container.dataset.unit=unitLabel();tmpl.forEach((ex,exIdx)=>{const _isWPU=/weighted\s*(pull|chin)/i.test(ex._rehabOrig||ex.name);const isBodyweight=isBWExName(ex._rehabOrig||ex.name)&&!_isWPU;const bwDefault=weights.length?weights[weights.length-1].weight:'';const histKg=getBestKgFromLogs(ex.name)||(ex._rehabOrig?getBestKgFromLogs(ex._rehabOrig):null);const origSaved=ex._rehabOrig?saved[ex._rehabOrig]:undefined;let lastKg=isBodyweight?bwDefault:(saved[ex.name]!==undefined?saved[ex.name]:(origSaved!==undefined?origSaved:(histKg!==null?histKg:ex.kg)));if(_deloadActive&&!isBodyweight&&lastKg>0){lastKg=_deloadKg(lastKg);if(isBarbellEx(ex.name))lastKg=roundBarbellKg(lastKg);}const repsArr=(_deloadActive?_deloadSets(ex.sets):ex.sets).split('-');const card=document.createElement('div');card.className='ex-card';card.dataset.exIdx=exIdx;card.dataset.tplName=ex.name;if(isBodyweight)card.dataset.bw='1';const _gst=_savedGearState(ex.name);card.dataset.gearHalf=_gst.half;card.dataset.gear2x=_gst.two;card.dataset.db=_gst.db;card.dataset.gear=_gst.half*_gst.two*_gst.db;const gearBtnHtml=_gearBtnsHtml(ex.name,_gst.half,_gst.two,_gst.db);const dbBtnHtml='';const _mode=_loadMode(ex._rehabOrig||ex.name,isBodyweight);card.dataset.load=_mode;const _kgVal=(lastKg&&Number(lastKg)>0)?kgToUnit(lastKg):(lastKg||'');let setsHtml=repsArr.map((r,i)=>'<div class="set-row">'+_setRowInner(i,' data-ex="'+exIdx+'" data-set="'+i+'"',_kgVal,_mode)+'</div>').join('');const _rx=_deloadActive?_deloadScheme(ex.scheme||ex.sets)+' · deload':(ex.scheme||ex.sets);card.innerHTML='<div class="exc-head"><div class="exc-name" data-ex-name="1">'+_escP(ex.name)+(ex._rehabOrig?'<span style="color:#ff9b3c;font-size:11px;margin-left:5px" title="Rehab sub for '+_escP(ex._rehabOrig)+'">↺</span>':'')+_tplChipHtml(ex)+(_isWPU?'<span data-bw-chip="1" style="color:var(--muted);font-size:12px;font-weight:400;margin-left:6px" title="Body weight is included automatically — enter added weight only">'+(bwDefault?'+ '+kgToUnit(bwDefault)+' '+unitLabel()+' BW':'+ BW')+'</span>':'')+'</div>'+_EX_HELP_BTN+_EX_MORE_BTN+'</div>'+'<div class="exc-rx"><span>'+_escP(_rx)+'</span>'+_tagChipHtml(ex.tag)+'<span class="exc-gear" hidden></span></div>'+_lastTimeHtml(ex.name,_mode)+'<div class="sets-row">'+setsHtml+'</div>'+'<div class="card-btn-row"><span class="gear-slot" hidden>'+gearBtnHtml+dbBtnHtml+'</span><button class="set-btn" onclick="removeSet(this)">− set</button><button class="set-btn" onclick="addSet(this)">+ set</button></div>';_renderGearChip(card);container.appendChild(card);});const addBtn=document.createElement('button');addBtn.className='add-ex-btn btn';addBtn.textContent='+ ADD EXERCISE';addBtn.style.cssText='width:100%;margin-top:4px;background:var(--surface2);color:var(--muted);border:1px solid var(--border);';addBtn.onclick=function(){addCustomExercise();};container.appendChild(addBtn);var _lwInput=document.getElementById('log-weight');if(_lwInput&&!_lwInput.value&&weights.length)_lwInput.value=kgToUnit(weights[weights.length-1].weight);document.getElementById('log-date').value=new Date().toISOString().split('T')[0];restoreDraft(day);container.oninput=_onLogInput;saveDraft();_updateLogProgress();}
 
-function removeExCard(btn){btn.closest('.ex-card').remove();}
+function removeExCard(btn){btn.closest('.ex-card').remove();_updateLogProgress();}
 // ── Mid-workout exercise change — completed sets belong to the exercise that was
 // actually performed (2026-08-22). Swapping a card that already has finished sets
 // no longer renames it out from under them: the card keeps the sets that were
@@ -2740,7 +2769,7 @@ function _offerProgramSubstitution(card,newName){
   savePrograms();
   return true;
 }
-function swapExercise(btn){var card=btn.closest('.ex-card');var nameEl=card.querySelector('[data-ex-name]');if(!nameEl)return;var sel=document.createElement('select');sel.style.cssText='font-size:13px;font-weight:600;color:var(--text);background:var(--surface2);border:1px solid var(--accent);border-radius:6px;padding:4px 8px;outline:none;cursor:pointer;max-width:170px;';sel.innerHTML='<option value="">— pick replacement —</option>'+EX_OPTS_HTML;var par=nameEl.parentNode;par.replaceChild(sel,nameEl);sel.focus();sel.onchange=function(){if(!this.value)return;var _new=this.value;par.replaceChild(nameEl,sel);if(_cardHasCompletedSets(card)){var _left=_trimEmptySets(card);_addSwapCardAfter(card,_new,_left>0?_left:3);scheduleDraft();return;}nameEl.textContent=this.value;card.dataset.swappedName=this.value;_swapResetWeights(card,this.value);_refreshCardGearBtns(card,this.value);_prefillKgFromHistory(card,this.value);_offerProgramSubstitution(card,this.value);};sel.onblur=function(){setTimeout(function(){if(sel.parentNode)par.replaceChild(nameEl,sel);},200);};}function addSetToCard(card){var setsRow=card.querySelector('.sets-row');if(!setsRow)return;var n=setsRow.children.length+1;var exIdx=card.dataset.exIdx;var isCustom=card.dataset.custom==='true';var hasKg=setsRow.querySelector('input[data-type="kg"]')!==null;var lastKgInputs=setsRow.querySelectorAll('input[data-type="kg"]');var lastKg=lastKgInputs.length?lastKgInputs[lastKgInputs.length-1].value:'';var exAttr=(!isCustom&&exIdx!==undefined)?(' data-ex="'+exIdx+'" data-set="'+(n-1)+'"'):'';var div=document.createElement('div');div.style.cssText='display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;min-width:38px;';div.innerHTML='<div style="font-size:12px;color:var(--text)">S'+n+'</div>'+(hasKg?('<input type="text" inputmode="decimal" value="'+lastKg+'" placeholder="'+unitLabel()+'"'+exAttr+' data-type="kg" oninput="propagateWeight(this)" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 2px;color:var(--accent);font-weight:600;text-align:center;font-size:13px;outline:none;">'):'<div style="font-size:11px;color:var(--muted);padding:8px 0">BW</div>')+'<input type="text" inputmode="numeric" pattern="[0-9]*" placeholder="reps"'+exAttr+' data-type="reps" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 2px;color:var(--text);text-align:center;font-size:12px;outline:none;">';setsRow.appendChild(div);}function addSet(btn){addSetToCard(btn.closest('.ex-card'));}function removeSet(btn){var card=btn.closest('.ex-card');var setsRow=card.querySelector('.sets-row');if(setsRow&&setsRow.children.length>1)setsRow.removeChild(setsRow.lastElementChild);}function addCustomExercise(){var container=document.getElementById('structured-log');var card=document.createElement('div');card.className='ex-card';card.dataset.custom='true';card.style.cssText='background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px;';var s3='';for(var i=0;i<3;i++){s3+='<div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;min-width:52px;"><div style="font-size:12px;color:var(--text)">S'+(i+1)+'</div><input type="text" inputmode="decimal" placeholder="'+unitLabel()+'" data-type="kg" oninput="propagateWeight(this)" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 4px;color:var(--accent);font-weight:600;text-align:center;font-size:16px;outline:none;"><input type="text" inputmode="numeric" pattern="[0-9]*" placeholder="reps" data-type="reps" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 4px;color:var(--text);text-align:center;font-size:15px;outline:none;"></div>';}card.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><select data-custom-name="1" onchange="onCustomExPicked(this)" style="font-size:13px;font-weight:600;color:var(--text);background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;flex:1;outline:none;cursor:pointer;min-width:0;"><option value="">— pick exercise —</option>'+EX_OPTS_HTML+'</select><button onclick="removeExCard(this)" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:0 0 0 10px;line-height:1;opacity:0.6">×</button></div><div class="sets-row" style="display:flex;gap:6px;overflow-x:auto;">'+s3+'</div><div class="card-btn-row" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;"><button onclick="startRest(120)" style="background:none;border:1px solid var(--border);color:var(--accent);font-size:14px;font-weight:600;border-radius:6px;padding:4px 10px;cursor:pointer;font-family:var(--font-ui);margin-right:auto;">⏱ 2:00</button><button onclick="removeSet(this)" style="background:none;border:1px solid var(--border);color:var(--text);font-size:14px;border-radius:6px;padding:4px 10px;cursor:pointer;font-family:var(--font-ui);">− set</button><button onclick="addSet(this)" style="background:none;border:1px solid var(--border);color:var(--text);font-size:14px;border-radius:6px;padding:4px 10px;cursor:pointer;font-family:var(--font-ui);">+ set</button></div>';var addBtn=container.querySelector('.add-ex-btn');if(addBtn){container.insertBefore(card,addBtn);}else{container.appendChild(card);}}
+function swapExercise(btn){var card=btn.closest('.ex-card');var nameEl=card.querySelector('[data-ex-name]');if(!nameEl)return;var sel=document.createElement('select');sel.style.cssText='font-size:13px;font-weight:600;color:var(--text);background:var(--surface2);border:1px solid var(--accent);border-radius:6px;padding:4px 8px;outline:none;cursor:pointer;max-width:170px;';sel.innerHTML='<option value="">— pick replacement —</option>'+EX_OPTS_HTML;var par=nameEl.parentNode;par.replaceChild(sel,nameEl);sel.focus();sel.onchange=function(){if(!this.value)return;var _new=this.value;par.replaceChild(nameEl,sel);if(_cardHasCompletedSets(card)){var _left=_trimEmptySets(card);_addSwapCardAfter(card,_new,_left>0?_left:3);scheduleDraft();return;}nameEl.textContent=this.value;card.dataset.swappedName=this.value;_swapResetWeights(card,this.value);_refreshCardGearBtns(card,this.value);_prefillKgFromHistory(card,this.value);_offerProgramSubstitution(card,this.value);};sel.onblur=function(){setTimeout(function(){if(sel.parentNode)par.replaceChild(nameEl,sel);},200);};}function addSetToCard(card){var setsRow=card.querySelector('.sets-row');if(!setsRow)return;var n=setsRow.children.length;var exIdx=card.dataset.exIdx;var isCustom=card.dataset.custom==='true';var lastKgInputs=setsRow.querySelectorAll('input[data-type="kg"]');var lastKg=lastKgInputs.length?lastKgInputs[lastKgInputs.length-1].value:'';var exAttr=(!isCustom&&exIdx!==undefined)?(' data-ex="'+exIdx+'" data-set="'+n+'"'):'';var div=document.createElement('div');div.className='set-row';div.innerHTML=_setRowInner(n,exAttr,lastKg,card.dataset.load||'kg');setsRow.appendChild(div);_updateLogProgress();}function addSet(btn){addSetToCard(btn.closest('.ex-card'));}function removeSet(btn){var card=btn.closest('.ex-card');var setsRow=card.querySelector('.sets-row');if(setsRow&&setsRow.children.length>1)setsRow.removeChild(setsRow.lastElementChild);_updateLogProgress();}function addCustomExercise(){var container=document.getElementById('structured-log');var card=document.createElement('div');card.className='ex-card';card.dataset.custom='true';card.dataset.load='kg';var s3='';for(var i=0;i<3;i++)s3+='<div class="set-row">'+_setRowInner(i,'','','kg')+'</div>';card.innerHTML='<div class="exc-head"><select data-custom-name="1" onchange="onCustomExPicked(this)"><option value="">— pick exercise —</option>'+EX_OPTS_HTML+'</select>'+_EX_HELP_BTN+_EX_MORE_BTN+'</div>'+'<div class="exc-rx"><span class="exc-gear" hidden></span></div>'+_lastTimeHtml('','kg')+'<div class="sets-row">'+s3+'</div><div class="card-btn-row"><span class="gear-slot" hidden></span><button class="set-btn" onclick="removeSet(this)">− set</button><button class="set-btn" onclick="addSet(this)">+ set</button></div>';var addBtn=container.querySelector('.add-ex-btn');if(addBtn){container.insertBefore(card,addBtn);}else{container.appendChild(card);}_updateLogProgress();}
 // A finished workout is NEVER discarded because its program day went missing (Henrik,
 // 2026-10-08: "Yesterday's log isnt in history and is still half filled in in the Log
 // view. But I saved it yesterday after training."). saveLog rebuilt the exercise list
@@ -2887,6 +2916,596 @@ trtInjections.forEach(({date,trtType})=>{const xp=xd(date);if(xp<pad.l-2||xp>W-p
 ctx.beginPath();ctx.strokeStyle='#e8ff3c';ctx.lineWidth=2;ctx.lineJoin='round';recentWeights.forEach((w,i)=>i===0?ctx.moveTo(xd(w.date),y(w.weight)):ctx.lineTo(xd(w.date),y(w.weight)));ctx.stroke();
 // Dots + labels
 const step=Math.max(1,Math.floor(recentWeights.length/4));recentWeights.forEach((w,i)=>{ctx.beginPath();ctx.arc(xd(w.date),y(w.weight),4,0,Math.PI*2);ctx.fillStyle='#e8ff3c';ctx.fill();if(i===0||i===recentWeights.length-1||i%step===0){ctx.fillStyle='#555';ctx.font='9px -apple-system,sans-serif';ctx.textAlign='center';const lbl=new Date(w.date+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'});ctx.fillText(lbl,xd(w.date),H-4);}});}
+// ── Exercise sketches: stick figures, start → finish (source of truth; tools/sketches/page.js renders the review page from it) ──
+// ── Exercise sketches: a tiny 3D stick-figure rig drawn as SVG ──────────────────
+// x = forward, y = up, z = the figure's right. Angles in degrees: pitch p from straight
+// up (+90 forward, 180 down, -90 back), then abduction a out to the side.
+var SK_L={thigh:25,shank:25,foot:8,torso:30,neck:4,upper:17,fore:15,head:6,hipw:5,shw:10};
+var SK_C={fg:'#f2f2f2',dim:'#8d8d93',ac:'#e8ff3c',mu:'#5c5c62',head:'#151517'};
+function _skDv(p,a,s){p=p*Math.PI/180;a=(a||0)*Math.PI/180;return[Math.sin(p)*Math.cos(a),Math.cos(p)*Math.cos(a),s*Math.sin(a)];}
+function _skAd(P,v,l){return[P[0]+v[0]*l,P[1]+v[1]*l,P[2]+v[2]*l];}
+function _skSeg(Q,k,n){var v=Q[k+n]!==undefined?Q[k+n]:Q[k];return typeof v==='number'?[v,0]:v;}
+function skPose(Q){
+  var L=SK_L,J={},hip=[0,0,0];J.hip=hip;var t=_skDv(Q.torso||0,0,1);
+  J.sh=_skAd(hip,t,L.torso);var nv=_skDv(Q.neck!==undefined?Q.neck:(Q.torso||0),0,1);
+  J.neck=_skAd(J.sh,nv,L.neck);J.headc=_skAd(J.neck,nv,L.head);
+  [[1,'R'],[-1,'L']].forEach(function(sn){var s=sn[0],n=sn[1];
+    var h=[hip[0],hip[1],hip[2]+s*L.hipw];J['h'+n]=h;
+    var th=_skSeg(Q,'thigh',n),sh=_skSeg(Q,'shank',n),ft=_skSeg(Q,'foot',n);if(Q['foot'+n]===undefined&&Q.foot===undefined)ft=[90,Q.toeout||8];
+    J['k'+n]=_skAd(h,_skDv(th[0],th[1],s),L.thigh);J['a'+n]=_skAd(J['k'+n],_skDv(sh[0],sh[1],s),L.shank);
+    J['t'+n]=_skAd(J['a'+n],_skDv(ft[0],ft[1],s),L.foot);
+    var sp=J.sh;var shr=(Q.shrug||0);var s0=[sp[0],sp[1]+shr,sp[2]+s*L.shw];J['s'+n]=s0;
+    var up=_skSeg(Q,'upper',n),fo=_skSeg(Q,'fore',n);
+    J['e'+n]=_skAd(s0,_skDv(up[0],up[1],s),L.upper);J['w'+n]=_skAd(J['e'+n],_skDv(fo[0],fo[1],s),L.fore);});
+  return J;}
+function skMove(J,d){var o={};for(var k in J)o[k]=[J[k][0]+d[0],J[k][1]+d[1],J[k][2]+(d[2]||0)];return o;}
+function skAt(J,k,pt){return skMove(J,[pt[0]===null?0:pt[0]-J[k][0],pt[1]===null?0:pt[1]-J[k][1],0]);}
+function skMid(a,b){return[(a[0]+b[0])/2,(a[1]+b[1])/2,(a[2]+b[2])/2];}
+// Stand on the floor: lowest foot point to y=1.5.
+function skStand(J){var m=Math.min(J.aR[1],J.aL[1],J.tR[1],J.tL[1]);return skMove(J,[-(J.aR[0]+J.aL[0])/2,1.5-m,0]);}
+// Binary search one pose parameter so f(J)=0 (f increasing in the parameter).
+function skSolve(build,lo,hi,f){for(var i=0;i<70;i++){var m=(lo+hi)/2;if(f(build(m))>0)hi=m;else lo=m;}return build((lo+hi)/2);}
+var _SKP={side:function(p){return[p[0],p[1]];},front:function(p){return[-p[2],p[1]];},top:function(p){return[p[2],p[0]];}};
+function _skFigure(J,view){
+  var P=_SKP[view],o=[],B=[['h','k'],['k','a'],['a','t'],['s','e'],['e','w']];
+  var near=view==='front'?null:'R';
+  ['L','R'].forEach(function(n){var c=(view==='side'&&n==='L')?SK_C.dim:SK_C.fg;
+    B.forEach(function(b){o.push(['l',P(J[b[0]+n]),P(J[b[1]+n]),c,4]);});
+    o.push(['c',P(J['w'+n]),1.9,c,c,1]);});
+  o.push(['l',P(J.hip),P(J.sh),SK_C.fg,4.3]);
+  if(view!=='side'){o.push(['l',P(J.hL),P(J.hR),SK_C.fg,4]);o.push(['l',P(J.sL),P(J.sR),SK_C.fg,4]);}
+  o.push(['l',P(J.sh),P(J.neck),SK_C.fg,4]);o.push(['c',P(J.headc),SK_L.head,SK_C.fg,SK_C.head,4]);
+  return o;}
+// Equipment → primitives for one view. Items are built per pose from the joints.
+function _skEquip(items,J,view){
+  var P=_SKP[view],o=[],ac=SK_C.ac,mu=SK_C.mu;
+  function pt(at){if(Array.isArray(at))return at;if(at==='hands')return skMid(J.wR,J.wL);return J[at];}
+  (items||[]).forEach(function(it){var t=it.t,c,a,b;
+    if(it.views&&it.views.indexOf(view)<0)return;
+    if(t==='bar'){c=pt(it.at);var r=it.r||12,hw=it.half||27;
+      if(view==='side'){if(!it.noPlate)o.push(['c',P(c),r,ac,'none',2.8]);o.push(['c',P(c),1.6,ac,ac,1]);}
+      else{var cc=P(c);var ax=view==='front'?[[cc[0]-hw,cc[1]],[cc[0]+hw,cc[1]]]:[[cc[0]-hw,cc[1]],[cc[0]+hw,cc[1]]];
+        o.push(['l',ax[0],ax[1],ac,2.4]);if(!it.noPlate){var ph=view==='front'?r:3.5;
+        o.push(['r',[ax[0][0]-1,cc[1]-ph],[ax[0][0]+3,cc[1]+ph],ac]);o.push(['r',[ax[1][0]-3,cc[1]-ph],[ax[1][0]+1,cc[1]+ph],ac]);}}}
+    else if(t==='db'){(it.on||['wR','wL']).forEach(function(k){o.push(['c',P(J[k]),it.r||3,ac,SK_C.head,2.2]);});}
+    else if(t==='kb'){c=pt(it.at);var q=P(c);o.push(['c',[q[0],q[1]-(it.dy===undefined?5.5:it.dy)],4.6,ac,SK_C.head,2.2]);}
+    else if(t==='cable'||t==='band'){(it.from||['wR']).forEach(function(k){a=P(pt(k));b=P(it.to);
+      o.push(['l',a,b,t==='cable'?mu:ac,t==='cable'?1.4:1.8,t==='band'?'3 2.5':null]);});
+      if(t==='cable')o.push(['c',P(it.to),2.2,mu,mu,1]);}
+    else if(t==='box'){var x=it.x,y=it.y,z=it.z||[-9,9];
+      if(view==='side')o.push(['r',[x[0],y[0]],[x[1],y[1]],it.c||mu]);
+      else if(view==='front')o.push(['r',[-z[1],y[0]],[-z[0],y[1]],it.c||mu]);
+      else o.push(['r',[z[0],x[0]],[z[1],x[1]],it.c||mu]);}
+    else if(t==='slab'){var p1=it.a,p2=it.b,zz=it.z||[-9,9];
+      if(view==='side')o.push(['l',p1,p2,it.c||mu,it.w||3.6]);
+      else if(view==='front')o.push(['r',[-zz[1],Math.min(p1[1],p2[1])],[-zz[0],Math.max(p1[1],p2[1])],it.c||mu]);
+      else o.push(['r',[zz[0],Math.min(p1[0],p2[0])],[zz[1],Math.max(p1[0],p2[0])],it.c||mu]);}
+    else if(t==='line'){o.push(['l',P(it.a),P(it.b),it.c||mu,it.w||2.4,it.dash||null]);}
+    else if(t==='pullbar'){c=it.at;if(view==='side')o.push(['c',P(c),2.4,ac,ac,1]);else{var pc=P(c);o.push(['l',[pc[0]-(it.half||30),pc[1]],[pc[0]+(it.half||30),pc[1]],ac,3]);}}
+  });return o;}
+function _skBBox(prs){var x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;function add(x,y){x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y);}
+  prs.forEach(function(pr){pr.forEach(function(p){if(p[0]==='l'){add(p[1][0],p[1][1]);add(p[2][0],p[2][1]);}else if(p[0]==='c'){add(p[1][0]-p[2],p[1][1]-p[2]);add(p[1][0]+p[2],p[1][1]+p[2]);}else{add(p[1][0],p[1][1]);add(p[2][0],p[2][1]);}});});return[x0,x1,y0,y1];}
+function _skSvg(pr,T,W,H){var sx=T[0],ox=T[1],oy=T[2],o=[];function S(p){return[(ox+p[0]*sx).toFixed(1),(oy-p[1]*sx).toFixed(1)];}
+  pr.forEach(function(p){if(p[0]==='l'){var a=S(p[1]),b=S(p[2]);o.push('<line x1="'+a[0]+'" y1="'+a[1]+'" x2="'+b[0]+'" y2="'+b[1]+'" stroke="'+p[3]+'" stroke-width="'+(p[4]*sx).toFixed(1)+'" stroke-linecap="round"'+(p[5]?' stroke-dasharray="'+p[5].split(' ').map(function(v){return(v*sx).toFixed(1);}).join(' ')+'"':'')+'/>');}
+    else if(p[0]==='c'){var c=S(p[1]);o.push('<circle cx="'+c[0]+'" cy="'+c[1]+'" r="'+(p[2]*sx).toFixed(1)+'" stroke="'+p[3]+'" stroke-width="'+(p[5]*sx).toFixed(1)+'" fill="'+p[4]+'"/>');}
+    else{var a2=S([p[1][0],p[2][1]]),b2=S([p[2][0],p[1][1]]);o.push('<rect x="'+a2[0]+'" y="'+a2[1]+'" width="'+(b2[0]-a2[0]).toFixed(1)+'" height="'+(b2[1]-a2[1]).toFixed(1)+'" rx="'+(1.5*sx).toFixed(1)+'" fill="'+p[3]+'"/>');}});
+  return '<svg viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'" role="img">'+o.join('')+'</svg>';}
+// spec: {views:[...], start:{J,eq}, end:{J,eq}, floor:bool}
+function skPanels(spec,W,H){W=W||132;H=H||150;var pad=8,out={};
+  spec.views.forEach(function(v){var pr=[spec.start,spec.end].map(function(st){var e=_skEquip(st.eq,st.J,v);
+      var back=e.filter(function(p){return p[0]==='r'||(p[0]==='l'&&p[3]===SK_C.mu);});var front=e.filter(function(p){return back.indexOf(p)<0;});
+      var fl=(spec.floor!==false&&v!=='top')?[['l',[-1e3,0],[1e3,0],SK_C.mu,1.8]]:[];
+      return {fl:fl,body:back.concat(_skFigure(st.J,v)).concat(front)};});
+    var bb=_skBBox(pr.map(function(x){return x.body;}));if(spec.floor!==false&&v!=='top')bb[2]=Math.min(bb[2],0);
+    var sx=Math.min((W-2*pad)/(bb[1]-bb[0]||1),(H-2*pad)/(bb[3]-bb[2]||1));
+    var ox=pad+((W-2*pad)-(bb[1]-bb[0])*sx)/2-bb[0]*sx,oy=H-pad-((H-2*pad)-(bb[3]-bb[2])*sx)/2+bb[2]*sx;
+    out[v]=pr.map(function(x){var fl=x.fl.map(function(p){return['l',[bb[0]-6,0],[bb[1]+6,0],p[3],p[4]];});return _skSvg(fl.concat(x.body),[sx,ox,oy],W,H);});});
+  return out;}
+// ── Pose library: one entry per catalogue exercise ─────────────────────────────
+function _skQ(o){var q={torso:0,thigh:180,shank:180,upper:180,fore:180};for(var k in o)q[k]=o[k];return q;}
+function _skStandQ(o){return skStand(skPose(_skQ(o)));}
+// 2-link leg IK in the side plane: hip H, ankle A (world x,y) → thigh/shank pitches, knee bending forward/up.
+function _skLegIK(H,A){var dx=A[0]-H[0],dy=A[1]-H[1],d=Math.min(Math.sqrt(dx*dx+dy*dy),49.6);
+  var base=Math.atan2(dx,dy)*180/Math.PI,off=Math.acos(d/50)*180/Math.PI,th=base-off;
+  var r=th*Math.PI/180,K=[H[0]+25*Math.sin(r),H[1]+25*Math.cos(r)];var sh=Math.atan2(A[0]-K[0],A[1]-K[1])*180/Math.PI;return[th,sh];}
+// Build a pose with the hip at H and both ankles at A (legs from IK).
+function _skHipAnkle(o,H,A){var ik=_skLegIK(H,A),q=_skQ(o);q.thigh=[ik[0],(o.legA||0)];q.shank=[ik[1],(o.legA||0)];return skMove(skPose(q),[H[0],H[1],0]);}
+function _skBarAt(J,dx,dy){var m=skMid(J.wR,J.wL);return[m[0]+(dx||0),m[1]+(dy||0),0];}
+function _skBench(x0,x1,top){return[{t:'box',x:[x0,x1],y:[top-3,top],z:[-9,9]},{t:'line',a:[x0+5,top-3,0],b:[x0+5,0,0],w:2.4},{t:'line',a:[x1-5,top-3,0],b:[x1-5,0,0],w:2.4}];}
+function _skSeat(H,back){var o=[{t:'box',x:[H[0]-12,H[0]+12],y:[H[1]-6,H[1]-3],z:[-10,10]},{t:'line',a:[H[0],H[1]-6,0],b:[H[0],0,0],w:2.4}];
+  if(back!==undefined){var r=back*Math.PI/180;o.push({t:'slab',a:[H[0]-5*Math.cos(r)-4,H[1]+2],b:[H[0]-5*Math.cos(r)-4+32*Math.sin(r),H[1]+2+32*Math.cos(r)],z:[-10,10],w:3.6});}return o;}
+function _skX(st,en,views,cue,floor){return{views:views,start:st,end:en,cue:cue,floor:floor};}
+var SK={};
+// ── Squats ───────────────────────────────────────────────────────────────────
+function _skSquat(hold,o){o=o||{};var arms={
+    back:[{upper:[200,40],fore:[-20,30]},{upper:[210,45],fore:[10,30]}],
+    goblet:[{upper:[160,18],fore:[20,-28]},{upper:[150,18],fore:[25,-28]}],
+    rackR:[{upperR:[158,8],foreR:[-12,-20],upperL:[178,18],foreL:[178,18]},{upperR:[150,8],foreR:[-5,-20],upperL:[110,15],foreL:[100,10]}],
+    free:[{upper:[180,6],fore:[180,6]},{upper:[90,8],fore:[90,0]}]}[hold];
+  var legs=[{torso:3,thigh:[180,8],shank:[180,4],toeout:25},{torso:hold==='back'?42:28,thigh:[95,28],shank:[205,-6],toeout:25}];
+  var mk=function(i){var q={};[legs[i],arms[i]].forEach(function(s){for(var k in s)q[k]=s[k];});var J=_skStandQ(q);var eq=[];
+    if(hold==='back')eq.push({t:'bar',at:[J.sh[0]-3,J.sh[1]+2,0]});
+    if(hold==='goblet')eq.push({t:'kb',at:'hands',dy:5});
+    if(hold==='rackR')eq.push({t:'kb',at:[J.wR[0]-1,J.wR[1]+1,J.wR[2]],dy:0});
+    if(o.smith)eq.push({t:'line',a:[J.sh[0]-3,0,-30],b:[J.sh[0]-3,118,-30],w:2},{t:'line',a:[J.sh[0]-3,0,30],b:[J.sh[0]-3,118,30],w:2});
+    return{J:J,eq:eq};}
+  return[mk(0),mk(1)];}
+function _skSquatX(hold,cue,o){var p=_skSquat(hold,o);return _skX(p[0],p[1],['side','front'],cue);}
+SK['Squat']=function(){return _skSquatX('back','Bar on the upper back, feet about shoulder width. Sit down and back to parallel, knees out over the toes, chest up.');};
+SK['Smith Machine Squat']=function(){return _skSquatX('back','Bar on the upper back in the rails, feet slightly forward. Sit down to parallel, knees over the toes.',{smith:true});};
+SK['Kettlebell Goblet Squat']=function(){return _skSquatX('goblet','Hold the bell at your chest by the horns. Sit straight down between the knees, elbows inside the knees, chest up.');};
+SK['Kettlebell Front Squat']=function(){return _skSquatX('rackR','Bell racked on the forearm at the shoulder. Sit down to parallel, stay tall, do not lean toward the bell.');};
+SK['Bodyweight Squat']=function(){return _skSquatX('free','Arms forward for balance. Sit down and back to parallel, heels down, knees out over the toes.');};
+SK['Sissy Squat']=function(){
+  var a=_skStandQ({foot:[125,8],upper:[90,10],fore:[90,0]});
+  var b=_skStandQ({torso:-55,neck:-35,thigh:118,shank:250,foot:[135,8],upper:[75,10],fore:[80,0]});
+  return _skX({J:a,eq:[]},{J:b,eq:[]},['side'],'Up on the toes, hold a support. Knees travel forward and down while hips, torso and head stay in one line leaning back.');};
+SK['Hack Squat']=function(){
+  var A=[30,8];var mk=function(H,t){var J=_skHipAnkle({torso:t,neck:t,upper:[170,30],fore:[-10,20]},H,A);
+    var r=t*Math.PI/180,n=[-Math.cos(r),Math.sin(r)];var pad={t:'slab',a:[H[0]+5*n[0]*0+(-5),H[1]-6],b:[J.sh[0]-5,J.sh[1]+4],z:[-10,10],w:4};
+    return{J:J,eq:[pad,{t:'slab',a:[A[0]-4,A[1]-4],b:[A[0]+14,A[1]+2],z:[-14,14],w:3},{t:'box',x:[A[0]-4,A[0]+14],y:[0,A[1]-5],z:[-14,14]}]};}
+  return _skX(mk([10,47],-22),mk([-6,28],-22),['side'],'Back flat against the pad, feet mid-platform. Lower until thighs are parallel to the platform, drive up through the whole foot.');};
+// ── Hinges ───────────────────────────────────────────────────────────────────
+function _skDeadlift(kind){
+  var arms=kind==='kb'?{upper:[180,-14],fore:[180,-6]}:{upper:[180,4],fore:[180,2]};
+  var tgt=kind==='kb'?16:13;
+  var a=skSolve(function(t){var q=_skQ({thigh:[128,6],shank:[200,0],torso:t});for(var k in arms)q[k]=arms[k];return skStand(skPose(q));},30,88,function(J){return -(J.wR[1]-tgt);});
+  var qb=_skQ({torso:-2});for(var k in arms)qb[k]=arms[k];var b=skStand(skPose(qb));
+  var eq=function(J){return kind==='kb'?[{t:'kb',at:'hands',dy:5}]:[{t:'bar',at:_skBarAt(J,0,-1)}];}
+  var ea=eq(a);if(kind!=='kb')ea=[{t:'bar',at:[a.wR[0],12,0]}];
+  return[{J:a,eq:ea},{J:b,eq:eq(b)}];}
+SK['Deadlift']=function(){var p=_skDeadlift('bar');return _skX(p[0],p[1],['side','front'],'Bar over mid-foot, shins to the bar, back flat. Push the floor away and stand tall; bar stays against the legs.');};
+SK['Kettlebell Deadlift']=function(){var p=_skDeadlift('kb');return _skX(p[0],p[1],['side','front'],'Bell between the feet. Hips back, back flat, grip the handle and stand up by driving the hips forward.');};
+function _skRDL(kind,o){o=o||{};
+  var arms=kind==='kb'?{upper:[180,-14],fore:[180,-6]}:kind==='free'?{upper:[170,10],fore:[40,-60]}:{upper:[180,4],fore:[180,2]};
+  var mk=function(t,th,sh){var q=_skQ({torso:t,thigh:[th,6],shank:[sh,0],neck:t*0.85});for(var k in arms)q[k]=arms[k];return skStand(skPose(q));}
+  var a=mk(0,180,180),b=mk(78,170,188);
+  var eq=function(J){return kind==='kb'?[{t:'kb',at:'hands',dy:5}]:kind==='bar'?[{t:'bar',at:_skBarAt(J,0,-1)}]:[];}
+  return[{J:a,eq:eq(a)},{J:b,eq:eq(b)}];}
+SK['Romanian Deadlift']=function(){var p=_skRDL('bar');return _skX(p[0],p[1],['side'],'Soft knees, push the hips straight back and slide the bar down the thighs to mid-shin. Back flat; stand up by driving the hips forward.');};
+SK['Kettlebell Romanian Deadlift']=function(){var p=_skRDL('kb');return _skX(p[0],p[1],['side'],'Soft knees, hips straight back, bell close to the legs to mid-shin. Back flat; hips forward to stand.');};
+SK['Bodyweight Good Morning']=function(){var p=_skRDL('free');return _skX(p[0],p[1],['side'],'Hands on the chest, soft knees. Hinge at the hips until the torso is near parallel, back flat, then stand.');};
+SK['Single-leg RDL']=function(){
+  var a=_skStandQ({thighL:195,shankL:200,upper:180,fore:180});
+  var b=_skStandQ({torso:80,neck:70,thighR:174,shankR:186,thighL:-100,shankL:-100,footL:180,upper:180,fore:180});
+  return _skX({J:a,eq:[]},{J:b,eq:[]},['side'],'Stand on one leg, knee soft. Tip forward as the free leg rises behind you, hips square, back flat, until the body is near horizontal.');};
+// ── Lunges ───────────────────────────────────────────────────────────────────
+function _skLunge(hold,bulg){
+  var arms=hold==='goblet'?{upper:[160,18],fore:[20,-28]}:{upper:[180,8],fore:[180,6]};
+  var q0=_skQ(arms);if(bulg){q0.thighL=185;q0.shankL=-70;q0.footL=-80;}
+  var a=skStand(skPose(q0));
+  var q1=_skQ(arms);q1.torso=6;q1.thighR=96;q1.shankR=182;q1.thighL=196;q1.shankL=bulg?-60:-88;q1.footL=bulg?-75:175;
+  var b=skPose(q1);var bm=Math.min(b.aR[1],b.tR[1]);b=skMove(b,[0,1.5-bm,0]);
+  if(!bulg){var dz=b.tL[1]-1.5;}
+  var eq=function(J,start){var e=[];if(hold==='goblet')e.push({t:'kb',at:'hands',dy:5});
+    if(bulg){var x=J.tL[0],y=J.aL[1];e.push({t:'box',x:[x-14,x+4],y:[y-4,y-1],z:[-9,9]},{t:'line',a:[x-5,y-4,0],b:[x-5,0,0],w:2.4});}return e;}
+  if(!bulg){var m=Math.min(b.aR[1],b.tR[1],b.tL[1],b.aL[1]);b=skMove(b,[0,1.5-m,0]);}
+  if(bulg){a=skPose(q0);var ma=Math.min(a.aR[1],a.tR[1]);a=skMove(a,[0,1.5-ma,0]);a=skMove(a,[b.aR[0]-a.aR[0],0,0]);}
+  else a=skMove(a,[b.aR[0]-30-a.aR[0],0,0]);
+  return[{J:a,eq:eq(a,1)},{J:b,eq:eq(b)}];}
+SK['Lunges']=function(){var p=_skLunge('free');return _skX(p[0],p[1],['side'],'Long step forward, drop the back knee toward the floor. Front knee over the foot, torso upright; push back up.');};
+SK['Kettlebell Reverse Lunge']=function(){var p=_skLunge('goblet');return _skX(p[0],p[1],['side'],'Bell at the chest. Step back and lower the back knee toward the floor; front shin stays near vertical. Push through the front heel.');};
+SK['Bulgarian Split Squat']=function(){var p=_skLunge('free',true);return _skX(p[0],p[1],['side'],'Rear foot laces-down on a bench. Lower straight down until the front thigh is near parallel; front knee tracks the toes.');};
+// ── Calves ───────────────────────────────────────────────────────────────────
+function _skCalf(o){o=o||{};var base=o.hold==='kb'?{upperR:[180,8],foreR:[180,8],upperL:[180,6],foreL:[180,6]}:{upper:[180,6],fore:[180,6]};
+  if(o.single){base.thighL=185;base.shankL=-110;base.footL=-100;}
+  var mk=function(f){var q=_skQ(base);q.foot=[f,8];if(o.single)q.footL=-100;return _skStandQ(q);}
+  var a=mk(92),b=mk(158);var eq=function(J){var e=[];if(o.hold==='kb')e.push({t:'kb',at:'wR',dy:5});return e;}
+  return _skX({J:a,eq:eq(a)},{J:b,eq:eq(b)},['side'],o.cue);}
+SK['Calf Raises']=function(){return _skCalf({cue:'Stand tall on the balls of the feet. Rise as high as you can, pause, lower the heels slowly.'});};
+SK['Kettlebell Calf Raise']=function(){return _skCalf({hold:'kb',cue:'Bell in one hand. Rise as high as you can onto the balls of the feet, pause, lower slowly.'});};
+SK['Single-leg Calf Raise']=function(){return _skCalf({single:true,cue:'On one foot, light hand support. Rise as high as you can, pause, lower the heel slowly.'});};
+SK['Seated Calf Raise']=function(){
+  var mk=function(f){var q=_skQ({thigh:90,shank:180,foot:[f,8],upper:150,fore:120});var J=skPose(q);var m=Math.min(J.tR[1],J.aR[1]);J=skMove(J,[0,1.5-m,0]);
+    return{J:J,eq:[{t:'box',x:[J.hip[0]-12,J.hip[0]+8],y:[J.hip[1]-6,J.hip[1]-3]},{t:'line',a:[J.hip[0]-4,J.hip[1]-6,0],b:[J.hip[0]-4,0,0],w:2.4},{t:'box',x:[J.kR[0]-6,J.kR[0]+2],y:[J.kR[1]+2,J.kR[1]+6],c:SK_C.ac}]};}
+  return _skX(mk(92),mk(158),['side'],'Pad on the lower thighs, balls of the feet on the step. Lower the heels fully, then press up as high as you can.');};
+// ── Hip thrust / bridges ─────────────────────────────────────────────────────
+function _skBridge(o){
+  var S=o.bench?[0,24]:[0,3.5],A=[o.bench?44:42,1.5];
+  var mk=function(t){var tr=t*Math.PI/180,H=[S[0]-30*Math.sin(tr),S[1]-30*Math.cos(tr)];
+    var q={torso:t,neck:o.bench?t:-90,upper:o.bench?[-90,75]:95,fore:o.bench?[-90,75]:90};var J=_skHipAnkle(q,H,A);
+    if(o.single){var th=J.kR,dir=[th[0]-J.hR[0],th[1]-J.hR[1]],len=Math.sqrt(dir[0]*dir[0]+dir[1]*dir[1]);var p=Math.atan2(dir[0],dir[1])*180/Math.PI;
+      var q2=_skQ(q);var ik=_skLegIK(H,A);q2.thigh=ik[0];q2.shank=ik[1];q2.thighL=p;q2.shankL=p;q2.footL=p-60;J=skMove(skPose(q2),[H[0],H[1],0]);}
+    var e=[];if(o.bench)e=e.concat(_skBench(-40,4,22));
+    if(o.hold==='bar')e.push({t:'bar',at:[J.hip[0],Math.max(J.hip[1]+4,12),0]});
+    if(o.hold==='kb')e.push({t:'kb',at:[J.hip[0],J.hip[1]+4,0],dy:-1});
+    return{J:J,eq:e};}
+  return _skX(mk(o.bench?-42:-90),mk(o.bench?-92:-118),['side'],o.cue);}
+SK['Hip Thrust']=function(){return _skBridge({bench:true,hold:'bar',cue:'Upper back on the bench, bar over the hips, feet flat. Drive the hips up until the body is flat from shoulders to knees; chin tucked, squeeze the glutes.'});};
+SK['Kettlebell Glute Bridge']=function(){return _skBridge({hold:'kb',cue:'On your back, feet flat, bell on the hips. Drive the hips up to a straight line from shoulders to knees, squeeze, lower slowly.'});};
+SK['Single-leg Glute Bridge']=function(){return _skBridge({single:true,cue:'One foot planted, the other leg straight in line with the thigh. Drive the hips up level, squeeze, lower slowly.'});};
+// ── Leg curl / extension / Nordic ────────────────────────────────────────────
+function _skProneCurl(band){
+  var H=band?[0,4]:[0,26];
+  var mk=function(sh){var J=skMove(skPose(_skQ({torso:-90,neck:-78,thigh:90,shank:sh,foot:sh+80,upper:band?-90:180,fore:band?-90:160})),[H[0],H[1],0]);
+    var e=band?[{t:'band',from:['aR'],to:[60,3,0]}]:_skBench(-40,30,22).concat([{t:'box',x:[J.aR[0]-3,J.aR[0]+3],y:[J.aR[1]+2,J.aR[1]+6],c:SK_C.ac},{t:'line',a:[J.aR[0],J.aR[1]+2,0],b:[38,21,0],w:2}]);
+    return{J:J,eq:e};}
+  return _skX(mk(90),mk(-30),['side'],band?'Face down, band from a low anchor around the ankles. Curl the heels toward the glutes, hips pressed down, lower slowly.':'Face down, pad just above the heels, hips pressed into the bench. Curl the heels toward the glutes, lower slowly.');}
+SK['Leg Curl']=function(){return _skProneCurl(false);};
+SK['Band Leg Curl']=function(){return _skProneCurl(true);};
+SK['Nordic Curl']=function(){
+  var mk=function(th,arms){var q=_skQ({torso:th,neck:th,thigh:180+th,shank:-90,foot:-95,upper:arms[0],fore:arms[1]});var J=skPose(q);var m=Math.min(J.kR[1],J.aR[1],J.tR[1]);J=skMove(J,[-J.kR[0],2-m,0]);
+    return{J:J,eq:[{t:'box',x:[J.aR[0]-3,J.aR[0]+3],y:[J.aR[1]+2,J.aR[1]+6],c:SK_C.ac},{t:'box',x:[J.kR[0]-6,J.kR[0]+6],y:[0,1.5]}]};}
+  return _skX(mk(0,[160,100]),mk(62,[115,95]),['side'],'Kneel with the ankles held down. Keep hips, torso and head in one line and lower forward as slowly as you can; catch yourself with the hands.');};
+function _skLegExt(band){var H=[0,32];
+  var mk=function(sh){var J=skMove(skPose(_skQ({torso:-6,neck:0,thigh:90,shank:sh,foot:sh-90,upper:178,fore:150})),[H[0],H[1],0]);
+    var e=_skSeat(H,-6);if(band)e.push({t:'band',from:['aR'],to:[H[0]-4,2,0]});else e.push({t:'box',x:[J.aR[0]+1,J.aR[0]+5],y:[J.aR[1]-3,J.aR[1]+3],c:SK_C.ac});return{J:J,eq:e};}
+  return _skX(mk(180),mk(95),['side'],band?'Sit tall on a chair, band from the chair leg around the ankle. Straighten the knee fully, pause, lower slowly.':'Back against the pad, pad on the front of the ankles. Straighten the knees fully, pause, lower slowly.');}
+SK['Leg Extension']=function(){return _skLegExt(false);};
+SK['Band Leg Extension']=function(){return _skLegExt(true);};
+function _skHipMachine(open){var H=[0,32];
+  var mk=function(a){var J=skMove(skPose(_skQ({torso:-6,thigh:[90,a],shank:[180,a],foot:[90,a],upper:178,fore:150})),[H[0],H[1],0]);
+    return{J:J,eq:_skSeat(H,-6).concat([{t:'box',x:[J.kR[0]-4,J.kR[0]+4],y:[J.kR[1]-5,J.kR[1]+1],z:[J.kR[2]-(open?-2:5),J.kR[2]+(open?5:-2)],c:SK_C.ac},{t:'box',x:[J.kL[0]-4,J.kL[0]+4],y:[J.kL[1]-5,J.kL[1]+1],z:[J.kL[2]-(open?5:-2),J.kL[2]+(open?-2:5)],c:SK_C.ac}])};}
+  return open?[mk(4),mk(38)]:[mk(38),mk(4)];}
+SK['Hip Abductor (outside hips)']=function(){var p=_skHipMachine(true);return _skX(p[0],p[1],['front'],'Sit tall, pads on the outside of the knees. Push the knees apart as far as you can, pause, return slowly.');};
+SK['Hip Adductor (inside hips)']=function(){var p=_skHipMachine(false);return _skX(p[0],p[1],['front'],'Sit tall, pads on the inside of the knees. Squeeze the knees together, pause, open slowly.');};
+// ── Leg presses ──────────────────────────────────────────────────────────────
+function _skLegPress(deg){var H=[0,26],t=deg===45?-58:-25;
+  // The platform is square to the sled's travel (Henrik, 2026-10-12: "weight is not in 90° against legs so it
+  // looks off") and the soles sit flat on it: the foot points along the platform, toes up.
+  var d=deg===45?[Math.SQRT1_2,Math.SQRT1_2]:[1,0];var n=Math.sqrt(d[0]*d[0]+d[1]*d[1]);d=[d[0]/n,d[1]/n];
+  var pp=[-d[1],d[0]],footP=Math.atan2(pp[0],pp[1])*180/Math.PI;
+  var mk=function(dist){var A=[H[0]+d[0]*dist,H[1]+d[1]*dist+(deg===45?0:-4)];
+    var J=_skHipAnkle({torso:t,neck:t+10,upper:175,fore:150,foot:footP},H,A);
+    var c=[A[0]+d[0]*2.5+pp[0]*3,A[1]+d[1]*2.5+pp[1]*3];
+    var plat={t:'slab',a:[c[0]-pp[0]*12,c[1]-pp[1]*12],b:[c[0]+pp[0]*12,c[1]+pp[1]*12],z:[-14,14],w:4,c:SK_C.ac};
+    var e=_skSeat(H,t).concat([plat]);
+    if(deg===45)e.push({t:'line',a:[H[0]+8,H[1]-20,0],b:[H[0]+8+d[0]*80,H[1]-20+d[1]*80,0],w:2});
+    else e.push({t:'line',a:[c[0]+3,0,0],b:[c[0]+3,c[1]-12,0],w:2.4});
+    return{J:J,eq:e};}
+  return[mk(deg===45?24:25),mk(deg===45?47:46)];}
+SK['Leg Press']=function(){var p=_skLegPress(0);return _skX(p[0],p[1],['side'],'Back flat on the pad, feet shoulder width on the platform. Lower until the knees are near 90°, press back without locking the knees.');};
+SK['Bilateral Leg Press']=SK['Leg Press'];
+SK['45° Leg Press']=function(){var p=_skLegPress(45);return _skX(p[0],p[1],['side'],'Back and hips flat on the pad. Lower the sled until the knees are near 90° without the hips rolling up, press back without locking the knees.');};
+// ── Pull-ups and hangs ───────────────────────────────────────────────────────
+function _skHang(o,barY){var J=skPose(_skQ(o));var m=skMid(J.wR,J.wL);return skMove(J,[-m[0],barY-m[1],0]);}
+var _SK_BAR=128;
+function _skPull(grip,extra){var a=grip==='under'?[{upper:[2,12],fore:[1,10]},{upper:[150,14],fore:[22,-6]}]:[{upper:[4,24],fore:[2,22]},{upper:[168,42],fore:[8,-14]}];
+  var mk=function(i,legs){var q={};[legs,a[i]].forEach(function(s){for(var k in s)q[k]=s[k];});var J=_skHang(q,_SK_BAR);var e=[{t:'pullbar',at:[0,_SK_BAR+1.5,0],half:32}];
+    if(extra)e=e.concat(extra(J,i));return{J:J,eq:e};}
+  return[mk(0,{torso:-3,thigh:[183,4],shank:178}),mk(1,{torso:-10,neck:-4,thigh:[165,4],shank:200})];}
+function _skPullX(grip,cue,extra){var p=_skPull(grip,extra);var x=_skX(p[0],p[1],['side','front'],cue,false);return x;}
+SK['Pull-ups']=function(){return _skPullX('over','Hands a bit wider than the shoulders, palms away. From a dead hang, pull until the chin clears the bar, elbows down and out; lower all the way.');};
+SK['Weighted Pull-ups']=function(){return _skPullX('over','Weight hanging from a belt. Dead hang, pull until the chin clears the bar, elbows down and out; lower under control.',function(J){return[{t:'line',a:J.hip,b:[J.hip[0]+2,J.hip[1]-14,0],c:SK_C.ac,w:1.6},{t:'box',x:[J.hip[0]-4,J.hip[0]+8],y:[J.hip[1]-19,J.hip[1]-14],z:[-6,6],c:SK_C.ac}];});};
+SK['Chin-ups']=function(){return _skPullX('under','Palms toward you, hands shoulder width. From a dead hang, pull the chest toward the bar with the elbows in front; lower all the way.');};
+SK['Assisted Pull-up Machine']=function(){var p=_skPull('over');function knee(st){var J=st.J;var q=_skQ({torso:J===p[0].J?-3:-10,thigh:180,shank:-90});return st;}
+  [0,1].forEach(function(i){var st=p[i];var t=i?-10:-3;var J=_skHang({torso:t,neck:i?-4:t,thigh:182,shank:-88,foot:-90,upper:i?[168,42]:[4,24],fore:i?[8,-14]:[2,22]},_SK_BAR);st.J=J;st.eq=[{t:'pullbar',at:[0,_SK_BAR+1.5,0],half:32},{t:'box',x:[J.kR[0]-2,J.aR[0]+2],y:[J.kR[1]-5,J.kR[1]-2],z:[-10,10]},{t:'line',a:[J.kR[0]+4,J.kR[1]-5,0],b:[J.kR[0]+4,0,0],w:2.4}];});
+  return _skX(p[0],p[1],['side','front'],'Knees on the pad, hands wider than the shoulders. Pull until the chin clears the bar, lower all the way. Less assistance = harder.');};
+SK['Clapping Pull-ups']=function(){var p=_skPull('over');var J=p[1].J;var q=_skQ({torso:-10,neck:-4,thigh:[165,4],shank:200,upper:[150,4],fore:[25,-25]});var K=skPose(q);K=skMove(K,[J.hip[0]-K.hip[0],J.hip[1]-K.hip[1]+8,0]);
+  p[1]={J:K,eq:[{t:'pullbar',at:[0,_SK_BAR+1.5,0],half:32}]};return _skX(p[0],p[1],['side','front'],'Explode up from a dead hang so the hands leave the bar at the top; clap once and re-grip before you drop. Only when strict pull-ups are easy.',false);};
+function _skMuscleUp(band){var a=_skPull('over')[0];
+  var J=_skHang({torso:12,neck:8,thigh:[178,4],shank:186,upper:[182,14],fore:[180,10]},_SK_BAR);var eq=[{t:'pullbar',at:[0,_SK_BAR+1.5,0],half:32}];
+  var b={J:J,eq:eq};if(band){a.eq.push({t:'band',from:['aR'],to:[0,_SK_BAR,0]});b.eq.push({t:'band',from:['kR'],to:[0,_SK_BAR,0]});}
+  return _skX(a,b,['side','front'],band?'Band looped over the bar under the feet or knees. Pull hard to the chest, roll the wrists over the bar, press to straight arms.':'False grip, dead hang. Pull explosively to the lower chest, lean forward over the bar, then press up to straight arms.',false);}
+SK['Muscle Up']=function(){return _skMuscleUp(false);};
+SK['Assisted Muscle Up']=function(){return _skMuscleUp(true);};
+// ── Pulldowns / straight-arm ─────────────────────────────────────────────────
+function _skPulldown(o){var H=[0,30];
+  var arms=o.close?[{upper:[6,10],fore:[3,4]},{upper:[160,18],fore:[15,-8]}]:[{upper:[6,26],fore:[3,24]},{upper:[166,46],fore:[10,-16]}];
+  var mk=function(i){var q=_skQ({torso:-12,neck:-6,thigh:90,shank:180,foot:90});for(var k in arms[i])q[k]=arms[i][k];
+    if(o.kneel){q.thigh=178;q.shank=-90;q.foot=-90;}
+    var J=o.kneel?skStand(skPose(q)):skMove(skPose(q),H);var b=_skBarAt(J,0,0);var e=[];
+    if(o.band){e.push({t:'band',from:['wR','wL'],to:[b[0]+18,b[1]+(i?60:30),0]});}
+    else{e=e.concat(_skSeat(H));e.push({t:'box',x:[J.kR[0]-4,J.kR[0]+4],y:[J.kR[1]+3,J.kR[1]+7],z:[-12,12]});
+      e.push({t:'line',a:b,b:[b[0],118,0],w:1.4},{t:'bar',at:b,noPlate:true,half:o.close?9:28});}
+    return{J:J,eq:e};}
+  return _skX(mk(0),mk(1),['side','front'],o.cue);}
+SK['Lat Pulldown']=function(){return _skPulldown({cue:'Thighs under the pad, hands wider than the shoulders. Lean back slightly and pull the bar to the upper chest, elbows down and out.'});};
+SK['Drape Pulldowns']=function(){return _skPulldown({close:true,cue:'Close neutral grip. Lean back slightly and pull the handle to the upper chest, elbows driving down to the ribs.'});};
+SK['Band Lat Pull']=function(){return _skPulldown({band:true,kneel:true,cue:'Kneel tall facing a high band anchor. Pull the hands down to the shoulders, elbows down and out, chest up.'});};
+function _skStraightArm(band){
+  var mk=function(p){var J=_skStandQ({torso:28,neck:20,thigh:[172,6],shank:186,upper:p,fore:p});var b=_skBarAt(J,0,0);var to=[J.sh[0]+38,108,0];
+    var e=band?[{t:'band',from:['wR','wL'],to:to}]:[{t:'line',a:b,b:to,w:1.4},{t:'bar',at:b,noPlate:true,half:16}];return{J:J,eq:e};}
+  return _skX(mk(52),mk(168),['side'],band?'Band anchored high in front, slight hip hinge. Arms straight, sweep the hands down to the thighs; feel the lats, not the triceps.':'Cable high in front, slight hip hinge. Arms straight, sweep the bar down in an arc to the thighs; control it back up.');}
+SK['Straight-Arm Lat Pushdown']=function(){return _skStraightArm(false);};
+SK['Band Straight-arm Pull']=function(){return _skStraightArm(true);};
+// ── Rows ─────────────────────────────────────────────────────────────────────
+function _skBentRow(kind){
+  var mk=function(row){var arms=row?{upper:[-100,10],fore:[184,4]}:{upper:[180,6],fore:[180,4]};var q=_skQ({torso:68,neck:55,thigh:[160,6],shank:192});
+    if(kind==='kb'){q.upperL=[130,10];q.foreL=[180,4];q.thighL=[150,6];q.shankL=180;q.upperR=arms.upper;q.foreR=arms.fore;}else{q.upper=arms.upper;q.fore=arms.fore;}
+    var J=_skStandQ(q);var b=_skBarAt(J,0,0),e=[];
+    if(kind==='bar')e.push({t:'bar',at:b});
+    if(kind==='tbar')e.push({t:'line',a:[b[0]+2,b[1]-6,0],b:[b[0]-45,1.5,0],c:SK_C.ac,w:2.6},{t:'bar',at:[b[0]+2,b[1]-6,0],r:9,half:10});
+    if(kind==='kb'){e.push({t:'kb',at:'wR',dy:5});var hl=J.wL;e.push({t:'box',x:[hl[0]-10,hl[0]+10],y:[hl[1]-3,hl[1]],z:[-12,0]},{t:'line',a:[hl[0],hl[1]-3,0],b:[hl[0],0,0],w:2.4});}
+    return{J:J,eq:e};}
+  return[mk(0),mk(1)];}
+SK['Barbell Row']=function(){var p=_skBentRow('bar');return _skX(p[0],p[1],['side'],'Hinge to ~45° or lower, back flat, knees soft. Pull the bar to the lower ribs, elbows back past the torso; lower under control.');};
+SK['T-Bar Row']=function(){var p=_skBentRow('tbar');return _skX(p[0],p[1],['side'],'Straddle the bar, hinge with a flat back. Pull the handle to the chest, squeeze the shoulder blades; lower under control.');};
+SK['Kettlebell Row']=function(){var p=_skBentRow('kb');return _skX(p[0],p[1],['side'],'One hand on a support, back flat. Row the bell to the hip, elbow close to the body; lower until the arm is straight.');};
+SK['Chest-Supported Row']=function(){var H=[0,22];
+  var mk=function(row){var q=_skQ({torso:48,neck:40,thigh:[178,8],shank:180,upper:row?[-100,10]:180,fore:row?184:180});var J=skStand(skPose(q));
+    var t=48*Math.PI/180,n=[Math.cos(t),-Math.sin(t)];return{J:J,eq:[{t:'slab',a:[J.hip[0]+n[0]*5,J.hip[1]+n[1]*5],b:[J.sh[0]+n[0]*5,J.sh[1]+n[1]*5],z:[-10,10],w:4},{t:'line',a:[J.hip[0]+6,J.hip[1]-6,0],b:[J.hip[0]+6,0,0],w:2.4},{t:'db'}]};}
+  return _skX(mk(0),mk(1),['side'],'Chest on the incline pad, arms hanging. Row the dumbbells up, elbows back, squeeze the shoulder blades; lower all the way.');};
+function _skSeatRow(band){var H=band?[0,4]:[0,14],A=[band?49.4:40,band?4:6];
+  var mk=function(i){var arms=i?{upper:[200,8],fore:[90,0]}:{upper:[88,6],fore:[90,0]};var q={torso:i?-4:22,neck:i?0:18};for(var k in arms)q[k]=arms[k];
+    var J=_skHipAnkle(q,H,A);var e=[];
+    if(band)e.push({t:'band',from:['wR'],to:J.tR});else{e.push({t:'box',x:[-14,22],y:[8,11]},{t:'slab',a:[A[0]+6,0],b:[A[0]+6,16],w:3.6},{t:'line',a:J.wR,b:[A[0]+20,J.wR[1],0],w:1.4},{t:'line',a:[A[0]+20,0,0],b:[A[0]+20,40,0],w:2.4});}
+    return{J:J,eq:e};}
+  return _skX(mk(0),mk(1),['side'],band?'Sit tall, legs straight, band around the feet. Row the hands to the belly, elbows close and back, squeeze the shoulder blades.':'Sit tall, knees soft, feet on the platform. Row the handle to the belly, elbows back, shoulders down; let the arms reach forward without rounding.');}
+SK['Cable Row']=function(){return _skSeatRow(false);};
+SK['Band Seated Row']=function(){return _skSeatRow(true);};
+function _skInvRow(){var TH=42;
+  var mk=function(arms){var J=skSolve(function(e){var q=_skQ({thigh:90+e,shank:90+e,foot:e-10,torso:-90+e,neck:-90+e});var a=arms(e);for(var k in a)q[k]=a[k];var K=skPose(q);return skMove(K,[40-K.aR[0],1.5-K.aR[1],0]);},0,70,function(J){return J.wR[1]-TH;});
+    var x=J.wR[0];return{J:J,eq:[{t:'box',x:[x-46,x+3],y:[TH+1,TH+4]},{t:'line',a:[x-40,TH+1,0],b:[x-40,0,0],w:2.4}]};}
+  return[mk(function(e){return{upper:e,fore:e};}),mk(function(e){return{upper:e+160,fore:e+10};})];}
+SK['Inverted Row']=function(){var p=_skInvRow();return _skX(p[0],p[1],['side'],'Under a sturdy table, overhand grip on the edge, heels down, body rigid. Pull the chest to the edge, squeeze the shoulder blades; lower all the way.');};
+SK['Underhand Inverted Row']=function(){var p=_skInvRow();return _skX(p[0],p[1],['side'],'As the inverted row, palms facing you. Pull the chest to the edge with the elbows close to the body; lower all the way.');};
+// ── Face pulls, rear delts, shrugs, upright row ──────────────────────────────
+function _skFacePull(band){
+  var mk=function(i){var J=_skStandQ(i?{torso:-4,upper:[90,72],fore:[8,10]}:{torso:2,upper:[82,8],fore:[82,4]});var to=[J.sh[0]+44,J.headc[1]-2,0];
+    return{J:J,eq:band?[{t:'band',from:['wR','wL'],to:to}]:[{t:'line',a:skMid(J.wR,J.wL),b:to,w:1.4},{t:'line',a:[to[0],0,0],b:[to[0],to[1]+10,0],w:2.4}]};}
+  return _skX(mk(0),mk(1),['side','front'],band?'Band anchored at face height. Pull the hands toward the ears, elbows high and wide, finish with the forearms vertical.':'Rope at face height. Pull toward the face, splitting the rope; elbows high and wide, finish with the hands beside the ears.');}
+SK['Face Pulls']=function(){return _skFacePull(false);};
+SK['Band Face Pull']=function(){return _skFacePull(true);};
+SK['Rear Delt Fly']=function(){
+  var mk=function(a){var J=_skStandQ({torso:72,neck:60,thigh:[165,6],shank:190,upper:[180,a],fore:[180,a]});return{J:J,eq:[{t:'db'}]};}
+  return _skX(mk(8),mk(80),['front','side'],'Hinge forward with a flat back, slight bend in the elbows. Raise the dumbbells out to the sides to shoulder height; lead with the elbows.');};
+function _skPullApart(cable){
+  var mk=function(a){var J=_skStandQ({upper:[90,a],fore:[90,a+(a<40?-10:0)]});var e=[];
+    if(cable)e.push({t:'line',a:J.wR,b:[J.sh[0]+40,J.sh[1],-46],w:1.4},{t:'line',a:J.wL,b:[J.sh[0]+40,J.sh[1],46],w:1.4});
+    else e.push({t:'band',from:['wR'],to:J.wL});return{J:J,eq:e};}
+  return _skX(mk(-6),mk(86),['top'],cable?'Cables crossed at shoulder height, arms nearly straight. Pull the hands out and back until the arms are in line with the shoulders.':'Band at shoulder height, arms straight. Pull the band apart until it touches the chest, squeeze the shoulder blades.');}
+SK['Rear Delt Cable Fly']=function(){return _skPullApart(true);};
+SK['Band Rear Delt Fly']=function(){return _skPullApart(false);};
+SK['Shrug']=function(){var mk=function(s){var J=_skStandQ({shrug:s,upper:[180,6],fore:[180,4]});return{J:J,eq:[{t:'bar',at:_skBarAt(J,0,-1)}]};}
+  return _skX(mk(0),mk(7),['front','side'],'Arms straight, bar at the thighs. Lift the shoulders straight up toward the ears, pause, lower slowly. No rolling.');};
+SK['Upright Row']=function(){var mk=function(i){var J=_skStandQ(i?{upper:[100,62],fore:[190,-70]}:{upper:[180,6],fore:[180,2]});return{J:J,eq:[{t:'bar',at:_skBarAt(J,0,0),r:10}]};}
+  return _skX(mk(0),mk(1),['front','side'],'Hands about shoulder width. Pull the bar up along the body to chest height, elbows leading and no higher than the shoulders.');};
+// ── External rotation, prone raises ──────────────────────────────────────────
+function _skER(band){var mk=function(a){var J=_skStandQ({upperR:[180,8],foreR:[90,a],upperL:[180,6],foreL:[180,6]});var to=[J.eR[0]+6,J.eR[1],-44];
+    return{J:J,eq:band?[{t:'band',from:['wR'],to:to}]:[{t:'line',a:J.wR,b:to,w:1.4},{t:'line',a:[to[0],0,to[2]],b:[to[0],J.eR[1]+10,to[2]],w:2.4}]};}
+  return _skX(mk(-50),mk(55),['top','front'],band?'Elbow pinned to the side, bent 90°, band from the other side. Rotate the forearm out, keep the elbow in; return slowly.':'Elbow pinned to the side (towel under it), bent 90°. Rotate the forearm out against the cable; return slowly.');}
+SK['Cable External Rotation']=function(){return _skER(false);};
+SK['Band External Rotation']=function(){return _skER(true);};
+function _skProne(arms,views,cue){
+  var mk=function(i){var q=_skQ({torso:90,neck:96,thigh:-90,shank:-90,foot:180});var a=arms[i];for(var k in a)q[k]=a[k];var J=skPose(q);J=skMove(J,[0,4-J.hip[1],0]);return{J:J,eq:[{t:'box',x:[J.tR[0]-4,J.headc[0]+9],y:[0,1],z:[-26,26],c:'#26262b'}]};}
+  return _skX(mk(0),mk(1),views,cue,views.indexOf('top')<0);}
+SK['Prone T-Raise']=function(){return _skProne([{upper:[-90,12],fore:[-90,12]},{upper:[180,88],fore:[180,88]}],['top'],'Face down, thumbs up. Lift the arms out to the sides into a T, squeezing the shoulder blades; lower slowly.');};
+SK['Prone Y-Raise']=function(){return _skProne([{upper:[-90,12],fore:[-90,12]},{upper:[90,40],fore:[90,40]}],['top'],'Face down, thumbs up. Lift the arms overhead into a Y, shoulders down away from the ears; lower slowly.');};
+SK['Prone External Rotation']=function(){
+  var mk=function(fo){var q=_skQ({torso:90,neck:96,thigh:-90,shank:-90,foot:180,upperR:[180,88],foreR:[fo,0],upperL:[-90,6],foreL:[-90,6]});var J=skPose(q);J=skMove(J,[0,27-J.hip[1],0]);
+    return{J:J,eq:_skBench(-44,40,23)};}
+  return _skX(mk(180),mk(90),['side','top'],'Face down on a bench, upper arm out to the side, elbow bent 90° with the forearm hanging. Rotate the forearm up until level; lower slowly.');};
+// ── Lying presses ────────────────────────────────────────────────────────────
+function _skLying(o){var top=o.floor?0:22,H=[0,top+(o.floor?3.5:6)];var t=o.incline?-52:-90;
+  var mk=function(i){var arms=o.arms[i];var q={torso:t,neck:t};for(var k in arms)q[k]=arms[k];var A=[H[0]+(o.floor?20:26),1.5];
+    var J=o.floor?_skHipAnkle(q,H,A):_skHipAnkle(q,H,[H[0]+24,1.5]);var e=[];
+    if(!o.floor){if(o.incline){e.push({t:'box',x:[-12,8],y:[top-3,top]},{t:'line',a:[-2,top-3,0],b:[-2,0,0],w:2.4});var tr=t*Math.PI/180;
+        e.push({t:'slab',a:[H[0]-4,H[1]-4],b:[H[0]-4+34*Math.sin(tr)+3,H[1]-4+34*Math.cos(tr)],z:[-10,10],w:4});}
+      else e=e.concat(_skBench(-44,6,top));}
+    if(o.eq)e=e.concat(o.eq(J,i));return{J:J,eq:e};}
+  return _skX(mk(0),mk(1),['side'],o.cue);}
+var _SK_PRESS=[{upper:[0,12],fore:[0,8]},{upper:[112,40],fore:[-14,10]}];
+SK['Bench Press']=function(){return _skLying({arms:_SK_PRESS,eq:function(J){return[{t:'bar',at:_skBarAt(J,0,1)}];},cue:'Eyes under the bar, shoulder blades pinched, feet planted. Lower the bar to the lower chest, elbows ~45° from the body; press back up over the shoulders.'});};
+SK['Close Grip Press']=function(){return _skLying({arms:[{upper:[0,2],fore:[0,0]},{upper:[122,10],fore:[-14,2]}],eq:function(J){return[{t:'bar',at:_skBarAt(J,0,1)}];},cue:'Hands about shoulder width. Lower the bar to the lower chest, elbows tucked close to the body; press back up.'});};
+SK['Incline Bench Press']=function(){return _skLying({incline:true,arms:[{upper:[0,12],fore:[0,8]},{upper:[148,40],fore:[18,10]}],eq:function(J){return[{t:'bar',at:_skBarAt(J,0,1)}];},cue:'Bench at 30–45°. Lower the bar to the upper chest, elbows under the bar; press up over the shoulders.'});};
+SK['Incline DB Press']=function(){return _skLying({incline:true,arms:[{upper:[0,12],fore:[0,8]},{upper:[148,40],fore:[18,10]}],eq:function(){return[{t:'db'}];},cue:'Bench at 30–45°. Lower the dumbbells to the sides of the upper chest, elbows under the wrists; press up and slightly in.'});};
+SK['Kettlebell Floor Press']=function(){return _skLying({floor:true,arms:[{upper:[-0.1+92,40],fore:[0,6]},{upper:[0,12],fore:[0,8]}],eq:function(){return[{t:'kb',at:'wR',dy:-5},{t:'kb',at:'wL',dy:-5}];},cue:'On the floor, knees bent. Upper arms rest on the floor at ~45°; press the bells up over the shoulders, lower until the elbows touch.'});};
+SK['Skull Crushers']=function(){return _skLying({arms:[{upper:[-12,6],fore:[-12,6]},{upper:[-14,6],fore:[-125,6]}],eq:function(J){return[{t:'bar',at:_skBarAt(J,0,0),r:7,half:14}];},cue:'Arms vertical, elbows pointing up and still. Bend only at the elbows to lower the bar toward the forehead; extend back up.'});};
+// ── Seated / standing presses forward ───────────────────────────────────────
+function _skPushFwd(o){var H=[0,32];
+  var mk=function(i){var arms=i?{upper:[o.angle||90,10],fore:[o.angle||90,6]}:{upper:[218,40],fore:[o.angle?(o.angle-10):88,6]};var q=_skQ({torso:o.seat?-6:4,neck:0});for(var k in arms)q[k]=arms[k];
+    if(o.seat){q.thigh=90;q.shank=180;q.foot=90;}var J=o.seat?skMove(skPose(q),H):_skStandQ(q);
+    if(!o.seat){q.thighL=168;q.shankL=190;q.thighR=192;q.shankR=192;J=_skStandQ(q);}
+    var e=[];if(o.seat){e=e.concat(_skSeat(H,-6));var m=skMid(J.wR,J.wL);e.push({t:'line',a:J.wR,b:[J.sh[0]+4,J.sh[1]+(o.angle?16:-2),0],w:2.4});}
+    if(o.band)e.push({t:'band',from:['wR'],to:[J.sh[0]-30,J.sh[1]-(o.angle?20:0),0]});
+    e.push({t:'db',r:2.2});return{J:J,eq:e};}
+  return _skX(mk(0),mk(1),['side'],o.cue);}
+SK['Chest Machine Press']=function(){return _skPushFwd({seat:true,cue:'Handles at mid-chest, shoulder blades on the pad. Press forward to straight arms without locking out; return slowly.'});};
+SK['Band Chest Press']=function(){return _skPushFwd({band:true,cue:'Band behind you at chest height, staggered stance. Press the hands forward to straight arms, return slowly.'});};
+SK['Band Incline Press']=function(){return _skPushFwd({band:true,angle:52,cue:'Band anchored low behind you. Press up and forward at an incline to straight arms, return slowly.'});};
+// ── Flys ─────────────────────────────────────────────────────────────────────
+function _skFly(o){var H=[0,32];
+  var mk=function(i){var a=o.arms[i];var q=_skQ({torso:o.seat?-4:8,neck:o.seat?0:4});for(var k in a)q[k]=a[k];if(o.seat){q.thigh=90;q.shank=180;q.foot=90;}
+    if(!o.seat){q.thighL=170;q.thighR=190;q.shankL=188;q.shankR=188;}
+    var J=o.seat?skMove(skPose(q),H):_skStandQ(q);var e=[];
+    if(o.seat)e=e.concat(_skSeat(H,-4),[{t:'box',x:[J.eR[0]-2,J.eR[0]+2],y:[J.eR[1]-2,J.wR[1]+2],z:[J.eR[2]-2,J.eR[2]+2],c:SK_C.ac},{t:'box',x:[J.eL[0]-2,J.eL[0]+2],y:[J.eL[1]-2,J.wL[1]+2],z:[J.eL[2]-2,J.eL[2]+2],c:SK_C.ac}]);
+    if(o.cable){e.push({t:'line',a:J.wR,b:[J.sh[0]-6,o.low?6:100,46],w:1.4},{t:'line',a:J.wL,b:[J.sh[0]-6,o.low?6:100,-46],w:1.4});e.push({t:'db',r:2});}
+    if(o.band){e.push({t:'band',from:['wR','wL'],to:[J.sh[0]-30,o.low?6:J.sh[1],0]});}
+    return{J:J,eq:e};}
+  return _skX(mk(0),mk(1),o.views||['top'],o.cue);}
+SK['Cable Fly']=function(){return _skFly({cable:true,arms:[{upper:[100,82],fore:[100,76]},{upper:[96,14],fore:[96,-14]}],cue:'Cables high, slight bend in the elbows, chest up. Bring the hands together in front of the chest in a hugging arc; open slowly.'});};
+SK['Low-to-high Cable Fly']=function(){return _skFly({views:['front','side'],cable:true,low:true,arms:[{upper:[160,46],fore:[160,46]},{upper:[66,12],fore:[60,-14]}],cue:'Cables low, slight bend in the elbows. Sweep the hands up and in to meet at upper-chest height; lower slowly.'});};
+SK['Band Chest Fly']=function(){return _skFly({band:true,arms:[{upper:[96,82],fore:[96,76]},{upper:[92,14],fore:[92,-14]}],cue:'Band behind you at chest height, slight bend in the elbows. Bring the hands together in front of the chest; open slowly.'});};
+SK['Band Low-to-high Fly']=function(){return _skFly({views:['front','side'],band:true,low:true,arms:[{upper:[160,46],fore:[160,46]},{upper:[66,12],fore:[60,-14]}],cue:'Band anchored low behind. Sweep the hands up and in to meet at upper-chest height; lower slowly.'});};
+SK['Pec Deck (chest fly machine)']=function(){return _skFly({views:['front'],seat:true,arms:[{upper:[95,80],fore:[0,4]},{upper:[95,22],fore:[0,4]}],cue:'Back on the pad, forearms on the pads at shoulder height. Squeeze the arms together in front, open slowly to a stretch.'});};
+// ── Push-ups ─────────────────────────────────────────────────────────────────
+function _skPushup(o){o=o||{};
+  var mk=function(i){var arm=i?(o.armDn||{upper:[-62,o.wa||0],fore:[180,o.wa||0]}):(o.armUp||{upper:[180,o.wa||0],fore:[180,o.wa||0]});
+    var J=skSolve(function(t){var q=_skQ({thigh:t-180,shank:t-180,foot:180,torso:t,neck:t});for(var k in arm)q[k]=arm[k];var K=skPose(q);var toeY=o.decline?24:0;return skMove(K,[-45-K.tR[0],toeY-K.tR[1],0]);},40,110,function(J){return -J.wR[1];});
+    if(o.plyo&&i){J=skMove(J,[0,8,0]);}
+    var e=[];if(o.decline)e.push({t:'box',x:[-52,-36],y:[0,22],z:[-12,12]});return{J:J,eq:e};}
+  var v=o.views||['side'];return _skX(mk(o.plyo?1:0),mk(o.plyo?0:1),v,o.cue);}
+SK['Push-ups']=function(){return _skPushup({cue:'Hands under the shoulders, body in one straight line. Lower the chest to just above the floor, elbows ~45°; push back up.'});};
+SK['Plyo Push-ups']=function(){var x=_skPushup({cue:'From the bottom of a push-up, push explosively so the hands leave the floor; land soft and go straight into the next rep.'});var a=SK['Push-ups']();return _skX(a.end,(function(){var u=a.start;return{J:skMove(u.J,[0,9,0]),eq:[]};})(),['side'],x.cue);};
+SK['Decline Push-ups']=function(){return _skPushup({decline:true,cue:'Feet on a chair, hands under the shoulders, body straight. Lower the chest to just above the floor; push back up.'});};
+SK['Wide Push-ups']=function(){return _skPushup({wa:30,armDn:{upper:[-60,58],fore:[180,30]},views:['side','front'],cue:'Hands well outside the shoulders, body straight. Lower the chest toward the floor, elbows out; push back up.'});};
+SK['Diamond Push-ups']=function(){return _skPushup({wa:-22,armUp:{upper:[180,-14],fore:[180,-22]},armDn:{upper:[-50,-6],fore:[175,-30]},views:['side','front'],cue:'Hands together under the chest, thumbs and fingers forming a diamond. Lower with the elbows close to the body; push back up.'});};
+SK['Archer Push-ups']=function(){return _skPushup({armUp:{upperR:[180,30],foreR:[180,30],upperL:[180,30],foreL:[180,30]},armDn:{upperR:[-58,40],foreR:[180,20],upperL:[180,72],foreL:[180,72]},views:['side','front'],cue:'Hands very wide. Lower toward one hand while the other arm stays straight out to the side; push back up and alternate.'});};
+SK['Pike Push-ups']=function(){
+  var mk=function(i){var q0=i?{torso:150,neck:165,upper:252,fore:155}:{torso:135,neck:142,upper:142,fore:142};
+    var J=skSolve(function(p){var q=_skQ(q0);q.thigh=p;q.shank=p;q.foot=p-90;var K=skPose(q);return skMove(K,[-K.wR[0],-K.wR[1]+1,0]);},181,268,function(J){return J.tR[1]-1;});
+    return{J:J,eq:[]};}
+  return _skX(mk(0),mk(1),['side'],'Hips high in an inverted V, hands shoulder width. Bend the elbows to lower the top of the head toward the floor in front of the hands; press back up.');};
+// ── Dips ─────────────────────────────────────────────────────────────────────
+function _skDip(o){var BY=82;
+  var mk=function(i){var q=_skQ({torso:16,neck:12,thigh:172,shank:o.machine?-90:-140,foot:o.machine?-90:-120,upper:i?[-98,8]:[178,8],fore:i?[180,4]:[178,4]});var J=skPose(q);var m=skMid(J.wR,J.wL);J=skMove(J,[-m[0],BY-m[1],0]);
+    var e=[{t:'line',a:[J.wR[0]-6,BY-1,J.wR[2]],b:[J.wR[0]+16,BY-1,J.wR[2]],c:SK_C.ac,w:3},{t:'line',a:[J.wR[0]+10,BY-1,0],b:[J.wR[0]+10,0,0],w:2.4}];
+    if(o.machine)e.push({t:'box',x:[J.kR[0]-2,J.aR[0]+2],y:[J.kR[1]-5,J.kR[1]-2],z:[-10,10]});return{J:J,eq:e};}
+  return _skX(mk(0),mk(1),['side'],o.cue);}
+SK['Dips']=function(){return _skDip({cue:'Arms straight on the bars, slight forward lean. Lower until the upper arms are about parallel to the floor; press back up.'});};
+SK['Assisted Dip Machine']=function(){return _skDip({machine:true,cue:'Knees on the pad, slight forward lean. Lower until the upper arms are about parallel to the floor; press back up. Less assistance = harder.'});};
+SK['Chair Dips']=function(){var C=[-10,26];
+  var mk=function(i){var arms=i?{upper:[-110,10],fore:[176,4]}:{upper:[210,10],fore:[176,4]};var q=_skQ({torso:4,neck:4});for(var k in arms)q[k]=arms[k];
+    var K=skPose(q);var H=[C[0]-K.wR[0],C[1]-K.wR[1]];var J=_skHipAnkle(q,H,[36,1.5]);
+    return{J:J,eq:[{t:'box',x:[C[0]-18,C[0]+1],y:[C[1]-3,C[1]]},{t:'line',a:[C[0]-15,C[1]-3,0],b:[C[0]-15,0,0],w:2.4},{t:'line',a:[C[0]-2,C[1]-3,0],b:[C[0]-2,0,0],w:2.4}]};}
+  return _skX(mk(0),mk(1),['side'],'Hands on the edge of a sturdy chair behind you, feet forward. Bend the elbows straight back to lower the hips; press back up.');};
+// ── Overhead presses ─────────────────────────────────────────────────────────
+function _skOverhead(o){var H=[0,32];
+  var mk=function(i){var a=o.arms[i];var q=_skQ({torso:o.torso||0,neck:0});for(var k in a)q[k]=a[k];
+    if(o.seat){q.thigh=90;q.shank=180;q.foot=90;}if(o.halfKneel){q.thighR=182;q.shankR=-90;q.footR=-90;q.thighL=92;q.shankL=180;}
+    var J=o.seat?skMove(skPose(q),H):skStand(skPose(q));var e=o.seat?_skSeat(H,-4):[];
+    if(o.eq)e=e.concat(o.eq(J,i));return{J:J,eq:e};}
+  return _skX(mk(0),mk(1),o.views||['side','front'],o.cue);}
+var _SK_OHP=[{upper:[152,30],fore:[-8,-6]},{upper:[2,14],fore:[0,8]}];
+SK['Overhead Press']=function(){return _skOverhead({arms:_SK_OHP,eq:function(J){return[{t:'bar',at:_skBarAt(J,0,1)}];},cue:'Bar on the front of the shoulders, glutes tight. Press straight up, moving the head back then through; finish with the bar over the mid-foot.'});};
+SK['Behind the Neck Press']=function(){return _skOverhead({arms:[{upper:[180,82],fore:[-4,-4]},{upper:[-4,16],fore:[-2,8]}],eq:function(J){return[{t:'bar',at:_skBarAt(J,0,1)}];},cue:'Light load, good shoulder mobility only. Bar behind the neck, elbows under the bar; press straight up.'});};
+SK['Shoulder Press Machine']=function(){return _skOverhead({seat:true,arms:_SK_OHP,eq:function(J){return[{t:'db',r:2.2}];},cue:'Back on the pad, handles at shoulder height. Press up to straight arms without locking, lower to shoulder height.'});};
+SK['Arnold Press']=function(){return _skOverhead({seat:true,arms:[{upper:[150,4],fore:[-4,-14]},{upper:[2,16],fore:[0,8]}],eq:function(){return[{t:'db'}];},cue:'Start with palms facing you in front of the shoulders. Rotate the palms forward as you press overhead; reverse on the way down.'});};
+SK['Kettlebell Overhead Press']=function(){return _skOverhead({arms:[{upperR:[152,14],foreR:[-8,-10],upperL:[180,10],foreL:[180,10]},{upperR:[2,10],foreR:[0,6],upperL:[180,14],foreL:[180,14]}],eq:function(J){return[{t:'kb',at:[J.wR[0]-3,J.wR[1],J.wR[2]],dy:1}];},cue:'Bell racked at the shoulder, glutes and abs tight. Press straight up until the arm is locked beside the ear; lower to the rack.'});};
+SK['Band Shoulder Press']=function(){return _skOverhead({arms:_SK_OHP,eq:function(J){return[{t:'band',from:['wR'],to:J.tR}];},cue:'Stand on the band, hands at the shoulders. Press straight up to locked arms, lower to the shoulders.'});};
+SK['Kettlebell Half-kneeling Press']=function(){return _skOverhead({halfKneel:true,arms:[{upperR:[152,14],foreR:[-8,-10],upperL:[180,10],foreL:[180,10]},{upperR:[2,10],foreR:[0,6],upperL:[180,14],foreL:[180,14]}],eq:function(J){return[{t:'kb',at:[J.wR[0]-3,J.wR[1],J.wR[2]],dy:1}];},cue:'Kneel on the knee on the same side as the bell, front foot flat. Squeeze the glute of the down leg and press straight up.'});};
+SK['Landmine Press']=function(){return _skOverhead({views:['side'],torso:10,arms:[{upperR:[152,10],foreR:[-8,-10],upperL:[180,10],foreL:[180,10]},{upperR:[50,8],foreR:[48,6],upperL:[180,10],foreL:[180,10]}],eq:function(J){var w=J.wR;return[{t:'line',a:w,b:[w[0]+58,1.5,0],c:SK_C.ac,w:2.6},{t:'bar',at:[w[0]-2,w[1]-1,0],r:8,half:8}];},cue:'Bar end at the shoulder, staggered stance, lean in slightly. Press up and forward along the bar’s arc to a straight arm.'});};
+// ── Raises ───────────────────────────────────────────────────────────────────
+function _skRaise(o){var H=[0,32];
+  var mk=function(i){var a=o.arms[i];var q=_skQ({});for(var k in a)q[k]=a[k];if(o.seat){q.thigh=90;q.shank=180;q.foot=90;}
+    var J=o.seat?skMove(skPose(q),H):_skStandQ(q);var e=o.seat?_skSeat(H,-4):[];if(o.eq)e=e.concat(o.eq(J,i));return{J:J,eq:e};}
+  return _skX(mk(0),mk(1),o.views||['front'],o.cue);}
+var _SK_LAT=[{upper:[178,12],fore:[178,14]},{upper:[175,86],fore:[172,80]}];
+SK['Lateral Raise']=function(){return _skRaise({arms:_SK_LAT,eq:function(){return[{t:'db'}];},cue:'Slight bend in the elbows. Raise the dumbbells out to the sides to shoulder height, no higher; lower slowly.'});};
+SK['Band Lateral Raise']=function(){return _skRaise({arms:_SK_LAT,eq:function(J){return[{t:'band',from:['wR','wL'],to:skMid(J.tR,J.tL)}];},cue:'Stand on the band. Raise the hands out to the sides to shoulder height, elbows slightly bent; lower slowly.'});};
+SK['Cable Lateral Raise']=function(){return _skRaise({arms:[{upperR:[178,-8],foreR:[178,-14],upperL:[178,12],foreL:[178,12]},{upperR:[175,86],foreR:[172,80],upperL:[178,12],foreL:[178,12]}],eq:function(J){return[{t:'line',a:J.wR,b:[J.sh[0],5,-22],w:1.4}];},cue:'Cable low on the opposite side, crossing in front of the body. Raise the arm out to shoulder height; lower slowly.'});};
+SK['Machine Lateral Raise']=function(){return _skRaise({seat:true,arms:[{upper:[180,10],fore:[90,0]},{upper:[180,84],fore:[90,0]}],eq:function(J){return[{t:'box',x:[J.eR[0]-2,J.eR[0]+2],y:[J.eR[1]-2,J.eR[1]+2],z:[J.eR[2]-3,J.eR[2]+3],c:SK_C.ac},{t:'box',x:[J.eL[0]-2,J.eL[0]+2],y:[J.eL[1]-2,J.eL[1]+2],z:[J.eL[2]-3,J.eL[2]+3],c:SK_C.ac}];},cue:'Pads on the outside of the upper arms. Raise the elbows out to shoulder height; lower slowly.'});};
+SK['Front Raise']=function(){return _skRaise({views:['side'],arms:[{upper:[175,6],fore:[175,6]},{upper:[90,6],fore:[88,6]}],eq:function(){return[{t:'db'}];},cue:'Arms nearly straight, no swing. Raise the dumbbells in front to shoulder height; lower slowly.'});};
+SK['Y-Raise']=function(){return _skRaise({views:['front','side'],arms:[{upper:[172,10],fore:[172,10]},{upper:[12,38],fore:[10,38]}],eq:function(){return[{t:'db',r:2.4}];},cue:'Light weights, thumbs up. Raise the arms up and out into a Y overhead, shoulders down away from the ears; lower slowly.'});};
+SK['Band Y-Raise']=function(){return _skRaise({views:['front','side'],arms:[{upper:[172,10],fore:[172,10]},{upper:[12,38],fore:[10,38]}],eq:function(J){return[{t:'band',from:['wR','wL'],to:skMid(J.tR,J.tL)}];},cue:'Stand on the band, thumbs up. Raise the arms up and out into a Y overhead; lower slowly.'});};
+// ── Curls ────────────────────────────────────────────────────────────────────
+function _skCurl(o){var H=[0,32];
+  var mk=function(i){var q=_skQ(o.pad?{upper:[138,6],fore:i?[-8,6]:[140,6]}:{upper:[168,6],fore:i?[22,6]:[168,6]});if(o.one){q.upperL=[180,6];q.foreL=[180,6];}
+    if(o.seat){q.thigh=90;q.shank=180;q.foot=90;q.torso=8;}var J=o.seat?skMove(skPose(q),H):_skStandQ(q);var e=[];
+    if(o.seat)e=e.concat(_skSeat(H));
+    if(o.pad){var r=138*Math.PI/180;e.push({t:'slab',a:[J.sR[0]-2,J.sR[1]-5],b:[J.eR[0]+2*Math.sin(r)-1,J.eR[1]-5],z:[-12,12],w:4});if(!o.seat)e.push({t:'line',a:[J.eR[0]-4,J.eR[1]-6,0],b:[J.eR[0]-4,0,0],w:2.4});}
+    e=e.concat(o.eq(J,i));return{J:J,eq:e};}
+  return _skX(mk(0),mk(1),['side'],o.cue);}
+SK['Barbell Curl']=function(){return _skCurl({eq:function(J){return[{t:'bar',at:_skBarAt(J,0,0),r:9}];},cue:'Elbows pinned at the sides. Curl the bar up to the shoulders without swinging; lower all the way.'});};
+SK['EZ Bar Curl']=function(){return _skCurl({eq:function(J){return[{t:'bar',at:_skBarAt(J,0,0),r:8,half:18}];},cue:'Grip the angled part of the bar, elbows at the sides. Curl up to the shoulders, lower all the way.'});};
+SK['Hammer Curl']=function(){return _skCurl({eq:function(){return[{t:'db'}];},cue:'Palms facing each other, elbows at the sides. Curl up to the shoulders, lower all the way.'});};
+SK['Kettlebell Hammer Curl']=function(){return _skCurl({one:true,eq:function(J,i){return[{t:'kb',at:'wR',dy:i?-5:5}];},cue:'Hold the bell by the handle, palm facing in, elbow at the side. Curl up to the shoulder, lower all the way.'});};
+SK['Cable Bicep Curl']=function(){return _skCurl({eq:function(J){var b=_skBarAt(J,0,0);return[{t:'line',a:b,b:[J.sh[0]+20,4,0],w:1.4},{t:'bar',at:b,noPlate:true,half:12}];},cue:'Cable low in front, elbows pinned at the sides. Curl the bar to the shoulders, lower all the way.'});};
+SK['Band Curl']=function(){return _skCurl({eq:function(J){return[{t:'band',from:['wR','wL'],to:skMid(J.tR,J.tL)}];},cue:'Stand on the band, elbows at the sides. Curl the hands to the shoulders, lower slowly.'});};
+SK['Preacher Curl']=function(){return _skCurl({pad:true,eq:function(J){return[{t:'bar',at:_skBarAt(J,0,0),r:8,half:16}];},cue:'Backs of the upper arms flat on the pad. Curl up until the forearms are near vertical; lower to almost straight.'});};
+SK['Bicep Curl Machine']=function(){return _skCurl({pad:true,seat:true,eq:function(){return[{t:'db',r:2}];},cue:'Upper arms flat on the pad, elbows lined up with the pivot. Curl up, lower to almost straight.'});};
+// ── Triceps ──────────────────────────────────────────────────────────────────
+function _skTri(o){var H=[0,32];
+  var mk=function(i){var q=_skQ(o.arms[i]);q.torso=o.torso||0;q.neck=q.torso*0.6;if(o.stagger){q.thighL=166;q.shankL=188;q.thighR=192;q.shankR=192;}
+    if(o.seat){q.thigh=90;q.shank=180;q.foot=90;}var J=o.seat?skMove(skPose(q),H):_skStandQ(q);var e=o.seat?_skSeat(H):[];e=e.concat(o.eq(J,i));return{J:J,eq:e};}
+  return _skX(mk(0),mk(1),['side'],o.cue);}
+SK['Tricep Pushdown']=function(){return _skTri({torso:10,arms:[{upper:[184,6],fore:[40,4]},{upper:[184,6],fore:[182,4]}],eq:function(J){var b=_skBarAt(J,0,0);return[{t:'line',a:b,b:[J.sh[0]+14,112,0],w:1.4},{t:'bar',at:b,noPlate:true,half:10}];},cue:'Elbows pinned at the sides, slight lean. Push the bar down until the arms are straight; let it rise to chest height without moving the elbows.'});};
+SK['Band Tricep Extension']=function(){return _skTri({torso:10,arms:[{upper:[184,6],fore:[40,4]},{upper:[184,6],fore:[182,4]}],eq:function(J){return[{t:'band',from:['wR'],to:[J.sh[0]+14,100,0]}];},cue:'Band anchored high, elbows at the sides. Push down until the arms are straight; return slowly.'});};
+SK['Overhead Tricep Cable']=function(){return _skTri({torso:32,stagger:true,arms:[{upper:[14,6],fore:[-158,4]},{upper:[16,6],fore:[24,4]}],eq:function(J){return[{t:'line',a:J.wR,b:[J.sh[0]-46,40,0],w:1.4}];},cue:'Facing away from the cable, rope behind the head, elbows up by the ears. Extend the arms forward-up until straight; elbows stay put.'});};
+SK['Band Overhead Tricep Extension']=function(){return _skTri({torso:4,arms:[{upper:[-4,6],fore:[-170,4]},{upper:[-2,6],fore:[0,4]}],eq:function(J){return[{t:'band',from:['wR'],to:[J.aR[0]-4,1.5,0]}];},cue:'Band under the back foot, hands behind the head, elbows up by the ears. Extend the arms straight up; elbows stay put.'});};
+SK['Tricep Extension Machine']=function(){return _skTri({seat:true,arms:[{upper:[132,6],fore:[0,4]},{upper:[132,6],fore:[132,4]}],eq:function(J){var r=132*Math.PI/180;return[{t:'slab',a:[J.sR[0]-2,J.sR[1]-5],b:[J.eR[0]-1,J.eR[1]-5],z:[-12,12],w:4},{t:'db',r:2}];},cue:'Elbows on the pad lined up with the pivot. Extend the arms fully, return slowly without lifting the elbows.'});};
+// ── Grip panels: narrow vs wide on the exercises where grip width is a real choice ──
+// One exercise, one history (rule 2026-08-08): the grip is shown on the sketch, never a new name.
+function _skWithGrip(name,make){var base=SK[name];SK[name]=function(){var s=base();s.grips=make();return s;};}
+// Grip notes cite the studies retrieved into claude-agent-backend docs/enhanced-bodybuilding/sources/grip-width-*
+// (summary: docs/enhanced-bodybuilding/20-grip-width.md). Henrik, 2026-10-12: "Difference in muscle hit with
+// different grips should be mentioned as well?" — then: "science based and rather point out differences are
+// smaller than gym lore in those occasions". Where the studies show a smaller effect than the common belief, the note
+// opens with "Smaller than gym lore suggests"; where they show a real difference (overhead press) it does not.
+var _SK_GRIP_NOTE='Narrow: hands about shoulder width. Wide: about 1.5× shoulder width. Keep one grip per training block so your numbers stay comparable.';
+function _skGripHang(eqFn){return function(){var mk=function(a){var J=_skHang({torso:-3,thigh:[183,4],shank:178,upper:[4,a],fore:[2,a-2]},_SK_BAR);var e=[{t:'pullbar',at:[0,_SK_BAR+1.5,0],half:34}];if(eqFn)e=e.concat(eqFn(J));return{J:J,eq:e};}
+  return{view:'front',floor:false,items:[mk(8),mk(34)],labels:['Narrow','Wide'],note:"Narrow \u2248 shoulder width, wide \u2248 1.5\u00d7 shoulder width. Smaller than gym lore suggests. Max strength and reps were the same at shoulder width and a ~20% wider grip (Ortega-Rodr\u00edguez 2021). A modelling study found wide shifts slightly more work to the lats, narrower to the biceps (Urbanczyk 2020). Very wide grips put the shoulder in a position linked to impingement (Prinold 2016)."};};}
+_skWithGrip('Pull-ups',_skGripHang());
+_skWithGrip('Weighted Pull-ups',_skGripHang(function(J){return[{t:'line',a:J.hip,b:[J.hip[0]+2,J.hip[1]-14,0],c:SK_C.ac,w:1.6},{t:'box',x:[J.hip[0]-4,J.hip[0]+8],y:[J.hip[1]-19,J.hip[1]-14],z:[-6,6],c:SK_C.ac}];}));
+_skWithGrip('Lat Pulldown',function(){var H=[0,30];var mk=function(a){var q=_skQ({torso:-12,neck:-6,thigh:90,shank:180,foot:90,upper:[6,a],fore:[3,a-2]});var J=skMove(skPose(q),H);var b=_skBarAt(J,0,0);
+    return{J:J,eq:_skSeat(H).concat([{t:'box',x:[J.kR[0]-4,J.kR[0]+4],y:[J.kR[1]+3,J.kR[1]+7],z:[-12,12]},{t:'line',a:b,b:[b[0],118,0],w:1.4},{t:'bar',at:b,noPlate:true,half:32}])};}
+  return{view:'front',items:[mk(8),mk(30)],labels:['Narrow','Wide'],note:"Narrow \u2248 shoulder width, wide \u2248 1.5\u20132\u00d7 shoulder width. Smaller than gym lore suggests: the belief that wide works the lats more has little support (Andersen 2014). Lat activation was similar from 1 to 2\u00d7 shoulder width, and you lift slightly more with narrow\u2013medium than wide (Andersen 2014); in 40 trained men no grip variation changed lat activation (Buonsenso 2025). Palms away worked the lats more than palms toward you (Lusk 2010)."};});
+function _skGripBench(incline){return function(){var top=22,H=[0,top+6],t=incline?-52:-90;
+  var mk=function(a){var q={torso:t,neck:t,upper:[0,a],fore:[0,a-2]};var J=_skHipAnkle(q,H,[H[0]+24,1.5]);var e=_skBench(-44,6,top);e.push({t:'bar',at:_skBarAt(J,0,1),half:30});return{J:J,eq:e};}
+  return{view:'top',items:[mk(2),mk(22)],labels:['Narrow','Wide'],note:incline?"Seen from above. Narrow \u2248 shoulder width, wide \u2248 1.5\u00d7 shoulder width. Smaller than gym lore suggests (studied on the flat bench): narrower = a bit more triceps, slightly less chest (Lehman 2005); wide = less triceps, narrow = lowest load (Saeterbakken 2021).":"Seen from above. Narrow \u2248 shoulder width, wide \u2248 1.5\u00d7 shoulder width. Smaller than gym lore suggests: narrower = a bit more triceps and slightly less lower chest (Lehman 2005); wide = less triceps, and you lift least with a narrow grip (Saeterbakken 2021)."};};}
+_skWithGrip('Bench Press',_skGripBench(false));
+_skWithGrip('Incline Bench Press',_skGripBench(true));
+_skWithGrip('Overhead Press',function(){var mk=function(a){var J=_skStandQ({upper:[2,a],fore:[0,a-4]});return{J:J,eq:[{t:'bar',at:_skBarAt(J,0,1)}]};}
+  return{view:'front',items:[mk(8),mk(24)],labels:['Narrow','Wide'],note:"Narrow: hands just outside the shoulders. Wide \u2248 1.5\u00d7 shoulder width. What changes: a narrower grip lets you lift more over a longer range, with more load on the elbows and less on the shoulders; wider is the reverse (Gundersen 2026, seated press)."};});
+_skWithGrip('Barbell Row',function(){var mk=function(a){var J=_skStandQ({torso:68,neck:55,thigh:[160,6],shank:192,upper:[180,a],fore:[180,a]});return{J:J,eq:[{t:'bar',at:_skBarAt(J,0,0)}]};}
+  return{view:'front',items:[mk(3),mk(20)],labels:['Narrow','Wide'],note:"Narrow \u2248 shoulder width, wide \u2248 1.5\u00d7 shoulder width. What changes: no good study has compared grip width in the barbell row. Use the width that lets you pull the bar to the lower ribs comfortably, and keep it the same so your numbers compare."};});
+// ── Core (generated programs use these; 2026-10-12) ──────────────────────────
+function _skMat(J){var xs=[J.tR[0],J.tL[0],J.headc[0],J.wR[0],J.wL[0],J.kR[0],J.kL[0]];return{t:'box',x:[Math.min.apply(null,xs)-5,Math.max.apply(null,xs)+5],y:[0,1],z:[-26,26],c:'#26262b'};}
+SK['Plank']=function(){
+  var mk=function(knees){var J=skSolve(function(t){var q=_skQ({torso:t,neck:t,upper:180,fore:90,thigh:t-180,shank:knees?-90:t-180,foot:knees?-90:180});var K=skPose(q);
+      return knees?skMove(K,[-30-K.kR[0],1.5-K.kR[1],0]):skMove(K,[-45-K.tR[0],-K.tR[1],0]);},40,130,function(J){return 2.5-J.eR[1];});
+    return{J:J,eq:[_skMat(J)]};}
+  return _skX(mk(true),mk(false),['side'],'Forearms under the shoulders. Lift the knees so the body is one straight line from head to heels; brace the abs and squeeze the glutes, hips level. Hold.');};
+SK['Dead Bug']=function(){
+  var mk=function(i){var q=_skQ({torso:-90,neck:-90,upper:0,fore:0,thigh:0,shank:90,foot:0});
+    if(i){q.upperR=-75;q.foreR=-75;q.thighL=72;q.shankL=72;q.footL=-10;}
+    var J=skPose(q);J=skMove(J,[0,4-J.hip[1],0]);return{J:J,eq:[_skMat(J)]};}
+  return _skX(mk(0),mk(1),['side'],'On your back, arms to the ceiling, knees bent 90° above the hips. Press the lower back into the floor, then lower one arm and the opposite leg slowly without the back arching; return and switch.');};
+SK['Bird Dog']=function(){
+  var mk=function(i){var q=_skQ({torso:76,neck:84,upper:180,fore:180,thigh:180,shank:-90,foot:-90});
+    if(i){q.upperR=84;q.foreR=84;q.thighL=-86;q.shankL=-86;q.footL=180;}
+    var J=skPose(q);J=skMove(J,[0,26.5-J.hip[1],0]);return{J:J,eq:[_skMat(J)]};}
+  return _skX(mk(0),mk(1),['side','top'],'Hands under the shoulders, knees under the hips, back flat. Reach one arm forward and the opposite leg back until both are level with the body, hips square; return and switch.');};
+SK['Pallof Press']=function(){
+  var mk=function(i){var J=_skStandQ(i?{upper:[90,-14],fore:[90,-14],thighR:[180,6],thighL:[180,6]}:{upper:[172,8],fore:[35,-55],thighR:[180,6],thighL:[180,6]});
+    var m=skMid(J.wR,J.wL),to=[J.sh[0],J.sh[1]-6,48];return{J:J,eq:[{t:'line',a:m,b:to,w:1.4},{t:'line',a:[to[0],0,to[2]],b:[to[0],J.sh[1]+8,to[2]],w:2.4},{t:'db',r:2}]};}
+  return _skX(mk(0),mk(1),['top','front'],'Stand side-on to the cable or band at chest height, handle at the chest. Press straight out and hold for a breath without letting the body twist toward the anchor; bring it back.');};
+// ── Log Workout card (redesign, Henrik 2026-10-12) ───────────────────────────
+// Exercises with nothing to load: no kg column at all (Henrik: "3 yes").
+var UNLOADED_EX=/^(dead bug|plank|bird dog|pallof press|prone y-raise|prone t-raise)$/i;
+function _isUnloadedEx(name){return UNLOADED_EX.test(String(name||'').trim());}
+// kg = a weight column; bw = "BW" in its place (the stored kg is still body weight, as before); none = reps only.
+function _loadMode(name,isBW){return _isUnloadedEx(name)?'none':(isBW?'bw':'kg');}
+// One set row. The kg input is always there (hidden for bw/none), so saving, drafts and history read it exactly as before.
+function _setRowInner(i,exAttr,kgVal,mode){return '<span class="set-n">S'+(i+1)+'</span>'
+  +'<input type="'+(mode==='kg'?'text':'hidden')+'" class="set-in set-kg" inputmode="decimal" value="'+_escP(kgVal==null?'':kgVal)+'" placeholder="'+unitLabel()+'"'+exAttr+' data-type="kg" oninput="propagateWeight(this)">'
+  +'<span class="set-bw"'+(mode==='bw'?'':' hidden')+'>BW</span>'
+  +'<input type="text" class="set-in set-reps" inputmode="numeric" pattern="[0-9]*" placeholder="reps"'+exAttr+' data-type="reps">';}
+function _applyLoadMode(card,name){if(!card)return;var bw=isBWExName(name)&&!/weighted\s*(pull|chin)/i.test(name||'');var m=_loadMode(name,bw);card.dataset.load=m;
+  card.querySelectorAll('.sets-row input[data-type="kg"]').forEach(function(i){i.type=m==='kg'?'text':'hidden';});
+  card.querySelectorAll('.sets-row .set-bw').forEach(function(x){x.hidden=m!=='bw';});
+  var l=card.querySelector?card.querySelector('.exc-last'):null;if(l){var t=_lastTimeText(name,m);l.textContent=t;l.hidden=!t;}}
+var _EX_HELP_BTN='<button onclick="showExSketch(this)" title="How to do it" style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:8px;cursor:pointer;font-family:var(--font-ui);line-height:1;padding:0;background:rgba(77,163,255,0.12);border:1px solid #4da3ff;color:#4da3ff;font-size:19px;font-weight:700;flex-shrink:0">?</button>';
+var _EX_MORE_BTN='<button onclick="openExMenu(this)" title="Swap, remove, equipment" aria-label="More" class="exc-more" style="width:38px;height:38px">⋯</button>';
+function _tagChipHtml(tag){if(!tag)return '';var c={strength:'tag-strength',volume:'tag-volume',rehab:'tag-rehab'}[tag]||'tag-volume';var l={strength:'Strength',volume:'Volume',rehab:'Rehab'}[tag]||tag;return '<span class="ex-tag exc-tag '+c+'">'+_escP(l)+'</span>';}
+// "Last (3 Oct): 25 kg × 10, 10, 9" from the newest stored log holding this exercise (Henrik: "4 yes").
+function _lastTimeText(name,mode){if(!name||typeof logs==='undefined'||!logs||!logs.length)return '';var ed=String(((document.getElementById('log-edit-id')||{}).value)||'');var best=null;
+  logs.forEach(function(l){if(ed&&String(l.id)===ed)return;var ex=(l.exercises||[]).find(function(e){return e.name===name;});if(!ex)return;var sets=(ex.sets||[]).filter(function(x){return (x.reps||0)>0;});if(!sets.length)return;
+    if(!best||String(l.date)>String(best.date)||(String(l.date)===String(best.date)&&(l.id||0)>(best.id||0)))best={date:l.date,id:l.id,sets:sets};});
+  if(!best)return '';var reps=best.sets.map(function(x){return x.reps;}),txt;
+  if(mode==='none')txt=reps.join(', ')+' reps';else if(mode==='bw')txt='BW × '+reps.join(', ');
+  else{var kgs=best.sets.map(function(x){return x.kg||0;});var same=kgs.every(function(k){return k===kgs[0];});
+    txt=same?((kgs[0]>0?kgToUnit(kgs[0])+' '+unitLabel()+' × ':'')+reps.join(', ')):best.sets.map(function(x){return (x.kg>0?kgToUnit(x.kg)+'×':'')+x.reps;}).join(', ');}
+  var d=new Date(best.date+'T12:00:00');var ds=isNaN(d.getTime())?'':d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});return 'Last'+(ds?' ('+ds+')':'')+': '+txt;}
+function _lastTimeHtml(name,mode){var t=_lastTimeText(name,mode);return '<div class="exc-last"'+(t?'':' hidden')+'>'+_escP(t)+'</div>';}
+function _gearChipText(card){if(!card)return '';var p=[];if(parseFloat(card.dataset.gearHalf)===0.5)p.push('½ gear');if(parseFloat(card.dataset.gear2x)===2)p.push('2× cable');if(parseFloat(card.dataset.db)===2)p.push('2 dumbbells');return p.join(' · ');}
+function _renderGearChip(card){var el=card&&card.querySelector&&card.querySelector('.exc-gear');if(!el)return;var t=_gearChipText(card);el.textContent=t;el.hidden=!t;}
+// An exercise is done when every set has reps; the Save bar counts them.
+function _updateLogProgress(){var c=document.getElementById('structured-log');if(!c)return;var cards=Array.prototype.slice.call(c.querySelectorAll('.ex-card'));var n=0;
+  cards.forEach(function(card){var r=Array.prototype.slice.call(card.querySelectorAll('input[data-type="reps"]'));var d=r.length>0&&r.every(function(i){return parseInt(i.value)>0;});if(d){n++;card.classList.add('ex-done');}else card.classList.remove('ex-done');});
+  var el=document.getElementById('log-progress');if(el)el.textContent=cards.length?(n+' of '+cards.length+' exercises done'):'';return n;}
+function _onLogInput(){scheduleDraft();_updateLogProgress();}
+// ⋯ menu: Swap, the equipment toggles, Remove. The toggles are the card's own (hidden) gear buttons, clicked for you.
+var _exMenuBtn=null;
+var _GEAR_LBL=[['data-gear','Machine gearing (½)','gear',0.5],['data-gear2','Two cable stacks','gear2',2],['data-db','Two dumbbells','db',2]];
+function _exMenuHtml(card){if(!card)return '';var h='';var custom=card.dataset.custom==='true';
+  if(!custom)h+='<button class="exm-row" onclick="_exMenuSwap()"><span>Swap exercise<small>Replace it for today</small></span></button>';
+  Array.prototype.slice.call(card.querySelectorAll('.gear-slot button')).forEach(function(b,i){var g=_GEAR_LBL.find(function(x){return b.hasAttribute(x[0]);});if(!g)return;var on=parseFloat(b.dataset[g[2]])===g[3];
+    h+='<button class="exm-row" onclick="_exMenuGear('+i+')"><span>'+g[1]+'<small>'+_escP(b.title||'')+'</small></span><span class="exm-st'+(on?' on':'')+'">'+(on?'On':'Off')+'</span></button>';});
+  h+='<button class="exm-row exm-danger" onclick="_exMenuRemove()"><span>Remove from today</span></button>';return h;}
+function _renderExMenu(){var card=_exMenuBtn&&_exMenuBtn.closest('.ex-card');if(!card)return;document.getElementById('exMenuTitle').textContent=(_exCardName(card)||'Exercise').toUpperCase();document.getElementById('exMenuBody').innerHTML=_exMenuHtml(card);}
+function openExMenu(btn){_exMenuBtn=btn;_renderExMenu();openModal('exMenuModal');}
+function _exMenuSwap(){closeModal('exMenuModal');if(_exMenuBtn)swapExercise(_exMenuBtn);}
+function _exMenuRemove(){closeModal('exMenuModal');if(_exMenuBtn)removeExCard(_exMenuBtn);_exMenuBtn=null;}
+function _exMenuGear(i){var card=_exMenuBtn&&_exMenuBtn.closest('.ex-card');if(!card)return;var b=card.querySelectorAll('.gear-slot button')[i];if(b)b.click();_renderGearChip(card);_renderExMenu();scheduleDraft();}
+// Exercise sketch viewer (Henrik, 2026-10-12): the "?" on a Log Workout card opens how to do that exercise.
+function _exSketchSpec(name){var f=SK[name]||SK[_exCanonName(name)];return f?f():null;}
+function _exSketchHtml(name){var s=_exSketchSpec(name);if(!s)return '<div data-sk-none="1" style="color:var(--muted);font-size:13px">No sketch for '+_escP(name||'this exercise')+' yet.</div>';
+  var V={side:'Side',front:'Front',top:'From above'},W=150,H=170;
+  function fig(svg,l){return '<figure style="margin:0;flex:1;min-width:0;display:flex;flex-direction:column;align-items:center">'+svg+'<figcaption style="font-size:10px;color:#8d8d93;letter-spacing:.08em;text-transform:uppercase">'+_escP(l)+'</figcaption></figure>';}
+  function tile(lbl,a,b,la,lb,mid,extra){return '<div data-sk-view="1" style="background:#151517;border:1px solid #2a2a2e;border-radius:10px;padding:6px 6px 4px;margin-top:10px"><div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#8d8d93;padding:0 4px">'+lbl+'</div><div style="display:flex;align-items:center">'+fig(a,la)+mid+fig(b,lb)+'</div>'+(extra||'')+'</div>';}
+  var P=skPanels(s,W,H),arr='<span style="color:#e8ff3c;font-size:16px;padding:0 2px">→</span>';
+  var out='<div style="font-size:13px;color:var(--text);line-height:1.5">'+_escP(s.cue)+'</div>';
+  s.views.forEach(function(v){out+=tile(V[v],P[v][0],P[v][1],'Start','Finish',arr);});
+  if(s.grips){var g=s.grips,G=skPanels({views:[g.view],start:g.items[0],end:g.items[1],floor:g.floor},W,H)[g.view];
+    out+=tile('Grip · '+V[g.view],G[0],G[1],g.labels[0],g.labels[1],'<span style="font-size:11px;color:#8d8d93;padding:0 4px">or</span>','<div data-sk-grip="1" style="font-size:11.5px;line-height:1.45;color:#c4c4c9;margin:4px">'+_escP(g.note)+'</div>');}
+  return out;}
+function _openExSketch(n){document.getElementById('exSketchTitle').textContent=(n||'Exercise').toUpperCase();document.getElementById('exSketchContent').innerHTML=_exSketchHtml(n);openModal('exSketchModal');}
+function showExSketch(btn){_openExSketch(_exCardName(btn.closest('.ex-card')));}
+// The same blue ? on the Program day view and in the program editor (Henrik, 2026-10-12). onclick is JS, so it is attribute-escaped.
+function _exSketchBtnHtml(onclick){return '<button onclick="'+_escP(onclick)+'" title="How to do it" style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:8px;cursor:pointer;font-family:var(--font-ui);line-height:1;padding:0;background:rgba(77,163,255,0.12);border:1px solid #4da3ff;color:#4da3ff;font-size:19px;font-weight:700;flex-shrink:0">?</button>';}
+// ── end exercise sketches ──
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 function showWeightModal(){openModal('weightModal');}
@@ -2920,12 +3539,6 @@ const BMI_LEAN_BF={male:20,female:30};
 // in onboarding is `gender!=='female'`). One convention, one place to change it.
 function bmiLeanBf(gender){return gender==='female'?BMI_LEAN_BF.female:BMI_LEAN_BF.male;}
 function drawBmiChart(){var canvas=document.getElementById('bmiChart');if(!canvas)return;var ctx=canvas.getContext('2d');var dpr=window.devicePixelRatio||1;var cssW=canvas.offsetWidth||300;var H=100;canvas.width=cssW*dpr;canvas.height=H*dpr;canvas.style.width=cssW+'px';canvas.style.height=H+'px';ctx.scale(dpr,dpr);var W=cssW;var profile=getData('wkt-profile',null);var hM=profile&&profile.height?profile.height/100:0;var noteEl=document.getElementById('bmi-note');if(!hM){if(noteEl)noteEl.textContent='Set height in Settings → Profile to enable BMI chart';ctx.fillStyle='#444';ctx.font='13px sans-serif';ctx.fillText('Height not set — add it in Settings → Profile',14,50);return;}var cutoff=new Date();cutoff.setDate(cutoff.getDate()-(_weightWindow||90));var cutoffStr=cutoff.toISOString().split('T')[0];var pts=weights.filter(function(w){return w.date&&/^\d{4}-\d{2}-\d{2}$/.test(w.date)&&w.date>=cutoffStr&&w.weight>0;}).map(function(w){return{date:w.date,bmi:Math.round((w.weight/(hM*hM))*10)/10};});if(pts.length<2){if(noteEl)noteEl.textContent='Need ≥2 weight entries in window';ctx.fillStyle='#444';ctx.font='13px sans-serif';ctx.fillText('Need ≥2 weight entries to draw BMI chart',14,50);return;}if(noteEl){var last=pts[pts.length-1];var cat=last.bmi<18.5?'Underweight':last.bmi<25?'Normal':last.bmi<30?'Overweight':'Obese';var note='Current BMI: '+last.bmi+' — '+cat+' (based on '+hM*100+' cm height)';var lastBf=(bfLog&&bfLog.length)?bfLog[bfLog.length-1]:null;var leanBf=bmiLeanBf(profile&&profile.gender);if(lastBf&&lastBf.bf>0&&lastBf.bf<leanBf)note+=' · Not valid at '+lastBf.bf+'% body fat: BMI uses only height and weight, so it cannot tell muscle from fat and reads a lean, muscular build as overweight. Use the BF% chart above instead.';noteEl.textContent=note;}var vals=pts.map(function(e){return e.bmi;});var minV=_chartScale==='absolute'?0:Math.min.apply(null,vals)-0.5;var maxV=_chartScale==='absolute'?Math.max.apply(null,vals)*1.15:Math.max.apply(null,vals)+0.5;var pad={l:38,r:10,t:16,b:16};var cW=W-pad.l-pad.r;var cH=H-pad.t-pad.b;var dates=pts.map(function(e){return new Date(e.date+'T12:00:00').getTime();});var minD=Math.min.apply(null,dates);var maxD=Math.max.apply(null,dates)||minD+1;var xp=function(d){return pad.l+((d-minD)/(maxD-minD||1))*cW;};var yp=function(v){return pad.t+cH-(((v-minV)/(maxV-minV||1))*cH);};ctx.strokeStyle='rgba(255,255,255,0.06)';ctx.lineWidth=1;[0,0.5,1].forEach(function(f){var y=pad.t+cH*f;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+cW,y);ctx.stroke();var v=(maxV-(maxV-minV)*f).toFixed(1);ctx.fillStyle='#555';ctx.font='10px sans-serif';ctx.textAlign='right';ctx.fillText(v,pad.l-4,y+3);});ctx.textAlign='left';var gradient=ctx.createLinearGradient(0,pad.t,0,pad.t+cH);gradient.addColorStop(0,'rgba(232,255,60,0.25)');gradient.addColorStop(1,'rgba(232,255,60,0.0)');ctx.beginPath();ctx.moveTo(xp(dates[0]),yp(vals[0]));for(var i=1;i<pts.length;i++)ctx.lineTo(xp(dates[i]),yp(vals[i]));ctx.lineTo(xp(dates[pts.length-1]),pad.t+cH);ctx.lineTo(xp(dates[0]),pad.t+cH);ctx.closePath();ctx.fillStyle=gradient;ctx.fill();ctx.beginPath();ctx.strokeStyle='#e8ff3c';ctx.lineWidth=2;ctx.moveTo(xp(dates[0]),yp(vals[0]));for(var j=1;j<pts.length;j++)ctx.lineTo(xp(dates[j]),yp(vals[j]));ctx.stroke();var lp=pts[pts.length-1];ctx.fillStyle='#e8ff3c';ctx.beginPath();ctx.arc(xp(dates[pts.length-1]),yp(lp.bmi),4,0,Math.PI*2);ctx.fill();ctx.fillStyle='#000';ctx.font='bold 10px sans-serif';ctx.textAlign='left';ctx.fillText(lp.bmi,xp(dates[pts.length-1])+6,yp(lp.bmi)+4);}
-// ── Rest timer ─────────────────────────────────────────────────────────────────
-let _restEnd=0,_restTid=null,_restAc=null;
-function showRestTimer(){var bar=document.getElementById('rest-timer-bar');if(bar){bar.style.display='flex';var disp=document.getElementById('rest-timer-display');if(disp&&!_restTid)disp.textContent='';}}
-function startRest(secs){if(_restTid){clearInterval(_restTid);}_restEnd=Date.now()+secs*1000;var bar=document.getElementById('rest-timer-bar');if(bar)bar.style.display='flex';_renderRestBar();_restTid=setInterval(_renderRestBar,500);if(typeof Notification!=='undefined'&&Notification.permission==='default'){Notification.requestPermission();}try{if(!_restAc)_restAc=new(window.AudioContext||window.webkitAudioContext)();if(_restAc.state==='suspended')_restAc.resume();}catch(e){}}
-function cancelRest(){if(_restTid){clearInterval(_restTid);_restTid=null;}_restEnd=0;var bar=document.getElementById('rest-timer-bar');if(bar)bar.style.display='none';}function _playBeep(){if(!_restAc)return;try{[[880,0,0.25],[1100,0.3,0.4]].forEach(function(p){var o=_restAc.createOscillator();var g=_restAc.createGain();o.connect(g);g.connect(_restAc.destination);o.frequency.value=p[0];g.gain.value=0.5;o.start(_restAc.currentTime+p[1]);o.stop(_restAc.currentTime+p[1]+p[2]);});}catch(e){}}
-function _renderRestBar(){var remaining=Math.max(0,Math.ceil((_restEnd-Date.now())/1000));var disp=document.getElementById('rest-timer-display');if(disp){var m=Math.floor(remaining/60);var s=remaining%60;disp.textContent=m+':'+(s<10?'0':'')+s;disp.style.color=remaining<=10?'var(--danger)':'var(--accent)';}if(remaining<=0){if(_restTid){clearInterval(_restTid);_restTid=null;}_playBeep();if(typeof Notification!=='undefined'&&Notification.permission==='granted'){try{new Notification('Rest done — time to lift! 💪',{icon:'/favicon.ico',tag:'rest-timer'});}catch(e){}}setTimeout(cancelRest,2500);}}
 function formatDate(d){return new Date(d+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});}
 async function syncWeightsFromAgent(){try{const r=await fetch(AGENT_URL+"/weights",{headers:authHeaders()});if(!r.ok)return;const remote=await r.json();const local=getData('weight_log',[]);const normalized=[...remote,...local].map(function(w){return{date:_normDt(w.date),weight:w.weight};});const seen=new Set();const merged=[];normalized.forEach(function(w){if(!seen.has(w.date)){seen.add(w.date);merged.push(w);}});merged.sort((a,b)=>a.date.localeCompare(b.date));weights=merged;setData('weight_log',merged);updateCurrentWeight();const _sw=document.getElementById('stat-weight');if(_sw&&weights.length)_sw.textContent=kgToUnit(weights[weights.length-1].weight);_refreshBWPrefill();}catch(e){}}
 function _refreshBWPrefill(){if(!weights.length)return;var _bw=weights[weights.length-1].weight;var _c=document.getElementById('structured-log');if(!_c)return;_c.querySelectorAll('.ex-card[data-bw="1"] input[data-type="kg"]').forEach(function(inp){if(inp.value==='')inp.value=kgToUnit(_bw);});_c.querySelectorAll('[data-bw-chip]').forEach(function(s){s.textContent='+ '+kgToUnit(_bw)+' '+unitLabel()+' BW';});}

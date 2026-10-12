@@ -963,17 +963,16 @@ console.log('\n── Key functions ──────────────�
 })();
 
 // Henrik 2026-09-29: "make sure choices for cable gears and sets are on one line not
-// breaking". Every Log Workout card's control row (timer, ½ gear, 2× cable, DB, − set, + set)
-// is a .card-btn-row, and the stylesheet keeps that row from wrapping; its buttons shrink
-// instead (measured in Chromium at iPhone width: 6 buttons fit 285px with no text clipped).
+// breaking". Since the 2026-10-12 redesign the gear toggles live in the ⋯ menu and the
+// timer is gone, so the control row holds only − set / + set, on one line.
 (function(){
-  const rows = (html.match(/class="card-btn-row" style="[^"]*"/g) || []);
-  check('both Log card builders use the .card-btn-row control row', rows.length === 2, String(rows.length));
+  const fns = [String(G.prefillLog), String(G.addCustomExercise)];
+  check('both Log card builders use the .card-btn-row control row',
+    fns.every(f => f.includes('class=\"card-btn-row\"') || f.includes('class="card-btn-row"')));
   const rule = (html.match(/\.card-btn-row\{[^}]*\}/) || [''])[0];
-  check('the control row never wraps (stylesheet beats the inline flex-wrap)', /flex-wrap:nowrap!important/.test(rule), rule);
-  const btn = (html.match(/\.card-btn-row>button\{[^}]*\}/) || [''])[0];
-  check('its buttons keep their label on one line and may shrink',
-    /white-space:nowrap/.test(btn) && /flex:0 1 auto/.test(btn) && /min-width:0/.test(btn), btn);
+  check('the control row is one flex line (no wrap)', /display:flex/.test(rule) && !/flex-wrap:wrap/.test(rule), rule);
+  check('…holding − set and + set; the gear toggles sit in its hidden .gear-slot for the ⋯ menu',
+    fns.every(f => /gear-slot\\?" hidden/.test(f) && f.includes('removeSet(this)') && f.includes('addSet(this)')));
 })();
 
 // Henrik 2026-09-28, on a fresh install: "Backup logs in backend? ... the app has zero logs"
@@ -1686,26 +1685,12 @@ console.log('\n── Lean body mass chart ────────────�
   check('lean-mass values are shown in the user unit', /kgToUnit\(last\.lbm\)/.test(rawScript));
 }
 
-// ── 37. Rest timer — showRestTimer / startRest / cancelRest ──────────────────
-console.log('\n── Rest timer ───────────────────────────────────────────────');
-check('showRestTimer defined', typeof G.showRestTimer === 'function');
-check('startRest defined',     typeof G.startRest     === 'function');
-check('cancelRest defined',    typeof G.cancelRest    === 'function');
-// Timer bar element exists in HTML
-check('rest-timer-bar element in HTML', rawScript.includes('rest-timer-bar'));
-// Preset buttons exist (in HTML body, not script block)
-check('60s preset in HTML',  html.includes('startRest(60)'));
-check('90s preset in HTML',  html.includes('startRest(90)'));
-check('120s preset in HTML', html.includes('startRest(120)'));
-check('180s preset in HTML', html.includes('startRest(180)'));
-check('300s preset in HTML', html.includes('startRest(300)'));
-// cancelRest clears the interval and hides bar
-check('cancelRest clears _restTid', rawScript.includes('_restTid'));
-check('cancelRest sets _restEnd to 0', rawScript.includes('_restEnd=0'));
-// Web Notification API requested on start
-check('Notification.requestPermission called', rawScript.includes('Notification.requestPermission'));
-// REST TIMER button present in log form
-check('REST TIMER button in log form', rawScript.includes('showRestTimer'));
+// ── 37. Rest timers removed (Henrik, 2026-10-12: "remove the timers totally") ──
+console.log('\n── Rest timers are gone ─────────────────────────────────────');
+check('no rest timer functions remain', ['showRestTimer', 'startRest', 'cancelRest', '_renderRestBar', '_playBeep'].every(f => typeof G[f] === 'undefined'));
+check('no rest timer bar, presets or REST TIMER button in the page',
+  !html.includes('rest-timer-bar') && !html.includes('startRest(') && !html.includes('REST TIMER') && !html.includes('showRestTimer'));
+check('restSecsForTag stays: the session-length estimate still uses it', typeof G.restSecsForTag === 'function' && G.restSecsForTag('strength') === 240);
 
 // ── 38. PWA sync after sign-in (regression: PWA had stale data) ──────────────
 console.log('\n── PWA sync after fresh sign-in ─────────────────────────────');
@@ -2347,8 +2332,8 @@ console.log('\n── 48. Program wizard days/sets ─────────�
     try {
       check('prefillLog uses ex.sets.split without artificial slice cap',
         src.includes("(_deloadActive?_deloadSets(ex.sets):ex.sets).split('-')") && !src.includes("ex.sets.split('-').slice(0,5)"));
-      check('prefillLog label shows program sets (deloaded when active, else raw ex.sets)',
-        src.includes("margin-top:2px\">'+(_deloadActive?_deloadSets(ex.sets):ex.sets)+'</div>"));
+      check('prefillLog prescription line shows the scheme in words (deloaded when active)',
+        src.includes("const _rx=_deloadActive?_deloadScheme(ex.scheme||ex.sets)+' · deload':(ex.scheme||ex.sets);") && src.includes('exc-rx'));
     } catch(e) {
       check('prefillLog no-cap invariant (caught)', false, String(e));
     }
@@ -2356,8 +2341,8 @@ console.log('\n── 48. Program wizard days/sets ─────────�
     // sets-row in prefillLog uses flex-wrap:nowrap + overflow-x:auto for single-line 7-set layout
     try {
       const fn62 = G.prefillLog.toString();
-      check('prefillLog sets-row uses flex-wrap:nowrap with overflow-x:auto for single-line 7-set layout',
-        fn62.includes('flex-wrap:nowrap') && fn62.includes('overflow-x:auto'));
+      check('prefillLog renders one .set-row per set through the shared _setRowInner',
+        fn62.includes('class="set-row"') && fn62.includes('_setRowInner(i,'));
     } catch(e) {
       check('prefillLog sets-row flex-wrap (caught)', false, String(e));
     }
@@ -2816,18 +2801,16 @@ console.log('\n── prefillLog — WPU / reps / scheme label ─────�
     fn.includes('isBWExName(ex._rehabOrig||ex.name)&&!_isWPU'));
 
   // 62b. Reps inputs are always empty (never pre-filled from template)
-  check('prefillLog: repsVal is always empty string',
-    fn.includes("repsVal=''") && !fn.includes("repsVal=r==='max'"));
+  check('prefillLog: reps inputs are always empty (no value attribute on the shared row)',
+    !/data-type="reps"[^>]*value=/.test(String(G._setRowInner)) && !/value=[^>]*data-type="reps"/.test(String(G._setRowInner)) && !fn.includes("repsVal=r==='max'"));
 
-  // 62c. Scheme label uses accent colour, larger font, no weight
-  check('prefillLog: scheme label uses font-size:13px',
-    fn.includes('font-size:13px'));
-  check('prefillLog: scheme label uses var(--accent)',
-    fn.includes('color:var(--accent)') && fn.includes("margin-top:2px"));
-  check('prefillLog: scheme label shows sets only (no weight)',
-    fn.includes(">'+(_deloadActive?_deloadSets(ex.sets):ex.sets)+'</div>") && !fn.includes("ex.sets+' '+(lastKg?lastKg+'kg'"));
-  check('prefillLog: exercise name is heading above scheme label (not same line)',
-    fn.includes('margin-bottom:10px') && fn.includes("margin-top:2px"));
+  // 62c. Prescription line (redesign 2026-10-12): muted plain words + tag chip, not yellow code
+  check('prefillLog: prescription line is the muted .exc-rx with the tag chip',
+    fn.includes('exc-rx') && fn.includes('_tagChipHtml(ex.tag)') && /\.exc-rx\{[^}]*color:var\(--muted\)/.test(html));
+  check('prefillLog: the prescription is no longer the raw sets string in yellow',
+    !fn.includes(">'+(_deloadActive?_deloadSets(ex.sets):ex.sets)+'</div>") && !fn.includes('color:var(--accent);margin-top:2px'));
+  check('prefillLog: exercise name heads the card, above the prescription',
+    fn.indexOf('exc-name') > -1 && fn.indexOf('exc-name') < fn.indexOf('exc-rx'));
   // Regression: must NOT still use the old muted/11px combo for the scheme label
   check('prefillLog: scheme label no longer uses font-size:11px+var(--muted) combo',
     !fn.includes('font-size:11px;color:var(--muted)'));
@@ -4617,7 +4600,8 @@ if (typeof G._generateWorkoutProgram === 'function') {
 {
   console.log('\n── Reps entry: numeric keypad + dropdowns ─────────────────');
   const repsInputs = rawScript.match(/<input[^>]*data-type="reps"[^>]*>/g) || [];
-  check('every reps input exists (log, add-set, custom exercise)', repsInputs.length === 3,
+  check('every reps input comes from ONE builder (_setRowInner), used by log, add-set and custom exercise',
+    repsInputs.length === 1 && ['prefillLog', 'addSetToCard', 'addCustomExercise'].every(f => String(G[f]).includes('_setRowInner(')),
     `found ${repsInputs.length}`);
   check('every reps input requests the numeric keypad',
     repsInputs.length > 0 && repsInputs.every(t => /inputmode="numeric"/.test(t)),
@@ -6119,14 +6103,11 @@ console.log('\n── Weight propagation on added cards / Cable Bicep Curl ─�
   // The wiring: the boxes have to CALL it — an added card's three seeded boxes and every
   // box created by "+ set".
   {
-    const add = String(G.addCustomExercise || '');
-    check('an added exercise renders its kg boxes with the propagation handler',
-      /data-type="kg" oninput="propagateWeight\(this\)"/.test(add));
-    const addSet = String(G.addSetToCard || '');
-    check('a box created by "+ set" propagates too',
-      /data-type="kg" oninput="propagateWeight\(this\)"/.test(addSet));
+    const row = G._setRowInner(0, '', '62.5', 'kg');
+    check('every kg box (log, added exercise, "+ set") carries the propagation handler',
+      /data-type="kg" oninput="propagateWeight\(this\)"/.test(row) && String(G.addCustomExercise).includes('_setRowInner(') && String(G.addSetToCard).includes('_setRowInner('));
     check('"+ set" still seeds the new box from the last one',
-      addSet.includes("value=\"'+lastKg+'\""));
+      String(G.addSetToCard).includes("_setRowInner(n,exAttr,lastKg,") && row.includes('value="62.5"'));
   }
 
   // Cable Bicep Curl
@@ -7676,6 +7657,139 @@ check('pike push-ups count 70% of body weight', G.isBWExName('Pike Push-ups') &&
 check('decline push-ups count 70% of body weight', G.isBWExName('Decline Push-ups') && G.getExSplits('Decline Push-ups').factor === 0.7);
 check('…regular, wide, diamond and archer push-ups keep 64%',
   ['Push-ups', 'Wide Push-ups', 'Diamond Push-ups', 'Archer Push-ups'].every(n => G.getExSplits(n).factor === 0.64));
+
+// ── Exercise sketches (2026-10-12) ───────────────────────────────────────────
+// Henrik: "Every exercise in the catalog needs a simple sketch showing how to perform it", approved as stick figures.
+{
+  const cat = [...G.EX_OPTS_HTML.matchAll(/<option>([^<]*)<\/option>/g)].map(m => m[1].replace(/&amp;/g, '&'));
+  const bad = [];
+  cat.forEach(n => {
+    try {
+      const s = G._exSketchSpec(n);
+      if (!s || !s.cue || !s.views || !s.views.length) { bad.push(n + ': no sketch'); return; }
+      const P = G.skPanels(s, 150, 170);
+      s.views.forEach(v => { if (!P[v] || P[v].length !== 2 || !P[v].every(x => /^<svg viewBox=/.test(x) && x.includes('<line'))) bad.push(n + ': ' + v); });
+    } catch (e) { bad.push(n + ': ' + e.message); }
+  });
+  check('every catalogue exercise has a start and finish sketch for each of its views', cat.length > 100 && bad.length === 0, bad.slice(0, 5).join(' | '));
+  // Generated programs also use four core moves that are not in the picker (Dead Bug, Plank, Pallof Press, Bird Dog);
+  // the ? must not come up empty on a program the app wrote itself.
+  const gen = new Set();
+  const GOALS = [['strength','pure'],['strength','hybrid'],['hypertrophy','balanced'],['hypertrophy','upper'],['hypertrophy','lower'],
+    ['aesthetic','fullbody'],['aesthetic','upperlower'],['aesthetic','ppl'],['rehab','knee'],['rehab','back'],['rehab','shoulder']];
+  for (const [g, sub] of GOALS) for (let d = 1; d <= 7; d++) for (const inj of [[], ['knees'], ['shoulders'], ['lowerback']])
+    for (const eq of [undefined, 'home-kb', 'home-bw']) {
+      let p; try { p = G._generateWorkoutProgram(g, sub, d, 'T', 12, inj, eq); } catch (e) { continue; }
+      p.days.forEach(day => day.exercises.forEach(ex => gen.add(ex.name)));
+    }
+  (G.PROGRAM_TEMPLATES || []).forEach(t => t.days.forEach(day => day.exercises.forEach(ex => gen.add(ex.name))));
+  const genMiss = [...gen].filter(n => !G._exSketchSpec(n));
+  check('every exercise a generated program or template can contain has a sketch', gen.size > 50 && genMiss.length === 0, genMiss.join(', '));
+  ['Dead Bug', 'Plank', 'Pallof Press', 'Bird Dog'].forEach(n => check(`…${n} is one of them and renders`, gen.has(n) &&
+    G._exSketchSpec(n).views.every(v => G.skPanels(G._exSketchSpec(n), 150, 170)[v].every(x => x.includes('<line')))));
+  check('every sketch is for a catalogue or generated exercise (no orphan sketches)', Object.keys(G.SK).every(n => cat.includes(n) || gen.has(n)),
+    Object.keys(G.SK).filter(n => !cat.includes(n) && !gen.has(n)).join(', '));
+  const h = G._exSketchHtml('Squat'), s = G._exSketchSpec('Squat');
+  check('the viewer shows the cue and one start/finish tile per view',
+    h.includes(G._escP(s.cue)) && (h.match(/data-sk-view="1"/g) || []).length === s.views.length && (h.match(/<svg /g) || []).length === 2 * s.views.length);
+  const pu = G._exSketchHtml('Pull-ups');
+  check('…a grip-variation exercise adds the grip tile and its sourced note', /data-sk-grip="1"/.test(pu) && /smaller than gym lore/i.test(pu));
+  check('…Weighted Dips falls back to the Dips sketch (one movement)',
+    G._exSketchHtml('Weighted Dips') === G._exSketchHtml('Dips') && !/data-sk-none/.test(G._exSketchHtml('Weighted Dips')));
+  const none = G._exSketchHtml('My <b>custom</b> move');
+  check('…an unknown (custom) exercise says there is no sketch, escaped', /data-sk-none="1"/.test(none) && !none.includes('<b>'));
+  const pf = G.prefillLog.toString();
+  check('Log Workout cards carry the "?" that opens the sketch', pf.includes('_EX_HELP_BTN') && G._EX_HELP_BTN.includes('onclick="showExSketch(this)"'));
+  check('the sketch opens for the card\'s CURRENT name (swaps included)', G.showExSketch.toString().includes('_exCardName('));
+  check('the sketch modal exists', html.includes('id="exSketchModal"') && html.includes('id="exSketchContent"'));
+}
+
+// ── Log card buttons are big enough to hit, ? is blue (Henrik, 2026-10-12) ───
+{
+  check('? and ⋯ on a Log card are 38px tap targets', /width:38px;height:38px/.test(G._EX_HELP_BTN) && /width:38px;height:38px/.test(G._EX_MORE_BTN));
+  check('…and ? is blue, not muted grey', /color:#4da3ff/.test(G._EX_HELP_BTN) && !/color:var\(--muted\)/.test(G._EX_HELP_BTN));
+}
+
+// ── The ? on the Program day view and in the editor (Henrik, 2026-10-12) ──────
+{
+  const b = G._exSketchBtnHtml('_openExSketch("Squat")');
+  check('the shared ? button is the blue 38px one', /width:38px;height:38px/.test(b) && /color:#4da3ff/.test(b) && />\?<\/button>$/.test(b));
+  check('…and its onclick is attribute-escaped', b.includes('onclick="_openExSketch(&quot;Squat&quot;)"'));
+  check('the Program day view shows ? on every exercise row', G.renderWorkout.toString().includes("_exSketchBtnHtml('_openExSketch('+JSON.stringify(ex.name)+')')"));
+  const rw = G.renderWorkout.toString();
+  check('…and sits at the right edge, after the tag, so it lines up whatever the tag width (Henrik: "Blue ? Are not aligned")',
+    rw.indexOf("_exSketchBtnHtml('_openExSketch(") > rw.indexOf('<span class=\"ex-tag ') && rw.indexOf('<span class=\"ex-tag ') > -1);
+  check('…the editor shows ? next to each exercise and opens what is CURRENTLY picked',
+    G._renderProgOverlay.toString().includes("_exSketchBtnHtml('_openExSketch(_progEditBuf.days['+di+'].exercises['+ei+'].name)')"));
+  const zOf = sel => { const m = html.match(new RegExp(sel + '\\{[^}]*z-index:(\\d+)')); return m ? +m[1] : 0; };
+  check('…the sketch opens ON TOP of the program editor, not behind it',
+    +(html.match(/id="exSketchModal" style="z-index:(\d+)"/) || [])[1] > Math.max(zOf('#prog-overlay'), zOf('\\.prog-overlay'), 300));
+  check('the Log card ? and the new ones open the same viewer', G.showExSketch.toString().includes('_openExSketch('));
+}
+
+// ── Log Workout redesign (Henrik, 2026-10-12: "1 yes 2 no remove the timers totally 3 yes 4 yes 5 do all at once") ──
+{
+  console.log('\n── Log Workout redesign ───────────────────────────────────');
+  // Header and overlays clear the iOS status bar
+  check('viewport covers the safe areas so env(safe-area-inset-*) is real', /name="viewport" content="[^"]*viewport-fit=cover/.test(html));
+  check('the header is padded below the status bar', /\.header\{padding:calc\(22px \+ env\(safe-area-inset-top,0px\)\)/.test(html));
+  check('scrolled content never shows under the clock (solid strip behind the status bar)', /body::before\{[^}]*position:fixed;top:0[^}]*height:env\(safe-area-inset-top,0px\)[^}]*background:var\(--bg\)/.test(html));
+  check('the program editor, onboarding and pop-ups clear it too',
+    /\.prog-overlay\{[^}]*padding-top:env\(safe-area-inset-top,0px\)/.test(html) && /#onboarding-overlay\{[^}]*padding-top:env\(safe-area-inset-top/.test(html) && /\.modal-overlay\{[^}]*padding-top:calc\(20px \+ env\(safe-area-inset-top/.test(html));
+
+  // Load modes: kg / BW / none
+  check('Dead Bug, Plank, Bird Dog, Pallof Press and the prone Y/T raises have no kg column',
+    ['Dead Bug', 'Plank', 'Bird Dog', 'Pallof Press', 'Prone Y-Raise', 'Prone T-Raise'].every(n => G._loadMode(n, false) === 'none'));
+  check('…Prone External Rotation (light dumbbell) and loaded lifts keep kg', G._loadMode('Prone External Rotation', false) === 'kg' && G._loadMode('Bench Press', false) === 'kg');
+  check('bodyweight exercises show BW', G._loadMode('Push-ups', true) === 'bw' && G._loadMode('Bodyweight Squat', true) === 'bw');
+  const rk = G._setRowInner(1, ' data-ex="3" data-set="1"', '80', 'kg');
+  const rb = G._setRowInner(0, ' data-ex="2" data-set="0"', '85.2', 'bw');
+  const rn = G._setRowInner(0, ' data-ex="5" data-set="0"', '', 'none');
+  check('a kg row has a visible kg box, the set number and an empty reps box',
+    /<input type="text" class="set-in set-kg"[^>]*value="80"[^>]* data-ex="3" data-set="1" data-type="kg"/.test(rk) && rk.includes('>S2<') && /class="set-bw" hidden/.test(rk));
+  check('a BW row still carries body weight in a hidden kg box (so saved logs are unchanged) and shows "BW"',
+    /<input type="hidden"[^>]*value="85.2"[^>]* data-type="kg"/.test(rb) && /<span class="set-bw">BW<\/span>/.test(rb));
+  check('a no-load row has a hidden, empty kg box and no BW label', /<input type="hidden"[^>]*value=""[^>]*data-type="kg"/.test(rn) && /class="set-bw" hidden/.test(rn));
+  check('every row keeps the data-ex/data-set attributes saveLog and drafts read', [rk, rb, rn].every(r => (r.match(/data-ex="/g) || []).length === 2));
+  check('reps boxes are 16px so iOS does not zoom when you tap one', /input\.set-in\{[^}]*font-size:16px/.test(html));
+  check('a swap re-applies the load mode', String(G._swapResetWeights).includes('_applyLoadMode(card,name)') && String(G.onCustomExPicked).includes('_applyLoadMode(card,sel.value)'));
+
+  // Gear toggles: in the ⋯ menu, never on bodyweight or unloaded work
+  check('no gear toggles on a bodyweight prone raise, Dead Bug or push-ups (DB used to show on any "raise")',
+    ['Prone Y-Raise', 'Prone T-Raise', 'Dead Bug', 'Push-ups'].every(n => G._gearBtnsHtml(n, 1, 1, 1) === ''));
+  check('…loaded lifts keep theirs', G._gearBtnsHtml('Lateral Raise', 1, 1, 1).includes('data-db') && G._gearBtnsHtml('Cable Row', 1, 1, 1).includes('data-gear'));
+  check('an active gear shows as a chip on the card', G._gearChipText({ dataset: { gearHalf: '1', gear2x: '2', db: '2' } }) === '2× cable · 2 dumbbells' && G._gearChipText({ dataset: { gearHalf: '1', gear2x: '1', db: '1' } }) === '');
+  const btn = (attr, val, title) => ({ hasAttribute: a => a === attr, dataset: { [attr.replace('data-', '')]: val }, title });
+  const mkMenuCard = (custom, btns) => ({ dataset: custom ? { custom: 'true' } : {}, querySelectorAll: sel => sel === '.gear-slot button' ? btns : [] });
+  const m1 = G._exMenuHtml(mkMenuCard(false, [btn('data-db', '2', 'Two dumbbells — entered weight counts double')]));
+  check('⋯ menu: Swap, each gear toggle with its state and explanation, then Remove',
+    m1.indexOf('_exMenuSwap()') > -1 && m1.indexOf('_exMenuSwap()') < m1.indexOf('_exMenuGear(0)') && m1.indexOf('_exMenuGear(0)') < m1.indexOf('_exMenuRemove()')
+    && m1.includes('Two dumbbells') && m1.includes('exm-st on') && m1.includes('entered weight counts double'));
+  const m2 = G._exMenuHtml(mkMenuCard(true, []));
+  check('…a custom card (its name is already a picker) has no Swap', !m2.includes('_exMenuSwap()') && m2.includes('_exMenuRemove()'));
+  check('the menu opens above the program editor', /id="exMenuModal" style="z-index:500"/.test(html));
+
+  // "Last" line from the stored logs
+  const _l = G.logs;
+  G.logs = [
+    { id: 1, date: '2026-10-01', exercises: [{ name: 'Bench Press', sets: [{ kg: 80, reps: 6 }, { kg: 80, reps: 5 }] }] },
+    { id: 2, date: '2026-10-08', exercises: [{ name: 'Bench Press', sets: [{ kg: 82.5, reps: 6 }, { kg: 80, reps: 6 }, { kg: 80, reps: 0 }] }, { name: 'Push-ups', sets: [{ kg: 85, reps: 22 }, { kg: 85, reps: 18 }] }, { name: 'Dead Bug', sets: [{ kg: 0, reps: 12 }] }] },
+  ];
+  const lb = G._lastTimeText('Bench Press', 'kg');
+  check('"Last" reads the NEWEST stored session and skips empty sets', /^Last \(8 Oct\): /.test(lb) && lb.endsWith('82.5×6, 80×6'), lb);
+  G.logs[1].exercises[0].sets = [{ kg: 80, reps: 6 }, { kg: 80, reps: 6 }];
+  check('…same weight on every set reads as "80 kg × 6, 6"', G._lastTimeText('Bench Press', 'kg') === 'Last (8 Oct): 80 kg × 6, 6', G._lastTimeText('Bench Press', 'kg'));
+  check('…bodyweight reads "BW × 22, 18", no-load reads "12 reps"', G._lastTimeText('Push-ups', 'bw') === 'Last (8 Oct): BW × 22, 18' && G._lastTimeText('Dead Bug', 'none') === 'Last (8 Oct): 12 reps');
+  check('…an exercise never logged shows nothing', G._lastTimeText('Hip Thrust', 'kg') === '' && /hidden/.test(G._lastTimeHtml('Hip Thrust', 'kg')));
+  G.logs = _l;
+
+  // Page: one top row, Save stays on screen with progress, accent cleanup
+  check('Date and Day share one compact row', /<div class="log-top">\s*<select id="log-day"[\s\S]*?<input type="date" id="log-date"[^>]*>\s*<\/div>/.test(html));
+  check('Save sits in a bar that stays on screen above the tabs, with the progress line',
+    /<div class="log-savebar"><button class="btn btn-primary" onclick="saveLog\(\)">SAVE WORKOUT<\/button><div id="log-progress"><\/div><\/div>/.test(html) && /\.log-savebar\{position:sticky;bottom:calc\(/.test(html));
+  check('typing a rep updates the draft AND the progress', String(G.prefillLog).includes('container.oninput=_onLogInput') && String(G._onLogInput).includes('scheduleDraft()') && String(G._onLogInput).includes('_updateLogProgress()'));
+  check('the version label is muted, not yellow', html.includes('<span style="color:var(--muted);font-weight:600" id="header-version">'));
+}
 
 setImmediate(() => {
   console.log(`  ${passed} passed  ${failed} failed  ${passed + failed} total`);
