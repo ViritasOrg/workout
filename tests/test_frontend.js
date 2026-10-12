@@ -7450,6 +7450,32 @@ console.log('\n── Save never discards a workout in silence ─────�
   }
 }
 
+// ── Section: session-time summary on History (2026-10-12) ────────────────────
+// Median over believable stamps only (KCAL_DUR_MIN..KCAL_DUR_MAX), averages for the
+// current Monday-first week and calendar month.
+{
+  const L = (date, m) => ({ date, duration_min: m });
+  const logsT = [
+    L('2026-10-12', 60), L('2026-10-11', 90),   // Sun 11 is LAST week (Mon-first)
+    L('2026-10-05', 0.08), L('2026-10-03', 300), // 5 s and 5 h: junk
+    L('2026-10-01', 75), L('2026-09-30', 45), { date: '2026-09-29' },
+  ];
+  const s = G._sessionTimeStats(logsT, '2026-10-12');
+  check('session median ignores 5-second and 5-hour stamps', s.median === 67.5 && s.n === 4, JSON.stringify(s));
+  check('…and counts what it left out (unstamped logs are not counted as excluded)', s.excluded === 2, s.excluded);
+  check('week average is Monday-first: Sunday belongs to the previous week', s.weekAvg === 60 && s.weekN === 1, JSON.stringify(s));
+  check('month average covers the calendar month only', s.monthAvg === 75 && s.monthN === 3, JSON.stringify(s));
+  check('the band is the calorie estimator\'s, not a second copy',
+    String(G._validSessionMin).indexOf('KCAL_DUR_MIN') >= 0 && String(G._validSessionMin).indexOf('KCAL_DUR_MAX') >= 0);
+  const h = G._sessionTimeStatsHtml(logsT, '2026-10-12');
+  check('summary renders median, week and month', /MEDIAN/.test(h) && /AVG THIS WEEK/.test(h) && /AVG THIS MONTH/.test(h) && h.indexOf('1:08') >= 0, h);
+  check('an empty week shows a dash, not 0:00',
+    G._sessionTimeStatsHtml([L('2026-09-01', 60)], '2026-10-12').indexOf('—') >= 0);
+  check('no believable stamps → no summary card at all', G._sessionTimeStatsHtml([L('2026-10-12', 2)], '2026-10-12') === '');
+  check('History puts the summary on top of the list',
+    /innerHTML=_sessionTimeStatsHtml\(logs\)\+logs\.map/.test(String(G.renderHistory)));
+}
+
 setImmediate(() => {
   console.log(`  ${passed} passed  ${failed} failed  ${passed + failed} total`);
   process.exit(failed === 0 ? 0 : 1);
