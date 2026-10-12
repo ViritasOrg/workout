@@ -7451,27 +7451,37 @@ console.log('\n── Save never discards a workout in silence ─────�
 }
 
 // ── Section: session-time summary on History (2026-10-12) ────────────────────
-// Median over believable stamps only (KCAL_DUR_MIN..KCAL_DUR_MAX), averages for the
-// current Monday-first week and calendar month.
+// Median over believable stamps only (KCAL_DUR_MIN..KCAL_DUR_MAX); averages over the
+// latest 7 and 30 believable sessions, so they never read "—" while the median shows.
 {
-  const L = (date, m) => ({ date, duration_min: m });
+  const L = (date, m, at) => Object.assign({ date, duration_min: m }, at ? { started_at: at } : {});
+  // 9 believable sessions, newest first after sorting, plus junk and an unstamped log.
   const logsT = [
-    L('2026-10-12', 60), L('2026-10-11', 90),   // Sun 11 is LAST week (Mon-first)
-    L('2026-10-05', 0.08), L('2026-10-03', 300), // 5 s and 5 h: junk
-    L('2026-10-01', 75), L('2026-09-30', 45), { date: '2026-09-29' },
+    L('2026-09-01', 100), L('2026-10-12', 60), L('2026-10-10', 70), L('2026-10-08', 80),
+    L('2026-10-06', 90), L('2026-10-04', 0.08), L('2026-10-03', 300), // 5 s and 5 h: junk
+    L('2026-10-02', 50), L('2026-09-30', 40), L('2026-09-28', 30), L('2026-09-20', 200),
+    { date: '2026-10-11' },
   ];
-  const s = G._sessionTimeStats(logsT, '2026-10-12');
-  check('session median ignores 5-second and 5-hour stamps', s.median === 67.5 && s.n === 4, JSON.stringify(s));
+  const s = G._sessionTimeStats(logsT);
+  check('session median ignores 5-second and 5-hour stamps', s.median === 70 && s.n === 9, JSON.stringify(s));
   check('…and counts what it left out (unstamped logs are not counted as excluded)', s.excluded === 2, s.excluded);
-  check('week average is Monday-first: Sunday belongs to the previous week', s.weekAvg === 60 && s.weekN === 1, JSON.stringify(s));
-  check('month average covers the calendar month only', s.monthAvg === 75 && s.monthN === 3, JSON.stringify(s));
+  check('last-7 average uses the 7 most recent believable sessions, whatever the list order',
+    s.last7N === 7 && s.last7Avg === (60+70+80+90+50+40+30)/7, JSON.stringify(s));
+  check('last-30 average uses all of them when there are fewer than 30', s.last30N === 9, JSON.stringify(s));
   check('the band is the calorie estimator\'s, not a second copy',
     String(G._validSessionMin).indexOf('KCAL_DUR_MIN') >= 0 && String(G._validSessionMin).indexOf('KCAL_DUR_MAX') >= 0);
-  const h = G._sessionTimeStatsHtml(logsT, '2026-10-12');
-  check('summary renders median, week and month', /MEDIAN/.test(h) && /AVG THIS WEEK/.test(h) && /AVG THIS MONTH/.test(h) && h.indexOf('1:08') >= 0, h);
-  check('an empty week shows a dash, not 0:00',
-    G._sessionTimeStatsHtml([L('2026-09-01', 60)], '2026-10-12').indexOf('—') >= 0);
-  check('no believable stamps → no summary card at all', G._sessionTimeStatsHtml([L('2026-10-12', 2)], '2026-10-12') === '');
+  const many = []; for (let k = 0; k < 40; k++) many.push(L('2026-0' + (k < 20 ? 8 : 9) + '-' + String(k % 20 + 1).padStart(2, '0'), k < 10 ? 100 : 50));
+  const m = G._sessionTimeStats(many);
+  check('last-30 stops at 30 sessions', m.last30N === 30, JSON.stringify(m));
+  check('two sessions on one day are ordered by start time',
+    G._sessionTimeStats([L('2026-10-12', 40, '2026-10-12T07:00:00Z'), L('2026-10-12', 60, '2026-10-12T18:00:00Z'),
+      L('2026-10-11', 90), L('2026-10-10', 90), L('2026-10-09', 90), L('2026-10-08', 90), L('2026-10-07', 90), L('2026-10-06', 90)]).last7Avg
+      === (60 + 40 + 90 * 5) / 7);
+  const h = G._sessionTimeStatsHtml(logsT);
+  check('summary renders median, last 7 and last 30', /MEDIAN/.test(h) && /AVG LAST 7</.test(h) && /AVG LAST 30</.test(h) && h.indexOf('1:10') >= 0, h);
+  check('the calendar / day labels are gone', !/THIS WEEK|THIS MONTH|DAYS/.test(h));
+  check('a single old session fills every tile — no dash', G._sessionTimeStatsHtml([L('2025-01-01', 50)]).indexOf('—') < 0);
+  check('no believable stamps → no summary card at all', G._sessionTimeStatsHtml([L('2026-10-12', 2)]) === '');
   check('History puts the summary on top of the list',
     /innerHTML=_sessionTimeStatsHtml\(logs\)\+logs\.map/.test(String(G.renderHistory)));
 }
