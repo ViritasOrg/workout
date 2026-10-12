@@ -7486,6 +7486,51 @@ console.log('\n── Save never discards a workout in silence ─────�
     /innerHTML=_sessionTimeStatsHtml\(logs\)\+logs\.map/.test(String(G.renderHistory)));
 }
 
+// ── Section: Retry a failed Push to Prod (2026-10-12) ────────────────────────
+// "Under the Deploy button for a red failed line show a small retry button" — GitHub's
+// own re-run of THAT run, via POST /promote-to-prod/retry.
+{
+  const RUN = 'https://github.com/ViritasOrg/workout-staging/actions/runs/38243649584';
+  check('retry: the run id is read off the stored run URL',
+    G._promoteRunIdOf(RUN) === '38243649584' && G._promoteRunIdOf('https://github.com/ViritasOrg/workout-staging/actions') === null);
+  const b = G._promoteRetryBtn(RUN, '1.259');
+  check('retry: the button names the version it will push again',
+    /↻ Retry v1\.259/.test(b) && /retryPromote\('38243649584','1\.259'\)/.test(b), b);
+  check('retry: no run id, no button', G._promoteRetryBtn('', '1.259') === '');
+  check('retry: a hostile version string cannot break out of the onclick',
+    G._promoteRetryBtn(RUN, "1');alert(1);//").indexOf('alert') < 0);
+
+  const el = { innerHTML: '' };
+  const steps = [{ name: 'Wait for CI and merge prod PR', status: 'completed', conclusion: 'failure' }];
+  G.renderPromoteStatus({ status: 'completed', conclusion: 'failure', run_url: RUN, steps }, el);
+  check('retry: a failed run shows the button under the red line', el.innerHTML.indexOf('retryPromote(') >= 0, el.innerHTML);
+  G.renderPromoteStatus({ status: 'in_progress', run_url: RUN, steps }, el);
+  check('retry: …a running push does not', el.innerHTML.indexOf('retryPromote(') < 0);
+  G.renderPromoteStatus({ status: 'completed', conclusion: 'success', run_url: RUN, steps: [] }, el);
+  check('retry: …nor does a successful one', el.innerHTML.indexOf('retryPromote(') < 0);
+
+  const src = String(G.buildLastPushDropdown);
+  check('retry: the Last push row offers it for a failed record, outside the collapsed details',
+    /<\/details>[^]*_promoteRetryBtn\(rec\.runUrl,rec\.stagingVer\)/.test(src) && /rec\.conclusion==='failure'&&rec\.runUrl/.test(src));
+
+  const calls = []; const _f = G.fetch;
+  G.fetch = (u, o) => { calls.push([String(u), o && o.method]); return new Promise(() => {}); };
+  G.retryPromote('38243649584', '1.259');
+  G.fetch = _f;
+  const post = calls.find(c => c[1] === 'POST');
+  check('retry: it POSTs the retry endpoint for that run, in this app\'s repo',
+    post && /\/promote-to-prod\/retry\?repo=ViritasOrg%2Fworkout-staging&run_id=38243649584$/.test(post[0]), JSON.stringify(calls));
+  check('retry: …and never dispatches a fresh promotion', !calls.some(c => /\/promote-to-prod(\?|$)/.test(c[0]) && c[1] === 'POST'));
+
+  const poll = String(G.pollPromoteStatus);
+  check('retry: the poller follows the retried run by id',
+    /&run_id='\+_promoteRunId/.test(poll));
+  check('retry: …and waits for the NEW attempt, not the old one\'s failure',
+    /_promoteRunId&&\(data\.run_attempt\|\|1\)<_promoteMinAttempt/.test(poll));
+  check('retry: a fresh Push to Prod stops following the old run',
+    /_promoteRunId=null;_promoteMinAttempt=0;/.test(String(G.pushToProd)));
+}
+
 setImmediate(() => {
   console.log(`  ${passed} passed  ${failed} failed  ${passed + failed} total`);
   process.exit(failed === 0 ? 0 : 1);
