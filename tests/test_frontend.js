@@ -7791,6 +7791,26 @@ check('…regular, wide, diamond and archer push-ups keep 64%',
   check('the version label is muted, not yellow', html.includes('<span style="color:var(--muted);font-weight:600" id="header-version">'));
 }
 
+// ── Push-up sketches (Henrik, 2026-10-12: "The front view gone mad?" on Diamond Push-ups) ──
+{
+  const fam = ['Push-ups', 'Wide Push-ups', 'Diamond Push-ups', 'Archer Push-ups', 'Decline Push-ups'];
+  const low = [];
+  fam.forEach(n => { const s = G.SK[n](); [['start', s.start], ['end', s.end]].forEach(([k, st]) => { if (st.J.headc[1] - 6 < 0) low.push(`${n} ${k}: ${(st.J.headc[1] - 6).toFixed(1)}`); }); });
+  check('no push-up pose puts the head through the floor (the diamond bottom did)', low.length === 0, low.join(', '));
+  check('Diamond, Wide and Archer push-ups show the hands from above, never head-on (a flat body seen from the front is a blob; Henrik flagged #78/#79 too)',
+    ['Diamond Push-ups', 'Wide Push-ups', 'Archer Push-ups'].every(n => G.SK[n]().views.join() === 'side,top'));
+  check('…and no push-up variant uses a front view at all', fam.every(n => G.SK[n]().views.indexOf('front') < 0));
+  check('panels are capped at SK_MAX_SCALE so a narrow view is never blown up into fat strokes',
+    String(G.skPanels).includes('SK_MAX_SCALE)'));
+  // Henrik, 2026-10-13: "54 55 stick dudes are suddenly bigger than the others" (Kettlebell Row, Band Seated Row).
+  const fitOf = (n, v) => { const s = G.SK[n](); const bb = G._skBBox([s.start, s.end].map(st => G._skFigure(st.J, v))); return Math.min(134 / (bb[1] - bb[0] || 1), 154 / (bb[3] - bb[2] || 1)); };
+  const standing = fitOf('Shrug', 'front');
+  check('the cap is a standing figure\'s own size, so no stick figure is ever drawn bigger than a standing one',
+    Math.abs(G.SK_MAX_SCALE - standing) < 0.05, `cap ${G.SK_MAX_SCALE}, standing ${standing.toFixed(2)}`);
+  check('…the rows that looked bigger would otherwise zoom past it (so the cap is what sizes them)',
+    ['Kettlebell Row', 'Band Seated Row', 'Cable Row'].every(n => fitOf(n, 'side') > G.SK_MAX_SCALE));
+}
+
 setImmediate(() => {
   console.log(`  ${passed} passed  ${failed} failed  ${passed + failed} total`);
   process.exit(failed === 0 ? 0 : 1);
