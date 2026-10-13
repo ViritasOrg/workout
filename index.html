@@ -2991,13 +2991,16 @@ function _skSvg(pr,T,W,H){var sx=T[0],ox=T[1],oy=T[2],o=[];function S(p){return[
     else{var a2=S([p[1][0],p[2][1]]),b2=S([p[2][0],p[1][1]]);o.push('<rect x="'+a2[0]+'" y="'+a2[1]+'" width="'+(b2[0]-a2[0]).toFixed(1)+'" height="'+(b2[1]-a2[1]).toFixed(1)+'" rx="'+(1.5*sx).toFixed(1)+'" fill="'+p[3]+'"/>');}});
   return '<svg viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'" role="img">'+o.join('')+'</svg>';}
 // spec: {views:[...], start:{J,eq}, end:{J,eq}, floor:bool}
+var SK_MAX_SCALE=1.6;
 function skPanels(spec,W,H){W=W||132;H=H||150;var pad=8,out={};
   spec.views.forEach(function(v){var pr=[spec.start,spec.end].map(function(st){var e=_skEquip(st.eq,st.J,v);
       var back=e.filter(function(p){return p[0]==='r'||(p[0]==='l'&&p[3]===SK_C.mu);});var front=e.filter(function(p){return back.indexOf(p)<0;});
       var fl=(spec.floor!==false&&v!=='top')?[['l',[-1e3,0],[1e3,0],SK_C.mu,1.8]]:[];
       return {fl:fl,body:back.concat(_skFigure(st.J,v)).concat(front)};});
     var bb=_skBBox(pr.map(function(x){return x.body;}));if(spec.floor!==false&&v!=='top')bb[2]=Math.min(bb[2],0);
-    var sx=Math.min((W-2*pad)/(bb[1]-bb[0]||1),(H-2*pad)/(bb[3]-bb[2]||1));
+    // Capped at a standing figure's own fit (1.6), so every stick figure is drawn at the same size: a compact pose
+    // (bent-over or seated row) used to be zoomed to ~2.2x and looked bigger than the rest. Larger poses still shrink to fit.
+    var sx=Math.min((W-2*pad)/(bb[1]-bb[0]||1),(H-2*pad)/(bb[3]-bb[2]||1),SK_MAX_SCALE);
     var ox=pad+((W-2*pad)-(bb[1]-bb[0])*sx)/2-bb[0]*sx,oy=H-pad-((H-2*pad)-(bb[3]-bb[2])*sx)/2+bb[2]*sx;
     out[v]=pr.map(function(x){var fl=x.fl.map(function(p){return['l',[bb[0]-6,0],[bb[1]+6,0],p[3],p[4]];});return _skSvg(fl.concat(x.body),[sx,ox,oy],W,H);});});
   return out;}
@@ -3312,16 +3315,16 @@ SK['Pec Deck (chest fly machine)']=function(){return _skFly({views:['front'],sea
 // ── Push-ups ─────────────────────────────────────────────────────────────────
 function _skPushup(o){o=o||{};
   var mk=function(i){var arm=i?(o.armDn||{upper:[-62,o.wa||0],fore:[180,o.wa||0]}):(o.armUp||{upper:[180,o.wa||0],fore:[180,o.wa||0]});
-    var J=skSolve(function(t){var q=_skQ({thigh:t-180,shank:t-180,foot:180,torso:t,neck:t});for(var k in arm)q[k]=arm[k];var K=skPose(q);var toeY=o.decline?24:0;return skMove(K,[-45-K.tR[0],toeY-K.tR[1],0]);},40,110,function(J){return -J.wR[1];});
+    var J=skSolve(function(t){var q=_skQ({thigh:t-180,shank:t-180,foot:180,torso:t,neck:i?t-25:t});for(var k in arm)q[k]=arm[k];var K=skPose(q);var toeY=o.decline?24:0;return skMove(K,[-45-K.tR[0],toeY-K.tR[1],0]);},40,110,function(J){return -J.wR[1];});
     if(o.plyo&&i){J=skMove(J,[0,8,0]);}
     var e=[];if(o.decline)e.push({t:'box',x:[-52,-36],y:[0,22],z:[-12,12]});return{J:J,eq:e};}
   var v=o.views||['side'];return _skX(mk(o.plyo?1:0),mk(o.plyo?0:1),v,o.cue);}
 SK['Push-ups']=function(){return _skPushup({cue:'Hands under the shoulders, body in one straight line. Lower the chest to just above the floor, elbows ~45°; push back up.'});};
 SK['Plyo Push-ups']=function(){var x=_skPushup({cue:'From the bottom of a push-up, push explosively so the hands leave the floor; land soft and go straight into the next rep.'});var a=SK['Push-ups']();return _skX(a.end,(function(){var u=a.start;return{J:skMove(u.J,[0,9,0]),eq:[]};})(),['side'],x.cue);};
 SK['Decline Push-ups']=function(){return _skPushup({decline:true,cue:'Feet on a chair, hands under the shoulders, body straight. Lower the chest to just above the floor; push back up.'});};
-SK['Wide Push-ups']=function(){return _skPushup({wa:30,armDn:{upper:[-60,58],fore:[180,30]},views:['side','front'],cue:'Hands well outside the shoulders, body straight. Lower the chest toward the floor, elbows out; push back up.'});};
-SK['Diamond Push-ups']=function(){return _skPushup({wa:-22,armUp:{upper:[180,-14],fore:[180,-22]},armDn:{upper:[-50,-6],fore:[175,-30]},views:['side','front'],cue:'Hands together under the chest, thumbs and fingers forming a diamond. Lower with the elbows close to the body; push back up.'});};
-SK['Archer Push-ups']=function(){return _skPushup({armUp:{upperR:[180,30],foreR:[180,30],upperL:[180,30],foreL:[180,30]},armDn:{upperR:[-58,40],foreR:[180,20],upperL:[180,72],foreL:[180,72]},views:['side','front'],cue:'Hands very wide. Lower toward one hand while the other arm stays straight out to the side; push back up and alternate.'});};
+SK['Wide Push-ups']=function(){return _skPushup({wa:30,armDn:{upper:[-60,58],fore:[180,30]},views:['side','top'],cue:'Hands well outside the shoulders, body straight. Lower the chest toward the floor, elbows out; push back up.'});};
+SK['Diamond Push-ups']=function(){return _skPushup({wa:-22,armUp:{upper:[180,-14],fore:[180,-22]},armDn:{upper:[-62,-8],fore:[180,-30]},views:['side','top'],cue:'Hands together under the chest, thumbs and fingers forming a diamond. Lower with the elbows close to the body; push back up.'});};
+SK['Archer Push-ups']=function(){return _skPushup({armUp:{upperR:[180,30],foreR:[180,30],upperL:[180,30],foreL:[180,30]},armDn:{upperR:[-58,40],foreR:[180,20],upperL:[180,72],foreL:[180,72]},views:['side','top'],cue:'Hands very wide. Lower toward one hand while the other arm stays straight out to the side; push back up and alternate.'});};
 SK['Pike Push-ups']=function(){
   var mk=function(i){var q0=i?{torso:150,neck:165,upper:252,fore:155}:{torso:135,neck:142,upper:142,fore:142};
     var J=skSolve(function(p){var q=_skQ(q0);q.thigh=p;q.shank=p;q.foot=p-90;var K=skPose(q);return skMove(K,[-K.wR[0],-K.wR[1]+1,0]);},181,268,function(J){return J.tR[1]-1;});
