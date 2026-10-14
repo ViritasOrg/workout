@@ -7606,13 +7606,24 @@ console.log('\n── Training at home ─────────────�
   check('swap: pike push-ups count as shoulders', G.getExGroup('Pike Push-ups') === 'shoulders' && G.getExSplits('Pike Push-ups').shoulders > 0.5);
 
   // The wizard.
-  const w = G._progWizEquipHtml('home-bw');
-  check('wizard: "Where do you train?" offers Gym and both home options',
-    /Where do you train\?/.test(w) && /_progWiz\.equip='gym'/.test(w) && /_progWiz\.equip='home-kb'/.test(w) && /_progWiz\.equip='home-bw'/.test(w), w);
-  check('wizard: Gym is the default', /var on=o\.id===cur/.test(String(G._progWizEquipHtml)) && /cur=cur\|\|'gym'/.test(String(G._progWizEquipHtml)));
-  check('wizard: both the preview and Generate pass the choice to the generator',
-    (String(G._renderProgWiz).match(/wiz\.injuries,wiz\.equip\)/g) || []).length === 1 && /wiz\.injuries,wiz\.equip\)/.test(String(G._progWizGenerate)));
-  check('wizard: step 2 shows the choice', /_progWizEquipHtml\(wiz\.equip\)/.test(String(G._renderProgWiz)));
+  // The wizard (2026-10-14: Gym / Home, and Home lists the user's own equipment).
+  const w0 = G._progWizEquipHtml('home');
+  check('wizard: "Where do you train?" offers Gym and Home', /Where do you train\?/.test(w0) && /_progWiz\.equip='gym'/.test(w0) && /_progWiz\.equip='home'/.test(w0));
+  check('wizard: the checklist is NOT on that step, where it could be scrolled past (Henrik 2026-10-14)', !w0.includes('data-home-item'));
+  const rw = String(G._renderProgWiz);
+  check('wizard: Next from step 2 goes to the equipment screen when Home is chosen, else straight to step 3',
+    rw.includes("_progWiz.step=_progWiz.equip===\\'home\\'?\\'equip\\':3"));
+  check('wizard: the equipment screen exists, with Next → step 3 and Back → step 2',
+    rw.includes("wiz.step==='equip'") && rw.includes('_progWizItemsScreenHtml(wiz.homeItems)'));
+  check('wizard: Back from step 3 returns to the equipment screen for Home', rw.includes("_progWiz.step=_progWiz.equip===\\'home\\'?\\'equip\\':2"));
+  const w = G._progWizItemsScreenHtml(['dumbbells', 'bench']);
+  check('wizard: the equipment screen lists every item to tick', G.HOME_ITEMS.every(h => w.includes('data-home-item="' + h.id + '"')));
+  check('wizard: ticked items are highlighted, the rest are not',
+    /data-home-item="dumbbells" style="[^"]*background:var\(--accent\)/.test(w) && !/data-home-item="barbell" style="[^"]*background:var\(--accent\)/.test(w));
+  check('wizard: Gym is the default', /cur=cur\|\|'gym'/.test(String(G._progWizEquipHtml)));
+  check('wizard: both the preview and Generate pass the ticked equipment to the generator',
+    (String(G._renderProgWiz).match(/wiz\.injuries,_progWizEquipId\(\)\)/g) || []).length === 1 && /wiz\.injuries,_eq\)/.test(String(G._progWizGenerate)) && /var _eq=_progWizEquipId\(\)/.test(String(G._progWizGenerate)));
+  check('wizard: step 2 shows the choice, and the saved equipment is preselected', /_progWizEquipHtml\(wiz\.equip\)/.test(String(G._renderProgWiz)) && /homeItems:\(getData\('wkt-home-equip',\[\]\)/.test(html));
 }
 
 // ── Section: home bodyweight exercises count body weight (2026-10-12) ───────
@@ -7809,6 +7820,68 @@ check('…regular, wide, diamond and archer push-ups keep 64%',
     Math.abs(G.SK_MAX_SCALE - standing) < 0.05, `cap ${G.SK_MAX_SCALE}, standing ${standing.toFixed(2)}`);
   check('…the rows that looked bigger would otherwise zoom past it (so the cap is what sizes them)',
     ['Kettlebell Row', 'Band Seated Row', 'Cable Row'].every(n => fitOf(n, 'side') > G.SK_MAX_SCALE));
+}
+
+// ── Home gym: the user's own equipment (Henrik, 2026-10-14) ───────────────────
+{
+  console.log('\n── Home gym equipment ─────────────────────────────────────');
+  check('nothing ticked IS the bodyweight preset, kettlebell + bands IS the kettlebell preset (identical programs)',
+    G._homeEquipId([]) === 'home-bw' && G._homeEquipId(['kettlebell', 'bands']) === 'home-kb' && G._homeEquipId(['bands', 'kettlebell', 'bands']) === 'home-kb');
+  check('any other set is its own sorted id', G._homeEquipId(['pullup', 'dumbbells']) === 'home:dumbbells,pullup' && G._homeItemsOf('home:dumbbells,pullup').join() === 'dumbbells,pullup');
+  check('unknown item ids are ignored', G._homeEquipId(['dumbbells', 'jetpack']) === 'home:dumbbells');
+  const R = (n, items, inj) => G._homeResolve(n, items, inj || []);
+  const DBB = ['dumbbells', 'bench', 'pullup'];
+  check('dumbbells + bench + bar: Bench → Incline DB Press, OHP → Arnold Press, curl → Hammer Curl',
+    R('Bench Press', DBB) === 'Incline DB Press' && R('Overhead Press', DBB) === 'Arnold Press' && R('Barbell Curl', DBB) === 'Hammer Curl');
+  check('…pull-ups stay with a bar, and the lat pulldown becomes pull-ups', R('Pull-ups', DBB) === 'Pull-ups' && R('Lat Pulldown', DBB) === 'Pull-ups');
+  check('…squat becomes loaded lunges, and both rows the chest-supported dumbbell row', R('Squat', DBB) === 'Lunges' && R('Barbell Row', DBB) === 'Chest-Supported Row' && R('Cable Row', DBB) === 'Chest-Supported Row');
+  check('a barbell + rack keeps the barbell lifts', ['Squat', 'Deadlift', 'Barbell Row', 'Overhead Press'].every(n => R(n, ['barbell']) === n) && R('Bench Press', ['barbell', 'bench']) === 'Bench Press');
+  check('…but a bench press needs the bench too', R('Bench Press', ['barbell']) === 'Push-ups');
+  check('machines never stay at home, whatever is ticked', R('Leg Press', G.HOME_ITEMS.map(h => h.id)) !== 'Leg Press' && R('Chest Machine Press', G.HOME_ITEMS.map(h => h.id)) === 'Incline DB Press');
+  check('a cable station keeps the cable work', ['Cable Row', 'Face Pulls', 'Tricep Pushdown', 'Lat Pulldown'].every(n => R(n, ['cable']) === n));
+  check('knees: a knee-safe Leg Press never turns back into a squat or lunge', R('Leg Press', ['dumbbells'], ['knees']) === 'Single-leg Glute Bridge' && R('Leg Press', ['kettlebell'], ['knees']) === 'Kettlebell Glute Bridge');
+  check('nothing to curl with drops the curl', R('Barbell Curl', ['pullup']) === null);
+
+  // Every generated home program can actually be done with what was ticked.
+  const combos = [['dumbbells'], ['dumbbells', 'bench'], ['dumbbells', 'bench', 'pullup'], ['barbell', 'bench'], ['barbell', 'bench', 'pullup', 'dipbars'],
+    ['pullup'], ['bands', 'pullup'], ['kettlebell'], ['cable'], ['dumbbells', 'kettlebell', 'bands', 'pullup'], G.HOME_ITEMS.map(h => h.id)];
+  const GO = [['strength', 'pure'], ['strength', 'hybrid'], ['hypertrophy', 'balanced'], ['hypertrophy', 'upper'], ['hypertrophy', 'lower'], ['aesthetic', 'fullbody'], ['aesthetic', 'upperlower'], ['rehab', 'knee'], ['rehab', 'back'], ['rehab', 'shoulder']];
+  const knees = G.REHAB_CONDITIONS.find(c => c.id === 'knees');
+  const bad = [], kneeBad = [], unsk = [], empty = [];
+  for (const items of combos) { const eq = G._homeEquipId(items); for (const [g, sub] of GO) for (const d of [2, 3, 4, 5, 6]) for (const inj of [[], ['knees'], ['shoulders']]) {
+    let p; try { p = G._generateWorkoutProgram(g, sub, d, 'T', 12, inj, eq); } catch (e) { bad.push(`${eq} ${g}/${sub} ${d}d threw ${e.message}`); continue; }
+    p.days.forEach(day => { if (!day.exercises.length) empty.push(`${eq} ${g}/${sub} ${d}d ${day.name}`);
+      day.exercises.forEach(ex => {
+        if (!G._canDoAtHome(ex.name, items)) bad.push(`${eq} ${g}/${sub} ${d}d: ${ex.name}`);
+        if (inj.includes('knees') && knees.detect(ex.name)) kneeBad.push(`${eq} ${g}/${sub}: ${ex.name}`);
+        if (!G._exSketchSpec(ex.name)) unsk.push(ex.name); }); }); } }
+  check('every exercise in every home program can be done with the ticked equipment (11 equipment sets × goals × 2–6 days × injuries)', bad.length === 0, bad.slice(0, 4).join(' | '));
+  check('…a knees program never gets a knee-aggravating exercise back', kneeBad.length === 0, kneeBad.slice(0, 4).join(' | '));
+  check('…every exercise it picks has a sketch', unsk.length === 0, [...new Set(unsk)].join(', '));
+  check('…no day ends up empty', empty.length === 0, empty.slice(0, 3).join(' | '));
+  const dbp = G._generateWorkoutProgram('hypertrophy', 'balanced', 4, 'T', 12, [], 'home:bench,dumbbells');
+  const dbNames = new Set(dbp.days.flatMap(d => d.exercises.map(e => e.name)));
+  check('a dumbbell program actually uses the dumbbells (not just bodyweight)', dbNames.has('Incline DB Press') && dbNames.has('Hammer Curl'), [...dbNames].join(', '));
+  check('…loaded work keeps real reps; only swapped-in bodyweight work goes AMRAP',
+    dbp.days.every(d => d.exercises.every(e => (G.isBWExName(e.name) || e.tag === 'rehab') || !/max/.test(String(e.sets)))));
+  check('a home program remembers its equipment and how it was built, so it can be rebuilt',
+    dbp.equipment === 'home:bench,dumbbells' && dbp.gen && dbp.gen.goal === 'hypertrophy' && dbp.gen.sub === 'balanced' && dbp.gen.nDays === 4 && dbp.gen.setsPerMuscle === 12);
+  check('…a gym program is unchanged (no equipment, no gen)', (() => { const gp = G._generateWorkoutProgram('hypertrophy', 'balanced', 4, 'T', 12, []); return gp.equipment === undefined && gp.gen === undefined; })());
+  check('the presets still build exactly what they did', JSON.stringify(G._generateWorkoutProgram('strength', 'pure', 4, 'T', 12, [], 'home-kb').days) === JSON.stringify(G._generateWorkoutProgram('strength', 'pure', 4, 'T', 12, [], G._homeEquipId(['kettlebell', 'bands'])).days));
+
+  // Program view: the equipment, and the way to change it.
+  const pv = G._progViewHtml(dbp, false, 3);
+  check('the program view of a home program lists its equipment with a "Change equipment" button',
+    pv.includes('data-home-equip="1"') && pv.includes('Bench · Dumbbells') && pv.includes('openHomeEquipEditor(3)'));
+  check('…a gym program shows no equipment block', !G._progViewHtml(G._generateWorkoutProgram('hypertrophy', 'balanced', 4, 'T', 12, []), false, 0).includes('data-home-equip'));
+  check('…a bodyweight home program says so', G._progViewHtml(G._generateWorkoutProgram('hypertrophy', 'balanced', 4, 'T', 12, [], 'home-bw'), false, 0).includes('Bodyweight only'));
+  const sv = String(G.saveHomeEquip);
+  check('saving equipment stores it for the user AND on the backend', String(G._saveHomeItems).includes("setData('wkt-home-equip'") && String(G._saveHomeItems).includes("pushSettingsToAgent({'wkt-home-equip'") && sv.includes('_saveHomeItems(_heq.items)'));
+  check('…and rebuilds the program from its own wizard choices, after a confirm that hand edits are replaced',
+    sv.includes('confirm(') && /hand are replaced/.test(sv) && sv.includes('_generateWorkoutProgram(g.goal,g.sub,g.nDays,p.name,g.setsPerMuscle,g.injuries,_homeEquipId(_heq.items))') && sv.includes('savePrograms()'));
+  check('…keeping the program in the same slot (active program and its index unchanged)', sv.includes('_programs[idx]=np'));
+  check('the equipment list comes back from the backend after a cache wipe', String(G.syncSettingsFromAgent).includes("setData('wkt-home-equip',s['wkt-home-equip'])"));
+  check('the equipment editor opens above the program view', /id="homeEquipModal" style="z-index:500"/.test(html));
 }
 
 setImmediate(() => {
