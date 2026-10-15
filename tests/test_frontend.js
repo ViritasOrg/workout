@@ -5475,14 +5475,21 @@ console.log('\n── Swap keeps completed sets / blank-exercise save guard ─�
   // saveLog wiring
   {
     const fn = String(G.saveLog || '');
+    // 2026-10-15: the separate "no reps filled in / Is that intentional?" confirm was
+    // folded into the single "Are you done?" prompt rather than stacked in front of it —
+    // two dialogs on every save is not what was asked for. Each check keeps its subject:
+    // blank exercises are still asked about, still named, still asked about before the
+    // date prompt, and Cancel still goes to the first blank one. _saveReview collects
+    // them into r.empty and _saveReviewText prints them under "Nothing filled in".
     check('saveLog asks about exercises with no reps filled in',
-      fn.includes('_incompleteExCards()') && fn.includes('Is that intentional?'));
+      fn.includes('_saveReview(container)') && fn.includes('confirm(_saveReviewText(_rev))'));
     check('saveLog sends the user to the first blank exercise on Cancel',
       fn.includes('_focusFirstIncompleteEx();return;'));
     check('saveLog names the blank exercises in the prompt',
-      fn.includes('_blank.map(_exCardName)'));
+      String(G._saveReviewText || '').includes('Nothing filled in') &&
+      String(G._saveReview || '').includes('out.empty.push(nm)'));
     check('saveLog asks before the date prompt, not after the log is built',
-      fn.indexOf('_incompleteExCards()') < fn.indexOf('Save anyway?'));
+      fn.indexOf('_saveReview(container)') < fn.indexOf('Save anyway?'));
   }
 }
 
@@ -7882,6 +7889,94 @@ check('…regular, wide, diamond and archer push-ups keep 64%',
   check('…keeping the program in the same slot (active program and its index unchanged)', sv.includes('_programs[idx]=np'));
   check('the equipment list comes back from the backend after a cache wipe', String(G.syncSettingsFromAgent).includes("setData('wkt-home-equip',s['wkt-home-equip'])"));
   check('the equipment editor opens above the program view', /id="homeEquipModal" style="z-index:500"/.test(html));
+}
+
+// ── Section 101: Edit opens the session that was logged ─────────────────────
+// Henrik 2026-10-15: "when I open todays training in history it is empty when I click
+// edit?????" — his 2026-10-15 log (id 1792084147681, day 1) is a push session: Chest
+// Machine Press, Incline DB Press, Landmine Press, Cable Fly, Tricep Pushdown, Lateral
+// Raise. editLog rebuilt the form from DAY_TEMPLATES[1], which is Squat / Romanian
+// Deadlift / Leg Press / Leg Curl / Calf Raises, so not one name matched and every card
+// came up blank. prefillLog had already rendered the right cards from the ACTIVE
+// PROGRAM; editLog has to read the same source or its data-ex indices address nothing.
+console.log('\n── Edit opens the session that was logged ───────────────────');
+{
+  const fn = String(G.editLog || '');
+  check('editLog rebuilds from the active program day',
+    fn.includes('getActiveProgramDay(log.day)') &&
+    fn.includes('_applyRehabSubs(_edDay.exercises,getActiveProgram())'));
+  check('…with the built-in split only as the fallback for a pre-programs log',
+    /_edDay\?.*:\(DAY_TEMPLATES\[log\.day\]\|\|\[\]\)/.test(fn));
+  check('…the same source prefillLog rendered the cards from',
+    String(G.prefillLog || '').includes('_applyRehabSubs(_di.exercises,getActiveProgram())'));
+  check('a custom card grows to hold every logged set (4-set exercises kept all 4)',
+    fn.includes("while(card.querySelectorAll('input[data-type=\"reps\"]').length<ex.sets.length)addSetToCard(card)") &&
+    !/ex\.sets\.forEach\(function\(s,i\)\{if\(i<3\)/.test(fn));
+
+  // His real day-1 names vs the built-in day 1 — the overlap is what editLog used to need.
+  const his = ['Chest Machine Press', 'Incline DB Press', 'Landmine Press',
+               'Cable Fly', 'Tricep Pushdown', 'Lateral Raise'];
+  const builtin = (G.DAY_TEMPLATES[1] || []).map(e => e.name);
+  check('the bug was real: his logged day 1 shares no exercise with DAY_TEMPLATES[1]',
+    his.every(n => builtin.indexOf(n) < 0), builtin.join(', '));
+  check('…and a 7-day program has no DAY_TEMPLATES entry at all to fall back on',
+    !G.DAY_TEMPLATES[7]);
+}
+
+// ── Section 102: "Are you done?" before a workout is written ────────────────
+// Henrik 2026-10-15: "Fuck I saved todays training by mistake, we need a 'are you done?'
+// Step to prevent this." The old guard only listed cards with ZERO reps, so the save that
+// caught him out — five complete exercises plus Lateral Raise at 1 of 3 sets — produced no
+// prompt at all. A half-finished exercise now shows up as half finished.
+console.log('\n── "Are you done?" before a save ────────────────────────────');
+{
+  const saveSrc = String(G.saveLog || '');
+  check('saveLog asks before writing anything',
+    saveSrc.includes('_saveReview(container)') && saveSrc.includes('confirm(_saveReviewText(_rev))'));
+  check('…and Cancel still takes you to the first unfilled exercise',
+    saveSrc.includes('_focusFirstIncompleteEx()'));
+  check('…asked before the log is added, not after',
+    saveSrc.indexOf('_saveReviewText') < saveSrc.indexOf('logs.unshift'));
+
+  const HAVE = typeof G._saveReview === 'function' && typeof G._saveReviewText === 'function';
+  check('_saveReview / _saveReviewText exist', HAVE);
+  if (HAVE) {
+    // One column per set; reps > 0 means the set was done.
+    const col = reps => ({ querySelector: sel => (/reps/.test(sel) ? { value: reps } : { value: '' }) });
+    const card = (name, reps) => ({
+      dataset: { tplName: name },
+      querySelector: sel => (/sets-row/.test(sel) ? { children: reps.map(col) } : null),
+    });
+    const box = cards => ({ querySelectorAll: () => cards });
+
+    const today = box([card('Chest Machine Press', ['10', '10', '12']),
+                       card('Incline DB Press', ['8', '10', '10']),
+                       card('Landmine Press', ['10', '12', '12', '10']),
+                       card('Cable Fly', ['10', '12', '10']),
+                       card('Tricep Pushdown', ['13', '10', '9']),
+                       card('Lateral Raise', ['15', '', ''])]);
+    const r = G._saveReview(today);
+    check('the real 2026-10-15 save is counted, not waved through',
+      r.ex === 6 && r.sets === 17, JSON.stringify(r));
+    check('…and Lateral Raise is named as half finished — what the old guard missed',
+      r.partial.length === 1 && /Lateral Raise/.test(r.partial[0]) && /1 of 3 sets/.test(r.partial[0]),
+      JSON.stringify(r.partial));
+    check('…so the prompt actually asks the question',
+      /Are you done\?/.test(G._saveReviewText(r)) && /Half finished/.test(G._saveReviewText(r)));
+    check('…and says what Cancel does',
+      /keep training/i.test(G._saveReviewText(r)));
+
+    const none = G._saveReview(box([card('Squat', ['', '', '']), card('Leg Press', ['10', '10'])]));
+    check('an exercise with nothing in it is listed, not counted',
+      none.ex === 1 && none.sets === 2 && none.empty.join() === 'Squat', JSON.stringify(none));
+    check('a finished session is reported with nothing outstanding',
+      (() => { const f = G._saveReview(box([card('Squat', ['5', '5', '5'])]));
+               return f.ex === 1 && f.sets === 3 && !f.partial.length && !f.empty.length; })());
+    check('an unnamed card is ignored rather than listed as a problem',
+      G._saveReview(box([{ dataset: {}, querySelector: () => null }])).empty.length === 0);
+    check('no container is not a crash',
+      G._saveReview(null).ex === 0);
+  }
 }
 
 setImmediate(() => {
