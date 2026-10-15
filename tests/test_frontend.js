@@ -5475,21 +5475,14 @@ console.log('\n── Swap keeps completed sets / blank-exercise save guard ─�
   // saveLog wiring
   {
     const fn = String(G.saveLog || '');
-    // 2026-10-15: the separate "no reps filled in / Is that intentional?" confirm was
-    // folded into the single "Are you done?" prompt rather than stacked in front of it —
-    // two dialogs on every save is not what was asked for. Each check keeps its subject:
-    // blank exercises are still asked about, still named, still asked about before the
-    // date prompt, and Cancel still goes to the first blank one. _saveReview collects
-    // them into r.empty and _saveReviewText prints them under "Nothing filled in".
     check('saveLog asks about exercises with no reps filled in',
-      fn.includes('_saveReview(container)') && fn.includes('confirm(_saveReviewText(_rev))'));
+      fn.includes('_incompleteExCards()') && fn.includes('Is that intentional?'));
     check('saveLog sends the user to the first blank exercise on Cancel',
       fn.includes('_focusFirstIncompleteEx();return;'));
     check('saveLog names the blank exercises in the prompt',
-      String(G._saveReviewText || '').includes('Nothing filled in') &&
-      String(G._saveReview || '').includes('out.empty.push(nm)'));
+      fn.includes('_blank.map(_exCardName)'));
     check('saveLog asks before the date prompt, not after the log is built',
-      fn.indexOf('_saveReview(container)') < fn.indexOf('Save anyway?'));
+      fn.indexOf('_incompleteExCards()') < fn.indexOf('Save anyway?'));
   }
 }
 
@@ -7933,10 +7926,21 @@ console.log('\n── "Are you done?" before a save ─────────�
   const saveSrc = String(G.saveLog || '');
   check('saveLog asks before writing anything',
     saveSrc.includes('_saveReview(container)') && saveSrc.includes('confirm(_saveReviewText(_rev))'));
-  check('…and Cancel still takes you to the first unfilled exercise',
-    saveSrc.includes('_focusFirstIncompleteEx()'));
   check('…asked before the log is added, not after',
     saveSrc.indexOf('_saveReviewText') < saveSrc.indexOf('logs.unshift'));
+
+  // Henrik asked for TWO SEPARATE dialogs (2026-10-15), not one merged prompt. Blanks are
+  // raised first, while they can still be filled in; "Are you done?" is the LAST gate.
+  check('the blank-exercise confirm is still its own dialog',
+    saveSrc.includes('Is that intentional?') && saveSrc.includes('_incompleteExCards()'));
+  check('…it comes first, so a blank can still be filled in',
+    saveSrc.indexOf('_incompleteExCards()') < saveSrc.indexOf('_saveReview(container)'));
+  check('…and Cancel on it goes to the first blank exercise',
+    saveSrc.includes('_focusFirstIncompleteEx();return;'));
+  check('"Are you done?" is the last gate — after the date prompt',
+    saveSrc.indexOf('Save anyway?') < saveSrc.indexOf('_saveReview(container)'));
+  check('…and nothing is written before it is answered',
+    saveSrc.indexOf('_saveReview(container)') < saveSrc.indexOf("setData('template_weights_day'"));
 
   const HAVE = typeof G._saveReview === 'function' && typeof G._saveReviewText === 'function';
   check('_saveReview / _saveReviewText exist', HAVE);
