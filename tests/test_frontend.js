@@ -1312,7 +1312,15 @@ check('_savedGearState defined', typeof G._savedGearState === 'function');
   const hBench = G._gearBtnsHtml('Bench Press', 1, 1, 1);
   check('Bench Press: no cable buttons',     !hBench.includes('cable') && !hBench.includes('gear<'));
   check('Bench Press: has DB button',        hBench.includes('>DB<'));
-  check('Squat: no buttons at all',          G._gearBtnsHtml('Squat', 1, 1, 1) === '');
+  // Was "Squat: no buttons at all". 2026-10-16: which implement is in your hands is the
+  // user's call, so every free-weight lift now offers the DB toggle (off by default) —
+  // a dumbbell/goblet squat is a real thing, and the old gate is what left a Shrug with
+  // no way to say "two dumbbells". The subject that still matters is that a free-weight
+  // lift gets no CABLE buttons, which is asserted here.
+  check('Squat: no cable buttons, DB offered but off',
+    (() => { const h = G._gearBtnsHtml('Squat', 1, 1, 1);
+             return !h.includes('gear') && !h.includes('cable') && h.includes('>DB<'); })(),
+    G._gearBtnsHtml('Squat', 1, 1, 1));
   // legacy wk-gear-=2 (from the brief combined scheme) reads as 2× cable on, ½ off
   G.localStorage.setItem('wk-gear-Cable Crossover', '2');
   const legacy = G._savedGearState('Cable Crossover');
@@ -7981,6 +7989,135 @@ console.log('\n── "Are you done?" before a save ─────────�
     check('no container is not a crash',
       G._saveReview(null).ex === 0);
   }
+}
+
+// ── Section 103: the app is titled with the person using it ─────────────────
+// Henrik 2026-10-16: "Add a Name field fir each account added in the whitelist ui. Use
+// this for app title instead of mine. So I see Henriks Training/Protocol but others see
+// their name IF I have added it in white list ui."
+// The name comes from the whitelist via GET /user/features, which login already calls.
+// No name means the PLAIN title — never anyone else's name, which is the whole point, so
+// every hardcoded HENRIK'S had to leave the markup rather than stay as a default.
+console.log('\n── The app is titled with the person using it ───────────────');
+{
+  const src = fs.readFileSync(htmlPath, 'utf8');
+
+  check('no hardcoded owner name is left in the markup',
+    !/HENRIK\\?.S|Henrik.s Training/.test(src.replace(/\/\/[^\n]*/g, '')),
+    (src.replace(/\/\/[^\n]*/g, '').match(/HENRIK\\?.S|Henrik.s Training/g) || []).join(', '));
+  check('the document title starts plain',
+    /<title>Training<\/title>/.test(src));
+  check('the login logo starts plain',
+    /class="login-logo">TRAINING</.test(src));
+  check('the header title starts plain',
+    /class="header-title">TRAINING</.test(src));
+  check('the onboarding welcome is built from the name, not a literal',
+    String(G._obHtml0 || '').includes("ownerTitleHtml(_ownerName,'TRAINING')"));
+
+  const HAVE = typeof G.ownerTitle === 'function' && typeof G.ownerTitleHtml === 'function';
+  check('ownerTitle / ownerTitleHtml exist', HAVE);
+  if (HAVE) {
+    check('a name gives a possessive title',
+      G.ownerTitle('Henrik', 'Training') === 'Henrik’s Training');
+    check('…in caps when the noun is in caps, so the logo reads right',
+      G.ownerTitle('Henrik', 'TRAINING') === 'HENRIK’S TRAINING');
+    check('…and a name already ending in s takes the bare apostrophe',
+      G.ownerTitle('Thomas', 'Training') === 'Thomas’ Training' &&
+      G.ownerTitle('Thomas', 'TRAINING') === 'THOMAS’ TRAINING');
+    check('NO name gives the plain title, never somebody else’s',
+      G.ownerTitle('', 'TRAINING') === 'TRAINING' &&
+      G.ownerTitle(null, 'Training') === 'Training' &&
+      G.ownerTitle(undefined, 'TRAINING') === 'TRAINING' &&
+      G.ownerTitle('   ', 'TRAINING') === 'TRAINING');
+    check('whitespace around a name does not reach the title',
+      G.ownerTitle('  Suvi  ', 'TRAINING') === 'SUVI’S TRAINING');
+    check('the two-line welcome breaks after the name',
+      G.ownerTitleHtml('Henrik', 'TRAINING') === 'HENRIK’S<br>TRAINING' &&
+      G.ownerTitleHtml('', 'TRAINING') === 'TRAINING');
+    check('a name is escaped before it is written as markup',
+      !/<img/.test(G.ownerTitleHtml('<img src=x onerror=1>', 'TRAINING')),
+      G.ownerTitleHtml('<img src=x onerror=1>', 'TRAINING'));
+  }
+
+  // Wiring — outside the guard so an older build reports instead of throwing.
+  const sync = String(G.syncFeaturesFromAgent || '');
+  check('the name is read from /user/features, with no extra request',
+    sync.includes('/user/features') && sync.includes("applyOwnerName(d.name||'')"));
+  check('…and cached against the account it came from',
+    sync.includes("setData('wk-owner-name',{id:d.user_id||_tokenEmail(),name:d.name||''})"));
+  check('the cache is only trusted when the signed-in account matches',
+    String(G._cachedOwnerName || '').includes('_tokenEmail()') &&
+    String(G._cachedOwnerName || '').includes('c.id'));
+  check('signing out drops the cached title with the token',
+    String(G.logout || '').includes("localStorage.removeItem('wk-owner-name')") &&
+    String(G.logout || '').includes("applyOwnerName('')"));
+  check('applyOwnerName writes all three visible places',
+    (() => { const f = String(G.applyOwnerName || '');
+             return f.includes('document.title') && f.includes('.login-logo') &&
+                    f.includes('.header-title'); })());
+}
+
+// ── Section 104: choosing the implement is the user's call ──────────────────
+// Henrik, 2026-10-16: "Shrug can be done differently but I cant choose DB (as an
+// example)." The ⋯ menu lists whatever gear buttons the card has, and the DB button was
+// emitted only when isPressEx(name) matched /press|raise|fly|curl/. A Shrug matches
+// none of those, so the menu had no "Two dumbbells" row at all — the choice did not
+// exist, rather than being there and switched off.
+console.log('\n── Choosing the implement is the user’s call ──────────────');
+{
+  const HAVE = typeof G.canBeDumbbell === 'function';
+  check('canBeDumbbell exists', HAVE);
+  if (HAVE) {
+    check('the reported case: a Shrug can be two dumbbells',
+      G.canBeDumbbell('Shrug') === true && G._gearBtnsHtml('Shrug', 1, 1, 1).includes('>DB<'));
+    check('…and so can the others the old gate missed',
+      ['Dumbbell Row', 'Lunge', 'Pullover', 'Tricep Kickback', 'Upright Row', 'Reverse Fly']
+        .every(n => G.canBeDumbbell(n)),
+      ['Dumbbell Row', 'Lunge', 'Pullover', 'Tricep Kickback', 'Upright Row', 'Reverse Fly']
+        .filter(n => !G.canBeDumbbell(n)).join(', '));
+
+    check('a cable stack keeps its own toggles instead',
+      !G.canBeDumbbell('Cable Row') && !G.canBeDumbbell('Lat Pulldown') &&
+      G._gearBtnsHtml('Cable Row', 1, 1, 1).includes('2× cable'));
+    check('a name that states another implement does not offer it',
+      ['Barbell Row', 'Smith Machine Squat', 'Hack Squat', 'Leg Extension']
+        .every(n => !G.canBeDumbbell(n)),
+      ['Barbell Row', 'Smith Machine Squat', 'Hack Squat', 'Leg Extension']
+        .filter(n => G.canBeDumbbell(n)).join(', '));
+    // Leg Press, Leg Curl and Landmine Press match the OLD gate (/press/, /curl/) and so
+    // already offered DB before today. Keeping the gate a superset means they keep it —
+    // taking it away would be an unasked-for removal, not part of this fix.
+    check('…while the ones the old gate already allowed are untouched',
+      ['Leg Press', 'Leg Curl', 'Landmine Press'].every(n => G.canBeDumbbell(n)));
+    check('nothing to load, or bodyweight, offers nothing',
+      !G.canBeDumbbell('Plank') && !G.canBeDumbbell('Dead Bug') &&
+      !G.canBeDumbbell('Pull-ups') && !G.canBeDumbbell('Dips'));
+    check('an empty or missing name is not an exercise',
+      !G.canBeDumbbell('') && !G.canBeDumbbell(null) && !G.canBeDumbbell('   '));
+
+    // The point of the gate being a superset: nothing that offered DB before loses it.
+    check('every exercise the old gate allowed still gets DB',
+      ['Bench Press', 'Incline DB Press', 'Chest Machine Press', 'Lateral Raise',
+       'Cable Fly', 'Barbell Curl', 'Hammer Curl', 'Calf Raises', 'Y-Raise']
+        .every(n => G.canBeDumbbell(n)),
+      ['Bench Press', 'Incline DB Press', 'Chest Machine Press', 'Lateral Raise',
+       'Cable Fly', 'Barbell Curl', 'Hammer Curl', 'Calf Raises', 'Y-Raise']
+        .filter(n => !G.canBeDumbbell(n)).join(', '));
+
+    // A choice that is not remembered is not a choice.
+    check('a DB choice is read back for the exercises that just gained it',
+      (() => { G.localStorage.setItem('wk-db-Shrug', '2');
+               const st = G._savedGearState('Shrug');
+               G.localStorage.removeItem('wk-db-Shrug');
+               return st.db === 2; })());
+    check('…and an untouched exercise stays single',
+      G._savedGearState('Shrug').db === 1);
+  }
+
+  // The ⋯ menu is where the toggle is actually reachable from.
+  check('the ⋯ menu lists the card’s DB button as "Two dumbbells"',
+    String(G._exMenuHtml || '').includes('gear-slot button') &&
+    /\['data-db','Two dumbbells'/.test(fs.readFileSync(htmlPath, 'utf8')));
 }
 
 setImmediate(() => {
