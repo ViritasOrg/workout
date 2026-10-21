@@ -446,7 +446,7 @@ try {
 } catch(e) {
   check('initTabVis does not throw with empty localStorage', false, e.message);
 }
-check('initTabVis: program tab on by default',  G._pageVis.program  === true);
+check('initTabVis: today and plan tabs on by default',  G._pageVis.today  === true && G._pageVis.plan === true);
 check('initTabVis: log tab on by default',       G._pageVis.log      === true);
 check('initTabVis: history tab on by default',   G._pageVis.history  === true);
 check('initTabVis: progress tab on by default',  G._pageVis.progress === true);
@@ -2721,17 +2721,17 @@ console.log('\n── Storage inspector ─────────────�
 // ── Section 59: Programs card lives in Program tab, not Settings ──────────────
 {
   const src = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
-  const progPageStart = src.indexOf('id="page-program"');
-  const progPageEnd = src.indexOf('id="page-log"');
-  const progPageHtml = progPageStart >= 0 && progPageEnd > progPageStart ? src.slice(progPageStart, progPageEnd) : '';
+  const planPageStart = src.indexOf('id="page-plan"');
+  const planPageEnd = src.indexOf('id="page-log"');
+  const planPageHtml = planPageStart >= 0 && planPageEnd > planPageStart ? src.slice(planPageStart, planPageEnd) : '';
   const settingsPageStart = src.indexOf('id="page-settings"');
   const settingsHtml = settingsPageStart >= 0 ? src.slice(settingsPageStart, settingsPageStart + 2000) : '';
-  check('s-programs-card div is inside page-program',
-    progPageHtml.includes('id="s-programs-card"'));
+  check('s-programs-card div is inside page-plan',
+    planPageHtml.includes('id="s-programs-card"'));
   check('s-programs-card div is NOT inside page-settings',
     !settingsHtml.includes('id="s-programs-card"'));
   check('showPage calls buildProgramSettingsCard when navigating to program tab',
-    src.includes("name==='program')buildProgramSettingsCard()"));
+    src.includes("name==='today'||name==='plan')buildProgramSettingsCard()"));
   check('loadSettings does not call buildProgramSettingsCard (card is in Program tab)',
     !src.slice(src.indexOf('async function loadSettings('), src.indexOf('async function loadSettings(') + 4000).includes('buildProgramSettingsCard()'));
 }
@@ -3627,16 +3627,33 @@ console.log('\n── Name-keyed drafts / leg-day prehab strip ─────�
 console.log('\n── Bottom navbar / PLASMA GUI port ─────────────────────────');
 {
   const src = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
-  check('fixed bottom navbar markup exists with 5 primaries',
-    ['navbtn-program', 'navbtn-log', 'navbtn-history', 'navbtn-progress', 'navbtn-more']
+  check('fixed bottom navbar markup exists with 6 primaries',
+    ['navbtn-today', 'navbtn-plan', 'navbtn-log', 'navbtn-macros', 'navbtn-history', 'navbtn-progress', 'navbtn-more']
       .every(id => src.includes('id="' + id + '"')));
-  check('navbar buttons call switchPrimary', src.includes("switchPrimary('more')") && src.includes("switchPrimary('program')"));
+  check('navbar buttons call switchPrimary', src.includes("switchPrimary('more')") && src.includes("switchPrimary('today')"));
   check('navbar CSS is fixed to bottom with safe-area inset',
     src.includes('.navbar{position:fixed;bottom:0') && src.includes('env(safe-area-inset-bottom'));
   check('navbtn active indicator bar (::before) present', src.includes('.navbtn.active::before'));
   check('old top-nav markup removed', !src.includes('nav-btn-program') && !src.includes('class="nav-btn'));
   check('sub-tab strip exists with tab-btn-* ids (legacy page ids preserved)',
-    src.includes('id="subtabs"') && src.includes('id="tab-btn-program"') && src.includes('id="tab-btn-settings"'));
+    src.includes('id="subtabs"') && src.includes('id="tab-btn-today"') && src.includes('id="tab-btn-plan"') && src.includes('id="tab-btn-settings"'));
+  // Henrik, 2026-10-21: "Own tab!" — Macros is its own bottom-bar button, with Food Edit inside it.
+  check('Macros is its own primary, with Food Edit as its sub-tab, after Log',
+    JSON.stringify(G.PRIMARY_GROUPS.macros) === JSON.stringify(['macros', 'foodedit']) &&
+    JSON.stringify(G.PRIMARY_GROUPS.log) === JSON.stringify(['log']) &&
+    /const PRIMARY_ORDER=\['today','plan','log','macros','history','progress','more'\]/.test(src));
+  // Henrik, 2026-10-21 (his own commit, rebuilt on staging): Program becomes Today, and the
+  // program library + templates move to a new Plan tab.
+  {
+    const _today = src.slice(src.indexOf('id="page-today"'), src.indexOf('id="page-plan"'));
+    const _plan = src.slice(src.indexOf('id="page-plan"'), src.indexOf('</div>', src.indexOf('id="s-programs-card"')) + 6);
+    check('Today holds the day grid and workout, with a Log Workout button on top',
+      /showPage\('log'\)[^>]*>Log Workout</.test(_today) && _today.includes('id="day-grid-container"') && _today.includes('id="workout-display"') && !_today.includes('s-programs-card'));
+    check('Plan holds the program library and templates', _plan.includes('id="s-programs-card"'));
+    check('both Today and Plan build the program card', /if\(name==='today'\|\|name==='plan'\)buildProgramSettingsCard\(\)/.test(src));
+    check('no page or button still uses the old program id',
+      !/id="(page|navbtn|tab-btn)-program"/.test(src) && !/getElementById\('page-program'\)/.test(src));
+  }
   check('PRIMARY_GROUPS groups settings+storage under more',
     JSON.stringify(G.PRIMARY_GROUPS.more) === JSON.stringify(['settings', 'storage']));
   check('every PAGE_LABELS page belongs to a primary group',
@@ -3682,7 +3699,7 @@ console.log('\n── Swipe navigation between top-level tabs ──────
   check('swipe: view follows finger via translateX', /av\.style\.transform='translateX\(/.test(rawScript));
   check('swipe: rubber-band resistance at the ends', rawScript.includes('dx*0.28'));
   if (typeof G._navSwipeTarget === 'function') {
-    const order = ['program','log','history','progress','more']; // mirrors PRIMARY_ORDER (const, not exported to sandbox)
+    const order = ['today','plan','log','macros','history','progress','more']; // mirrors PRIMARY_ORDER (const, not exported to sandbox)
     check('swipe next from first → second', G._navSwipeTarget(order, order[0], 1) === order[1]);
     check('swipe prev from second → first', G._navSwipeTarget(order, order[1], -1) === order[0]);
     check('no wrap past last tab', G._navSwipeTarget(order, order[order.length-1], 1) === null);
@@ -8118,6 +8135,274 @@ console.log('\n── Choosing the implement is the user’s call ────�
   check('the ⋯ menu lists the card’s DB button as "Two dumbbells"',
     String(G._exMenuHtml || '').includes('gear-slot button') &&
     /\['data-db','Two dumbbells'/.test(fs.readFileSync(htmlPath, 'utf8')));
+}
+
+// ── Food log (Macros): the shared block, 2026-10-21 ─────────────────────────
+// Same block as the other app; both talk to /food-log on the backend.
+console.log('\n── Food log ───────────────────────────────────────────────');
+{
+  const _flSrc = fs.readFileSync(htmlPath, 'utf8');
+  const _flBlock = _flSrc.slice(_flSrc.indexOf('// ── Food log (Macros)'), _flSrc.indexOf('// ── end food log ──'));
+  check('food log: block present', _flBlock.length > 1000);
+  check('food log: nothing kept in localStorage (backend is the record)',
+    !/localStorage\.|setData\(/.test(_flBlock));
+  check('food log: the eating day before 04:00 is the day before',
+    G._flDay(new Date(2026, 9, 22, 2, 30)) === '2026-10-21' && G._flDay(new Date(2026, 9, 22, 4, 0)) === '2026-10-22');
+  check('food log: totals add every row and round',
+    JSON.stringify(G._flTotals([{kcal: 280, protein: 46, carbs: 0, fat: 10}, {kcal: 264.2, protein: 5.8, carbs: 61, fat: 0.3}])) ===
+    JSON.stringify({kcal: 544, protein: 52, carbs: 61, fat: 10}));
+  const _flGuide = G._flGuideHtml();
+  check('food log: without a key the screen explains how to get one, in Chrome',
+    /console\.anthropic\.com/.test(_flGuide) && /Chrome/.test(_flGuide) && /sk-ant-/.test(_flGuide) && /flSaveKey\(\)/.test(_flGuide));
+  check('food log: the guide offers no way to log food', !/flSubmit\(/.test(_flGuide));
+  G._flKey = {set: true, last4: 'WXYZ'};
+  G._flRows = [{id: 'a', food: 'Steak <b>', amount: '202 g', kcal: 280, protein: 46, carbs: 0, fat: 10}];
+  G._flErr = ''; G._flPending = null; G._flBusy = false;
+  let _flMain = G._flMainHtml();
+  check('food log: with a key: text box, Log, Photo and today\'s total',
+    /id="fl-text"/.test(_flMain) && /flSubmit\(\)/.test(_flMain) && /fl-photo/.test(_flMain) && /280 kcal/.test(_flMain) && /P 46 g/.test(_flMain));
+  check('food log: the key is shown only by its last 4 characters, with Remove',
+    /ending …WXYZ/.test(_flMain) && /flRemoveKey\(\)/.test(_flMain));
+  check('food log: food names are escaped', _flMain.indexOf('Steak <b>') < 0 && _flMain.indexOf('Steak &lt;b&gt;') >= 0);
+  G._flErr = 'Anthropic error 500. Try again.'; G._flPending = {text: '2 eggs', image_b64: ''};
+  _flMain = G._flMainHtml();
+  check('food log: a failure says nothing was saved, keeps the input and offers one-tap retry',
+    /Nothing was saved/.test(_flMain) && /flRetry\(\)/.test(_flMain) && />2 eggs<\/textarea>/.test(_flMain));
+  G._flErr = ''; G._flPending = null;
+  const _flEdit = G._flEditHtml([{id: 'r1', food: 'Steak', kcal: 280, protein: 46, carbs: 0, fat: 10}], '2026-10-21');
+  check('food edit: each row can be saved and deleted', /flEditSave\('r1'\)/.test(_flEdit) && /flEditDelete\('r1'\)/.test(_flEdit));
+  check('food edit: an empty day says where food is logged', /Macros tab/.test(G._flEditHtml([], '2026-10-21')));
+  check('food log: deletes go through confirmGlobalDelete',
+    /function flEditDelete[\s\S]*?confirmGlobalDelete\(/.test(_flBlock) && /function flRemoveKey[\s\S]*?confirmGlobalDelete\(/.test(_flBlock) && !/[^.]confirm\('/.test(_flBlock));
+
+  // Today's intake against the Macros tab's targets (2026-10-21).
+  const _flSaveT = G._macrosTargets;
+  G._flKey = {set: true, last4: 'WXYZ'}; G._flErr = ''; G._flPending = null; G._flBusy = false;
+  G._flRows = [{id: 'a', food: 'Steak', kcal: 280, protein: 46, carbs: 0, fat: 10}];
+  G._macrosTargets = {kcal: 2400, protein: 180};
+  let _flTg = G._flMainHtml();
+  check('food log: with targets, shows kcal and protein against them with what is left',
+    /Calories 280 of 2400 kcal/.test(_flTg) && /2120 kcal left/.test(_flTg) && /Protein 46 of 180 g/.test(_flTg) && /134 g left/.test(_flTg));
+  G._flRows = [{id: 'a', food: 'Feast', kcal: 2600, protein: 200, carbs: 0, fat: 10}];
+  _flTg = G._flMainHtml();
+  check('food log: past the target it says how far over, and the bar stops at full',
+    /200 kcal over/.test(_flTg) && /20 g over/.test(_flTg) && !/width:10[1-9]%/.test(_flTg));
+  G._macrosTargets = {kcal: null, protein: 180};
+  _flTg = G._flMainHtml();
+  check('food log: a target the Macros tab cannot compute is left out, not shown as 0',
+    !/Calories \d+ of/.test(_flTg) && /Protein 200 of 180 g/.test(_flTg));
+  G._macrosTargets = null;
+  check('food log: without targets only the totals show', !/ of \d+ /.test(G._flMainHtml()));
+  G._macrosTargets = _flSaveT; G._flRows = [];
+
+  // Behaviour: the auto-save flow, in its own sandbox holding only this block, so
+  // its recorded fetch cannot collide with the suite's other async tests.
+  (async () => {
+    const calls = [];
+    let estimateOk = true;
+    const els = {};
+    const F = vm.createContext({
+      AGENT_URL: 'https://agent', authHeaders: (x) => Object.assign({}, x || {}), confirmGlobalDelete: () => true,
+      alert: () => {}, Promise, JSON, Date, Math, String, Number, encodeURIComponent, console,
+      document: {getElementById: (id) => {
+        if (!els[id]) { let h = ''; els[id] = {value: id === 'fl-text' ? '2 eggs' : '', files: null, click() {}}; Object.defineProperty(els[id], 'innerHTML', {get: () => h, set: v => { h = v; }}); }
+        return els[id];
+      }},
+      fetch: async (url, opt) => {
+        const m = (opt && opt.method) || 'GET';
+        calls.push({url, m, body: opt && opt.body ? JSON.parse(opt.body) : null});
+        if (/\/food-log\/key$/.test(url)) return {ok: true, status: 200, json: async () => ({set: true, last4: 'WXYZ'})};
+        if (/\/food-log\/estimate$/.test(url)) return estimateOk
+          ? {ok: true, status: 200, json: async () => ({ok: true, rows: [{id: 'n1', food: 'Egg', kcal: 140, protein: 12, carbs: 1, fat: 10}]})}
+          : {ok: false, status: 502, json: async () => ({detail: 'Anthropic error 500. Try again.'})};
+        if (/\/food-log\?date=/.test(url)) return {ok: true, status: 200, json: async () => (estimateOk ? [{id: 'n1', food: 'Egg', kcal: 140, protein: 12, carbs: 1, fat: 10}] : [])};
+        return {ok: true, status: 200, json: async () => ({})};
+      },
+    });
+    vm.runInContext(_flBlock, F);
+    await F.buildFoodLog();
+    check('food log: opening the tab reads the key, then today\'s rows',
+      calls[0] && /\/food-log\/key$/.test(calls[0].url) && calls[1] && /\/food-log\?date=\d{4}-\d\d-\d\d$/.test(calls[1].url));
+    check('food log: with a key the screen shows today\'s total', /140 kcal/.test(els['food-log-body'].innerHTML));
+    calls.length = 0;
+    await F._flSend({text: '2 eggs', image_b64: ''});
+    const est = calls.find(c => /estimate$/.test(c.url));
+    check('food log: Log posts the text once, with the eating day and time, and no confirm step',
+      calls.filter(c => /estimate$/.test(c.url)).length === 1 && est.m === 'POST' && est.body.text === '2 eggs' &&
+      /^\d{4}-\d\d-\d\d$/.test(est.body.date) && /^\d\d:\d\d$/.test(est.body.time) && !est.body.image_b64);
+    check('food log: after a save the input is cleared for the next entry', F._flPending === null);
+    estimateOk = false; calls.length = 0;
+    await F._flSend({text: '2 eggs', image_b64: 'aGk='});
+    const est2 = calls.find(c => /estimate$/.test(c.url));
+    check('food log: a photo is sent as a JPEG', est2 && est2.body.image_b64 === 'aGk=' && est2.body.media_type === 'image/jpeg');
+    check('food log: a failed estimate shows the server\'s reason and keeps the input for retry',
+      /Anthropic error 500/.test(els['food-log-body'].innerHTML) && F._flPending && F._flPending.text === '2 eggs' && /flRetry\(\)/.test(els['food-log-body'].innerHTML));
+    calls.length = 0;
+    F.confirmGlobalDelete = () => false;
+    await F.flEditDelete('n1');
+    check('food edit: a cancelled delete sends nothing', calls.length === 0);
+    F.confirmGlobalDelete = () => true;
+    await F.flEditDelete('n1');
+    check('food edit: a confirmed delete calls DELETE /food-log/<id>', calls.some(c => c.m === 'DELETE' && /\/food-log\/n1$/.test(c.url)));
+    if (failed > 0) process.exitCode = 1;
+  })().catch(e => { check('food log: async checks ran', false, String(e && e.stack || e)); process.exitCode = 1; });
+}
+
+// ── Macro targets: suggested by /macro-targets, with a manual override (2026-10-21) ──
+console.log('\n── Macro targets (suggested + override) ───────────────────');
+{
+  const _src = fs.readFileSync(htmlPath, 'utf8');
+  const _blk = _src.slice(_src.indexOf('// ── Macro targets (Workout) ──'), _src.indexOf('// ── Food log (Macros) ──'));
+  check('macro targets: no calorie model in this app, only the backend\'s',
+    _blk.length > 500 && /\/macro-targets\?/.test(_blk) && !/370\s*\+\s*21\.6|6\.25\s*\*|\*\s*1\.4\b/.test(_blk));
+  const ls = {}, calls = [], pushed = [], els = {};
+  let fail = false;
+  const served = {kcal: 2450, protein: 225, carbs: 205, fat: 81, tdee: 2750, phaseOffset: -300, missing: []};
+  const T = vm.createContext({console, Promise, JSON, Math, String, Number, parseInt, parseFloat, isFinite,
+    AGENT_URL: 'https://agent', authHeaders: () => ({}),
+    getData: (k, d) => (k in ls ? JSON.parse(ls[k]) : d), setData: (k, v) => { ls[k] = JSON.stringify(v); },
+    pushSettingsToAgent: (kv) => pushed.push(kv), _flRender: () => {},
+    document: {getElementById: id => { if (!els[id]) { let h = ''; els[id] = {value: ''}; Object.defineProperty(els[id], 'innerHTML', {get: () => h, set: v => { h = v; }}); } return els[id]; }},
+    fetch: async (url) => { calls.push(url);
+      if (/training-energy/.test(url)) return {ok: true, json: async () => ({avg_per_calendar_day: 310})};
+      if (fail) return {ok: false, json: async () => ({})};
+      return {ok: true, json: async () => Object.assign({}, served)}; },
+  });
+  vm.runInContext('var weights=[{date:"2026-10-01",weight:88},{date:"2026-10-20",weight:85.2}];var bfLog=[{date:"2026-10-10",bf:16}];' + _blk, T);
+  ls['wkt-profile'] = JSON.stringify({gender: 'female', height: 168, age: 38});
+  (async () => {
+    await T.buildWkMacroTargets();
+    const q = calls.find(u => /macro-targets/.test(u)) || '';
+    check('macro targets: suggested from the profile, latest weight, body fat and training burn',
+      /bw=85\.2/.test(q) && /sex=female/.test(q) && /height_cm=168/.test(q) && /age=38/.test(q) && /body_fat_pct=16/.test(q) && /train_kcal=310/.test(q) && /phase=recomp/.test(q) && /on_androgens=false/.test(q));
+    const h = els['wk-macro-targets'].innerHTML;
+    check('macro targets: shows the suggestion and offers a phase choice', /2450/.test(h) && /225 g/.test(h) && /setWkMacroPhase\('cut'\)/.test(h) && /Set my own targets instead/.test(h));
+    check('macro targets: the food log reads the suggestion', T._macrosTargets && T._macrosTargets.kcal === 2450 && T._macrosTargets.protein === 225);
+    calls.length = 0;
+    await T.setWkMacroPhase('cut');
+    check('macro targets: changing phase is saved to the account and asks again',
+      pushed.some(p => p['wkt-macro-phase'] === 'cut') && calls.some(u => /phase=cut/.test(u)));
+    T._wkOverrideOpen = true; T._wkRenderTargets();
+    T.document.getElementById('wk-tg-kcal').value = '3100'; T.document.getElementById('wk-tg-protein').value = '';
+    T.saveWkMacroTargets();
+    check('macro targets: the manual override wins and is saved to the account',
+      T._macrosTargets.kcal === 3100 && T._macrosTargets.protein === null && pushed.some(p => p['wkt-macro-targets'] && p['wkt-macro-targets'].kcal === 3100) &&
+      /Using your own targets/.test(els['wk-macro-targets'].innerHTML) && /Use suggested/.test(els['wk-macro-targets'].innerHTML));
+    T.clearWkMacroOverride();
+    check('macro targets: "Use suggested" returns to the suggestion',
+      T._macrosTargets.kcal === 2450 && pushed.some(p => 'wkt-macro-targets' in p && p['wkt-macro-targets'] === null));
+    served.kcal = null; served.missing = ['body fat %', 'or height and age']; T._wkSuggest = null; T._wkSuggestQ = '';
+    await T._wkFetchSuggest();
+    check('macro targets: an incomplete profile says what to add, never a guessed number',
+      /No calorie target yet/.test(els['wk-macro-targets'].innerHTML) && /Settings → Profile/.test(els['wk-macro-targets'].innerHTML));
+    fail = true; T._wkSuggest = null; T._wkSuggestQ = '';
+    await T._wkFetchSuggest();
+    check('macro targets: when the backend cannot be reached it says so', /Could not load suggested targets/.test(els['wk-macro-targets'].innerHTML));
+    if (failed > 0) process.exitCode = 1;
+  })().catch(e => { check('macro targets: async checks ran', false, String(e && e.stack || e)); process.exitCode = 1; });
+}
+
+// ── Food log: a photo is attached, then Log sends it with the typed amount (2026-10-21) ──
+// Henrik: a photo of a 500 g tub of cottage cheese was logged as the whole tub, with no way
+// to say he ate 115 g. Picking a photo must not send anything on its own.
+{
+  const _src = fs.readFileSync(htmlPath, 'utf8');
+  const _blk = _src.slice(_src.indexOf('// ── Food log (Macros)'), _src.indexOf('// ── end food log ──'));
+  const calls = [], els = {};
+  const P = vm.createContext({console, Promise, JSON, Math, String, Number, encodeURIComponent,
+    AGENT_URL: 'https://agent', authHeaders: (x) => Object.assign({}, x || {}), confirmGlobalDelete: () => true, alert: () => {},
+    document: {getElementById: (id) => { if (!els[id]) { let h = ''; els[id] = {value: ''}; Object.defineProperty(els[id], 'innerHTML', {get: () => h, set: v => { h = v; }}); } return els[id]; }},
+    fetch: async (url, opt) => { calls.push({url, body: opt && opt.body ? JSON.parse(opt.body) : null});
+      if (/estimate$/.test(url)) return {ok: true, status: 200, json: async () => ({ok: true, rows: [{id: 'c1', food: 'Cottage cheese', amount: '115 g', kcal: 83}]})};
+      if (/\?date=/.test(url)) return {ok: true, status: 200, json: async () => [{id: 'c1', food: 'Cottage cheese', amount: '115 g', kcal: 83}]};
+      return {ok: true, status: 200, json: async () => ({})}; },
+  });
+  vm.runInContext(_blk, P);
+  P._flShrink = async () => 'UEhPVE8=';
+  P._flKey = {set: true, last4: 'WXYZ'};
+  (async () => {
+    P.document.getElementById('fl-text').value = '';
+    await P.flPhotoPicked({files: [{}], value: 'x'});
+    let h = els['food-log-body'].innerHTML;
+    check('food log: picking a photo sends nothing on its own', calls.length === 0);
+    check('  …it shows the photo as attached, with Remove, and asks how much was eaten',
+      /Photo attached/.test(h) && /flClearPhoto\(\)/.test(h) && /How much of it did you eat/.test(h) && /data:image\/jpeg;base64,UEhPVE8=/.test(h));
+    P.document.getElementById('fl-text').value = '115 g';
+    await P.flSubmit();
+    const est = calls.find(c => /estimate$/.test(c.url));
+    check('  …and Log sends the photo together with the typed amount, once',
+      calls.filter(c => /estimate$/.test(c.url)).length === 1 && est.body.text === '115 g' && est.body.image_b64 === 'UEhPVE8=' && est.body.media_type === 'image/jpeg');
+    h = els['food-log-body'].innerHTML;
+    check('  …after it is saved, the photo is cleared for the next entry', P._flPhoto === '' && !/Photo attached/.test(h));
+    await P.flPhotoPicked({files: [{}], value: 'x'});
+    P.document.getElementById('fl-text').value = 'half of it';
+    P.flClearPhoto();
+    check('  …Remove drops the photo but keeps what was typed',
+      P._flPhoto === '' && />half of it<\/textarea>/.test(els['food-log-body'].innerHTML));
+    calls.length = 0;
+    P.document.getElementById('fl-text').value = '   ';
+    await P.flSubmit();
+    check('  …Log with no text and no photo sends nothing', calls.length === 0);
+    if (failed > 0) process.exitCode = 1;
+  })().catch(e => { check('food log photo: async checks ran', false, String(e && e.stack || e)); process.exitCode = 1; });
+}
+
+// ── Food Edit: every entry has an editable amount, and correcting it rescales (2026-10-21) ──
+// Henrik: "each entry needs a grams total also, a typo for chicken breast should be possible
+// to Edit instead of forcing me to delete the line".
+{
+  const _src = fs.readFileSync(htmlPath, 'utf8');
+  const _blk = _src.slice(_src.indexOf('// ── Food log (Macros)'), _src.indexOf('// ── end food log ──'));
+  const puts = [], els = {};
+  const E = vm.createContext({console, Promise, JSON, Math, String, Number, parseFloat, encodeURIComponent,
+    AGENT_URL: 'https://agent', authHeaders: (x) => Object.assign({}, x || {}), confirmGlobalDelete: () => true, alert: () => {},
+    document: {getElementById: (id) => { if (!els[id]) { let h = ''; els[id] = {value: ''}; Object.defineProperty(els[id], 'innerHTML', {get: () => h, set: v => { h = v; }}); } return els[id]; }},
+    fetch: async (url, opt) => { if (opt && opt.method === 'PUT') puts.push({url, body: JSON.parse(opt.body)});
+      return {ok: true, status: 200, json: async () => []}; },
+  });
+  vm.runInContext(_blk, E);
+  const chick = {id: 'k1', food: 'Raw chicken breast', amount: '300g', kcal: 330, protein: 69, carbs: 0, fat: 4};
+  const coffee = {id: 'k2', food: 'Coffee', amount: '300ml', kcal: 68, protein: 5, carbs: 7, fat: 2};
+  const cups = {id: 'k3', food: 'Tea', amount: '2 cups', kcal: 4, protein: 0, carbs: 1, fat: 0};
+  const html = E._flEditHtml([chick, coffee, cups], '2026-10-21');
+  check('food edit: every entry shows its amount, in its own unit',
+    /id="fle-grams-k1" value="300"/.test(html) && /Amount \(g\)/.test(html) && /id="fle-grams-k2" value="300"/.test(html) && /Amount \(ml\)/.test(html));
+  check('  …an amount with no number to scale from is left empty, with the stored text as a hint',
+    /id="fle-grams-k3" value="" inputmode="decimal" placeholder="2 cups"/.test(html));
+  const fill = (r, grams, over) => { E._flEditRows = [chick, coffee, cups]; const v = Object.assign({food: r.food, kcal: r.kcal, protein: r.protein, carbs: r.carbs, fat: r.fat, grams}, over || {});
+    Object.keys(v).forEach(k => { E.document.getElementById('fle-' + k + '-' + r.id).value = String(v[k]); }); };
+  (async () => {
+    E._flEditRows = [chick, coffee, cups];
+    fill(chick, '200'); await E.flEditSave('k1');
+    let b = puts[0] && puts[0].body;
+    check('  …correcting 300 g to 200 g rescales kcal and macros by 2/3 and stores the new amount',
+      b && b.amount === '200 g' && b.kcal === 220 && b.protein === 46 && b.carbs === 0 && b.fat === 2.7, JSON.stringify(b));
+    puts.length = 0; fill(chick, '200', {kcal: 250}); await E.flEditSave('k1');
+    b = puts[0] && puts[0].body;
+    check('  …but numbers typed over by hand are kept as typed', b && b.amount === '200 g' && b.kcal === 250 && b.protein === 69, JSON.stringify(b));
+    puts.length = 0; fill(coffee, '150'); await E.flEditSave('k2');
+    b = puts[0] && puts[0].body;
+    check('  …ml stays ml', b && b.amount === '150 ml' && b.kcal === 34, JSON.stringify(b));
+    puts.length = 0; fill(cups, '500'); await E.flEditSave('k3');
+    b = puts[0] && puts[0].body;
+    check('  …an amount added where there was none is stored without guessing a rescale', b && b.amount === '500 g' && b.kcal === 4, JSON.stringify(b));
+    puts.length = 0; fill(chick, '300'); await E.flEditSave('k1');
+    b = puts[0] && puts[0].body;
+    check('  …an unchanged amount changes nothing', b && b.amount === '300 g' && b.kcal === 330 && b.protein === 69, JSON.stringify(b));
+    if (failed > 0) process.exitCode = 1;
+  })().catch(e => { check('food edit grams: async checks ran', false, String(e && e.stack || e)); process.exitCode = 1; });
+}
+
+// ── Food log: each entry shows when it was logged (2026-10-21) ──
+// Henrik: "show time of logged entry in the list, it helps to check when one ate last".
+{
+  G._flKey = {set: true, last4: 'WXYZ'}; G._flErr = ''; G._flPending = null; G._flBusy = false;
+  G._flRows = [{id: 't1', time: '07:40', food: 'Oats', amount: '80 g', kcal: 300}, {id: 't2', time: '', food: 'Daily total', amount: '', kcal: 2000}];
+  const _h = G._flMainHtml();
+  check('food log: the list shows each entry\'s time before the food', /07:40<\/span>Oats/.test(_h));
+  check('  …and an entry with no time (an imported daily total) shows none', /<span>Daily total/.test(_h));
+  check('food edit: each card shows its time', />07:40<\/div>/.test(G._flEditHtml([G._flRows[0]], '2026-10-21')));
+  G._flRows = [];
 }
 
 setImmediate(() => {
