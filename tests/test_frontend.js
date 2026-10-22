@@ -8264,6 +8264,10 @@ console.log('\n── Macro targets (suggested + override) ───────
 {
   const _src = fs.readFileSync(htmlPath, 'utf8');
   const _blk = _src.slice(_src.indexOf('// ── Macro targets (Workout) ──'), _src.indexOf('// ── Food log (Macros) ──'));
+  check('macro targets: the hormone switch is restored from the account on a new device',
+    /if\(s\['wkt-on-hormones'\]!==undefined\)setData\('wkt-on-hormones',s\['wkt-on-hormones'\]===true\)/.test(_src));
+  check('macro targets: the training-burn option is restored from the account on a new device',
+    /s\['wkt-macro-include-training'\]/.test(_src));
   check('macro targets: no calorie model in this app, only the backend\'s',
     _blk.length > 500 && /\/macro-targets\?/.test(_blk) && !/370\s*\+\s*21\.6|6\.25\s*\*|\*\s*1\.4\b/.test(_blk));
   const ls = {}, calls = [], pushed = [], els = {};
@@ -8286,19 +8290,67 @@ console.log('\n── Macro targets (suggested + override) ───────
     const q = calls.find(u => /macro-targets/.test(u)) || '';
     check('macro targets: suggested from the profile, latest weight, body fat and training burn',
       /bw=85\.2/.test(q) && /sex=female/.test(q) && /height_cm=168/.test(q) && /age=38/.test(q) && /body_fat_pct=16/.test(q) && /train_kcal=310/.test(q) && /phase=recomp/.test(q) && /on_androgens=false/.test(q));
+    check('macro targets: the deficit is the backend\'s research-sized one, never a fixed mode (2026-10-22)',
+      !/deficit_mode/.test(q));
+    check('macro targets: training burn is left out by default (Henrik, 2026-10-22: "default OFF")',
+      /include_training=false/.test(q) && !/include_training=true/.test(q) &&
+      /id="wk-include-training"(?! checked)/.test(els['wk-macro-targets'].innerHTML) &&
+      /Suggested from your profile: maintenance/.test(els['wk-macro-targets'].innerHTML));
     const h = els['wk-macro-targets'].innerHTML;
     check('macro targets: shows the suggestion and offers a phase choice', /2450/.test(h) && /225 g/.test(h) && /setWkMacroPhase\('cut'\)/.test(h) && /Set my own targets instead/.test(h));
     check('macro targets: the food log reads the suggestion', T._macrosTargets && T._macrosTargets.kcal === 2450 && T._macrosTargets.protein === 225);
+    check('macro targets: the hormone switch is off by default and named for her profile: HRT',
+      /id="wk-on-hormones"(?! checked)/.test(h) && /On HRT/.test(h) && !/On TRT/.test(h));
+    calls.length = 0; pushed.length = 0;
+    await T.setWkOnHormones(true);
+    check('  …switched on, the suggestion is asked for as on hormones, and saved to the account',
+      calls.some(u => /on_androgens=true/.test(u)) && pushed.some(p => p['wkt-on-hormones'] === true) &&
+      /id="wk-on-hormones" checked/.test(els['wk-macro-targets'].innerHTML));
+    ls['wkt-profile'] = JSON.stringify({gender: 'male', height: 168, age: 38});
+    check('  …and it reads TRT for a male profile', /On TRT/.test(T._wkMacroTargetsHtml()));
+    ls['wkt-profile'] = JSON.stringify({gender: 'female', height: 168, age: 38});
+    calls.length = 0;
+    await T.setWkOnHormones(false);
+    check('  …switched off again, on_androgens is false', calls.some(u => /on_androgens=false/.test(u)) && pushed.some(p => p['wkt-on-hormones'] === false));
+    calls.length = 0; pushed.length = 0;
+    await T.setWkIncludeTraining(true);
+    check('  …ticking "Count training burn" asks with include_training=true and saves it to the account',
+      calls.some(u => /include_training=true/.test(u)) && pushed.some(p => p['wkt-macro-include-training'] === true) &&
+      /id="wk-include-training" checked/.test(els['wk-macro-targets'].innerHTML) &&
+      /Suggested from your profile and training/.test(els['wk-macro-targets'].innerHTML));
+    calls.length = 0;
+    await T.setWkIncludeTraining(false);
+    check('  …unticked again, include_training is false', calls.some(u => /include_training=false/.test(u)) && pushed.some(p => p['wkt-macro-include-training'] === false));
     calls.length = 0;
     await T.setWkMacroPhase('cut');
     check('macro targets: changing phase is saved to the account and asks again',
       pushed.some(p => p['wkt-macro-phase'] === 'cut') && calls.some(u => /phase=cut/.test(u)));
+    // Own targets are protein, carbs and fat; kcal is calculated (Henrik, 2026-10-22: "I want
+    // to add my own target for all macros and have kcal calculated").
     T._wkOverrideOpen = true; T._wkRenderTargets();
-    T.document.getElementById('wk-tg-kcal').value = '3100'; T.document.getElementById('wk-tg-protein').value = '';
+    let f = els['wk-macro-targets'].innerHTML;
+    check('macro targets: the own-targets form asks for protein, carbs and fat, not kcal',
+      /id="wk-tg-protein"/.test(f) && /id="wk-tg-carbs"/.test(f) && /id="wk-tg-fat"/.test(f) && !/id="wk-tg-kcal"/.test(f));
+    T.document.getElementById('wk-tg-protein').value = '213'; T.document.getElementById('wk-tg-carbs').value = '250';
+    T.document.getElementById('wk-tg-fat').value = '';
+    pushed.length = 0;
     T.saveWkMacroTargets();
-    check('macro targets: the manual override wins and is saved to the account',
-      T._macrosTargets.kcal === 3100 && T._macrosTargets.protein === null && pushed.some(p => p['wkt-macro-targets'] && p['wkt-macro-targets'].kcal === 3100) &&
-      /Using your own targets/.test(els['wk-macro-targets'].innerHTML) && /Use suggested/.test(els['wk-macro-targets'].innerHTML));
+    check('  …with one of them missing it says so and saves nothing',
+      /Fill in protein, carbs and fat/.test(els['wk-macro-targets'].innerHTML) && !pushed.some(p => 'wkt-macro-targets' in p));
+    T.document.getElementById('wk-tg-fat').value = '60';
+    T.wkTgCalc();
+    check('  …the kcal is shown as you type: 4/4/9 per gram', /= <b>2392 kcal<\/b>/.test(els['wk-tg-kcal-out'].innerHTML));
+    T.saveWkMacroTargets();
+    const mt = T._macrosTargets;
+    check('macro targets: the manual override wins, with every macro and the calculated kcal, and is saved to the account',
+      mt.kcal === 213 * 4 + 250 * 4 + 60 * 9 && mt.protein === 213 && mt.carbs === 250 && mt.fat === 60 &&
+      pushed.some(p => p['wkt-macro-targets'] && p['wkt-macro-targets'].fat === 60 && p['wkt-macro-targets'].kcal === 2392) &&
+      /Using your own targets: <b>P 213 g · C 250 g · F 60 g = 2392 kcal<\/b>/.test(els['wk-macro-targets'].innerHTML) && /Use suggested/.test(els['wk-macro-targets'].innerHTML));
+    ls['wkt-macro-targets'] = JSON.stringify({kcal: 2400, protein: 213});
+    T._wkApplyTargets();
+    check('macro targets: an override saved before (kcal and protein only) still applies as it was',
+      T._macrosTargets.kcal === 2400 && T._macrosTargets.protein === 213 && !T._macrosTargets.carbs &&
+      /Using your own targets: <b>2400 kcal · 213 g protein/.test(T._wkMacroTargetsHtml()));
     T.clearWkMacroOverride();
     check('macro targets: "Use suggested" returns to the suggestion',
       T._macrosTargets.kcal === 2450 && pushed.some(p => 'wkt-macro-targets' in p && p['wkt-macro-targets'] === null));
