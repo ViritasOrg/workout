@@ -404,6 +404,8 @@
       <div style="padding:12px 16px;display:flex;justify-content:space-between;align-items:center;"><span style="font-size:13px;color:var(--muted)">Backup — monthly</span><span style="font-size:13px;" id="s-backup-monthly">—</span></div>
       </div>
     </div>
+    <div id="fl-key-card"></div>
+    <div id="fl-import-card"></div>
     <div id="s-deploy-card"></div>
     <div id="s-tabs-card" style="margin-top:0"></div>
     <div id="s-appearance-card"></div>
@@ -1344,7 +1346,7 @@ function _diagRenderInto(host){
 function buildStoragePage(){var _el=document.getElementById('page-storage');if(!_el)return;var _esc=function(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};_lsDbgKeys=[];for(var _di=0;_di<localStorage.length;_di++){var _dk=localStorage.key(_di);if(_dk!=null)_lsDbgKeys.push(_dk);}_lsDbgKeys.sort();var _rows=_lsDbgKeys.map(function(k,i){var _raw=localStorage.getItem(k)||'';var _extra='';try{var _pv=JSON.parse(_raw);if(Array.isArray(_pv))_extra='array · '+_pv.length+' items';else if(_pv!==null&&typeof _pv==='object')_extra='object · '+Object.keys(_pv).length+' keys';else _extra=typeof _pv;}catch(e){_extra='string';}var _trunc=_raw.length>300;var _disp=_trunc?_raw.slice(0,300)+'…':_raw;return'<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px">'+'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">'+'<div><span style="font-family:monospace;font-size:12px;color:var(--accent);font-weight:600">'+_esc(k)+'</span><span style="font-size:10px;color:var(--muted);margin-left:8px">'+_esc(_extra)+'</span></div>'+'<button onclick="lsDbgCopy('+i+')" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 10px;font-size:10px;cursor:pointer;font-family:inherit;flex-shrink:0">Copy</button>'+'</div>'+'<pre style="font-family:monospace;font-size:10px;color:var(--muted);white-space:pre-wrap;word-break:break-all;margin:0;line-height:1.4;max-height:100px;overflow:hidden">'+_esc(_disp)+'</pre>'+'</div>';}).join('');_el.innerHTML='<div style="padding:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><div style="font-size:13px;color:var(--muted)">'+_lsDbgKeys.length+' keys in localStorage</div><div style="display:flex;gap:8px"><button onclick="buildStoragePage()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">Refresh</button><button onclick="lsDbgCopyAll()" style="background:var(--accent);color:#000;border:none;border-radius:8px;padding:7px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">Copy All</button></div></div>'+_rows+'</div>';_diagRenderInto(_el);}
 function lsDbgCopy(i){var k=_lsDbgKeys[i];if(k==null)return;var v=localStorage.getItem(k)||'';var out={};try{out[k]=JSON.parse(v);}catch(e){out[k]=v;}navigator.clipboard.writeText(JSON.stringify(out,null,2)).catch(function(){});}
 function lsDbgCopyAll(){var out={};for(var _ci=0;_ci<localStorage.length;_ci++){var _ck=localStorage.key(_ci);if(!_ck)continue;var _cv=localStorage.getItem(_ck)||'';try{out[_ck]=JSON.parse(_cv);}catch(e){out[_ck]=_cv;}}navigator.clipboard.writeText(JSON.stringify(out,null,2)).catch(function(){});}
-function showPage(name,btn){localStorage.setItem('wkt-last-page',name);_currentPage=name;var _pr=primaryOf(name);if(_pr){_currentPrimary=_pr;_lastSub[_pr]=name;try{localStorage.setItem('wkt-last-sub-'+_pr,name);}catch(e){}_setPrimaryActive(_pr);_applySubtabVis(_pr);}document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tabs .tab').forEach(b=>b.classList.remove('active'));document.getElementById('page-'+name).classList.add('active');var _tb=document.getElementById('tab-btn-'+name);if(_tb)_tb.classList.add('active');if(name==='macros'){buildWkMacroTargets();buildFoodLog();}if(name==='foodedit')buildFoodEdit();if(name==='today'||name==='plan')buildProgramSettingsCard();if(name==='history')renderHistory();if(name==='progress')renderProgress();if(name==='settings')loadSettings();if(name==='storage')buildStoragePage();if(name==='log'){var _lc=document.getElementById('structured-log');var _hasReps=_lc&&Array.from(_lc.querySelectorAll('input[data-type="reps"]')).some(function(i){return parseInt(i.value)>0;});var _curDay=parseInt(document.getElementById('log-day').value)||0;
+function showPage(name,btn){localStorage.setItem('wkt-last-page',name);_currentPage=name;var _pr=primaryOf(name);if(_pr){_currentPrimary=_pr;_lastSub[_pr]=name;try{localStorage.setItem('wkt-last-sub-'+_pr,name);}catch(e){}_setPrimaryActive(_pr);_applySubtabVis(_pr);}document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tabs .tab').forEach(b=>b.classList.remove('active'));document.getElementById('page-'+name).classList.add('active');var _tb=document.getElementById('tab-btn-'+name);if(_tb)_tb.classList.add('active');if(name==='macros'){buildWkMacroTargets();buildFoodLog();}if(name==='foodedit')buildFoodEdit();if(name==='today'||name==='plan')buildProgramSettingsCard();if(name==='history')renderHistory();if(name==='progress')renderProgress();if(name==='settings'){loadSettings();buildFlKeyCard();}if(name==='storage')buildStoragePage();if(name==='log'){var _lc=document.getElementById('structured-log');var _hasReps=_lc&&Array.from(_lc.querySelectorAll('input[data-type="reps"]')).some(function(i){return parseInt(i.value)>0;});var _curDay=parseInt(document.getElementById('log-day').value)||0;
     // Re-prefill when the on-screen log was built under a now-stale deload or unit
     // state (both toggles live outside the Log page, so their inline re-prefill only
     // fires when Log is already open). Never blow away a log with reps entered.
@@ -4066,7 +4068,7 @@ function _wkTargetsFrom(v){var k=parseFloat(v&&v.kcal),p=parseFloat(v&&v.protein
 function _wkLatest(arr,key){var a=(arr||[]).filter(function(e){return e&&e.date&&e[key]>0;}).slice().sort(function(x,y){return x.date<y.date?-1:x.date>y.date?1:0;});return a.length?a[a.length-1][key]:0;}
 function _wkMacroQuery(){var pr=getData('wkt-profile',{})||{};var bw=_wkLatest(weights,'weight')||parseFloat(pr.weight)||0;
   return 'bw='+bw+'&phase='+_wkPhase()+'&on_androgens=false&height_cm='+(parseFloat(pr.height)||0)+'&age='+(parseInt(pr.age)||0)+'&sex='+(pr.gender==='female'?'female':'male')+'&body_fat_pct='+(_wkLatest(bfLog,'bf')||0)+'&train_kcal='+Math.max(0,Math.round(_wkTrainKcal||0))+'&include_training=true&deficit_mode=absolute';}
-function _wkApplyTargets(){var o=_wkTargetsFrom(getData('wkt-macro-targets',null));_macrosTargets=o||(_wkSuggest&&(_wkSuggest.kcal||_wkSuggest.protein)?{kcal:_wkSuggest.kcal,protein:_wkSuggest.protein}:null);}
+function _wkApplyTargets(){var o=_wkTargetsFrom(getData('wkt-macro-targets',null));_macrosTargets=o||(_wkSuggest&&(_wkSuggest.kcal||_wkSuggest.protein)?{kcal:_wkSuggest.kcal,protein:_wkSuggest.protein,carbs:_wkSuggest.carbs,fat:_wkSuggest.fat}:null);}
 function _wkMacroTargetsHtml(){var o=_wkTargetsFrom(getData('wkt-macro-targets',null));var m=_wkSuggest;var ph=_wkPhase();
   var btn=function(l,on,click){return'<button onclick="'+click+'" style="flex:1;background:'+(on?'var(--accent)':'var(--surface2)')+';color:'+(on?'#000':'var(--text)')+';border:1px solid '+(on?'transparent':'var(--border)')+';border-radius:20px;padding:7px 4px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">'+l+'</button>';};
   var h='<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">Daily targets</div>';
@@ -4096,12 +4098,13 @@ function clearWkMacroOverride(){setData('wkt-macro-targets',null);pushSettingsTo
 // Henrik, 2026-10-21: type what you ate or take a photo, it is estimated and SAVED
 // straight away (no confirm step); corrections live on the separate Food Edit tab.
 // The same block is in Peptide Tracker and Workout, which share one log on the
-// backend (/food-log). Estimates run on the user's OWN Anthropic key, so a user
+// backend (/food-log). Estimates run on the user's OWN key — a free Google Gemini key by
+// default (Henrik, 2026-10-21), or an Anthropic key — so a user
 // without one only sees how to add it. Nothing here is cached on the device.
 var _flKey=null,_flRows=[],_flBusy=false,_flErr='',_flPending=null,_flEditRows=[],_flEditDate='';
 // A picked photo is ATTACHED, not sent (Henrik, 2026-10-21: a photo of a 500 g tub was logged as
 // the whole tub when he ate 115 g). It waits here with the typed text until Log is pressed.
-var _flPhoto='',_flDraft='';
+var _flPhoto='',_flDraft='',_flListOpen=false;
 function _flEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function _flYmd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 // The eating day: a meal logged before 04:00 still belongs to the day before.
@@ -4113,19 +4116,57 @@ function _flTotals(rows){var t={kcal:0,protein:0,carbs:0,fat:0};(rows||[]).forEa
 function _flTargetsHtml(t){var g=(typeof _macrosTargets!=='undefined')?_macrosTargets:null;if(!g)return'';var out=[];
   var line=function(lbl,have,want,unit){var left=Math.round(want-have);return'<div style="display:flex;justify-content:space-between;gap:10px;font-size:13px;color:var(--text);margin-top:8px"><span>'+lbl+' '+have+' of '+want+' '+unit+'</span><span style="color:'+(left>=0?'var(--muted)':'var(--accent2,#ff6b2b)')+'">'+(left>=0?left+' '+unit+' left':(-left)+' '+unit+' over')+'</span></div>'+
     '<div style="height:6px;background:var(--surface2);border-radius:3px;margin-top:4px;overflow:hidden"><div style="height:100%;width:'+Math.min(100,Math.round(have/want*100))+'%;background:var(--accent)"></div></div>';};
-  if(g.kcal>0)out.push(line('Calories',t.kcal,Math.round(g.kcal),'kcal'));if(g.protein>0)out.push(line('Protein',t.protein,Math.round(g.protein),'g'));return out.join('');}
+  if(g.kcal>0)out.push(line('Calories',t.kcal,Math.round(g.kcal),'kcal'));if(g.protein>0)out.push(line('Protein',t.protein,Math.round(g.protein),'g'));if(g.carbs>0)out.push(line('Carbs',t.carbs,Math.round(g.carbs),'g'));if(g.fat>0)out.push(line('Fat',t.fat,Math.round(g.fat),'g'));return out.join('');}
 function _flCard(inner){return'<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:14px">'+inner+'</div>';}
 function _flBtn(label,onclick,primary){return'<button onclick="'+onclick+'" style="background:'+(primary?'var(--accent)':'var(--surface2)')+';color:'+(primary?'#000':'var(--text)')+';border:1px solid '+(primary?'transparent':'var(--border)')+';border-radius:10px;padding:10px 14px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">'+label+'</button>';}
+// How to get a key, shown wherever a key is entered: first setup, and Change in Settings
+// (Henrik, 2026-10-22: "if i change Key I dont get any instructions"). One provider at a
+// time, Gemini first because it is free; OpenAI, xAI and Azure OpenAI added the same day
+// ("lets add OpenAI, Grok/xAI Key support as well as Copilot/Microsoft").
+var _flProv='gemini';
+var _FL_PROV=[
+  {id:'gemini',name:'Gemini',label:'Google Gemini (free)',ph:'AIza…'},
+  {id:'anthropic',name:'Anthropic',label:'Anthropic Claude (paid)',ph:'sk-ant-…'},
+  {id:'openai',name:'OpenAI',label:'OpenAI ChatGPT (paid)',ph:'sk-…'},
+  {id:'xai',name:'xAI',label:'xAI Grok (paid)',ph:'xai-…'},
+  {id:'azure',name:'Azure OpenAI',label:'Microsoft Azure OpenAI (paid)',ph:'KEY 1 from Azure'}];
+function _flProvOf(id){for(var i=0;i<_FL_PROV.length;i++)if(_FL_PROV[i].id===id)return _FL_PROV[i];return _FL_PROV[1];}
+function _flKeySteps(id){
+  var a=function(u){return'<a href="'+u+'" target="_blank" rel="noopener" style="color:var(--accent)">'+u+'</a>';};
+  var li=function(x){return'<ol style="margin:8px 0 8px 18px;padding:0">'+x.map(function(t){return'<li>'+t+'</li>';}).join('')+'</ol>';};
+  if(id==='anthropic')return li(['Open '+a('https://console.anthropic.com')+' in Chrome and sign in or create an account.',
+    'Under <b>Billing</b>, add a payment method and a small amount of credit.',
+    'Under <b>API keys</b>, tap <b>Create key</b> and copy it. It starts with <code>sk-ant-</code>.','Paste it below and save it.']);
+  if(id==='openai')return li(['Open '+a('https://platform.openai.com')+' in Chrome and sign in or create an account.',
+    'Under <b>Billing</b>, add a small amount of credit.',
+    'Under <b>API keys</b>, create a new secret key and copy it. It starts with <code>sk-</code>.','Paste it below and save it.']);
+  if(id==='xai')return li(['Open '+a('https://console.x.ai')+' in Chrome, sign up and load the account with credits.',
+    'On the <b>API Keys</b> page, create a key and copy it.','Paste it below and save it.']);
+  if(id==='azure')return'<div style="color:var(--muted)">Microsoft Copilot has no API key of its own; Azure OpenAI is Microsoft\'s route for apps.</div>'+
+    li(['You need an Azure subscription: '+a('https://azure.microsoft.com/pricing/purchase-options/azure-account')+'.',
+    'In '+a('https://portal.azure.com')+' (Chrome), create an <b>Azure OpenAI</b> resource.',
+    'In '+a('https://ai.azure.com')+', open <b>Deployments</b>, tap <b>+ Deploy model</b> → <b>Deploy base model</b> and pick a model that accepts images, e.g. gpt-5-mini. Note its <b>deployment name</b>.',
+    'Back in the portal, open your resource → <b>Resource Management</b> → <b>Keys and Endpoint</b>. Copy the <b>Endpoint</b> and <b>KEY 1</b>.',
+    'Fill in the endpoint, the deployment name and the key below, and save.'])+
+    '<input id="fl-key-endpoint" type="text" autocomplete="off" placeholder="https://your-resource.openai.azure.com" style="'+_FL_IN+'">'+
+    '<input id="fl-key-deployment" type="text" autocomplete="off" placeholder="Deployment name, e.g. gpt-5-mini" style="'+_FL_IN+'">';
+  return li(['Open '+a('https://aistudio.google.com/apikey')+' in Chrome and sign in with your Google account.',
+    'Tap <b>Create API key</b>, accepting the terms if asked.','Copy the key. It starts with <code>AIza</code>.','Paste it below and save it.']);
+}
+var _FL_IN='width:100%;box-sizing:border-box;margin:6px 0;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:16px';
+function _flKeyHowTo(){
+  return'<div style="font-size:13px;color:var(--text);line-height:1.55"><label style="display:block;color:var(--muted);margin-bottom:4px">Provider</label>'+
+    '<select id="fl-key-prov" onchange="flPickProvider(this.value)" style="'+_FL_IN+'">'+
+    _FL_PROV.map(function(p){return'<option value="'+p.id+'"'+(p.id===_flProv?' selected':'')+'>'+p.label+'</option>';}).join('')+'</select>'+
+    _flKeySteps(_flProv)+'</div>';
+}
+function flPickProvider(v){_flProv=_flProvOf(v).id;_flErr='';_flRender();_flRenderKeyCard();}
 function _flGuideHtml(){
   return _flCard('<div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:8px">Turn on food logging</div>'+
-    '<div style="font-size:13px;color:var(--text);line-height:1.55">Food logging estimates calories and macros with Claude, paid by your own Anthropic account (a few hundredths of a cent per entry). To turn it on:'+
-    '<ol style="margin:8px 0 8px 18px;padding:0">'+
-    '<li>Open <a href="https://console.anthropic.com" target="_blank" rel="noopener" style="color:var(--accent)">https://console.anthropic.com</a> in Chrome and sign in or create an account.</li>'+
-    '<li>Under <b>Billing</b>, add a payment method and a small amount of credit.</li>'+
-    '<li>Under <b>API keys</b>, tap <b>Create key</b> and copy it. It starts with <code>sk-ant-</code>.</li>'+
-    '<li>Paste it below and tap <b>Save key</b>.</li></ol>'+
-    'Your key is stored encrypted on the server and is only ever shown again as its last 4 characters.</div>'+
-    '<input id="fl-key-in" type="password" autocomplete="off" placeholder="sk-ant-…" style="width:100%;box-sizing:border-box;margin:10px 0;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:16px">'+
+    '<div style="font-size:13px;color:var(--text);line-height:1.55">Food logging estimates calories and macros with AI on your own API key.</div>'+
+    _flKeyHowTo()+
+    '<div style="font-size:13px;color:var(--text);line-height:1.55">Your key is stored encrypted on the server and is only ever shown again as its last 4 characters.</div>'+
+    '<input id="fl-key-in" type="password" autocomplete="off" placeholder="'+_flProvOf(_flProv).ph+'" style="width:100%;box-sizing:border-box;margin:10px 0;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:16px">'+
     _flBtn('Save key','flSaveKey()',true)+
     (_flErr?'<div style="margin-top:10px;font-size:13px;color:var(--danger,#ff3b30)">'+_flEsc(_flErr)+'</div>':''));
 }
@@ -4145,25 +4186,113 @@ function _flMainHtml(){
     '<div style="font-size:11px;color:var(--muted);margin-top:8px">A photo can be the food itself or its nutrition label; say how much you ate before tapping Log. Entries are saved as soon as they are estimated; fix them on the Food Edit tab.</div>'+
     (_flErr?'<div style="margin-top:10px;font-size:13px;color:var(--danger,#ff3b30)">'+_flEsc(_flErr)+' Nothing was saved.</div>'+(_flPending?'<div style="margin-top:8px">'+_flBtn('Try again','flRetry()',true)+'</div>':''):''));
   if(_flRows.length){
-    h+=_flCard(_flRows.map(function(r){return'<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;color:var(--text)"><span>'+(r.time?'<span style="color:var(--muted);font-variant-numeric:tabular-nums;margin-right:8px">'+_flEsc(r.time)+'</span>':'')+_flEsc(r.food)+(r.amount?' <span style="color:var(--muted)">'+_flEsc(r.amount)+'</span>':'')+'</span><span style="white-space:nowrap">'+Math.round(r.kcal||0)+' kcal</span></div>';}).join(''));
+    // Collapsed by default (Henrik, 2026-10-22: the list "will become pretty long during the day");
+    // the closed line still says when you last ate, which is what the times were added for.
+    var last=_flRows.reduce(function(a,r){return r.time&&r.time>a?r.time:a;},'');
+    var head='<div onclick="flToggleList()" style="display:flex;justify-content:space-between;gap:10px;cursor:pointer;font-size:13px;color:var(--text)"><span>'+_flRows.length+' entr'+(_flRows.length===1?'y':'ies')+' today'+(last?' · last at '+_flEsc(last):'')+'</span><span style="color:var(--muted)">'+(_flListOpen?'Hide ▲':'Show ▼')+'</span></div>';
+    h+=_flCard(head+(_flListOpen?'<div style="margin-top:8px">'+_flRows.map(function(r){return'<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;color:var(--text)"><span>'+(r.time?'<span style="color:var(--muted);font-variant-numeric:tabular-nums;margin-right:8px">'+_flEsc(r.time)+'</span>':'')+_flEsc(r.food)+(r.amount?' <span style="color:var(--muted)">'+_flEsc(r.amount)+'</span>':'')+'</span><span style="white-space:nowrap">'+Math.round(r.kcal||0)+' kcal</span></div>';}).join('')+'</div>':''));
   }
-  h+='<div style="font-size:12px;color:var(--muted);margin-bottom:14px">Anthropic key ending …'+_flEsc(_flKey&&_flKey.last4||'')+' · <span onclick="flRemoveKey()" style="text-decoration:underline;cursor:pointer">Remove</span></div>';
+  h+=_flStatsHtml();
+  h+='<div style="margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap">'+_flBtn('API key settings','flOpenKeySettings()',false)+_flBtn('Import old log','flOpenImportSettings()',false)+'</div>';
   return h;
 }
-function _flRender(){var el=document.getElementById('food-log-body');if(!el)return;el.innerHTML=(_flKey&&_flKey.set)?_flMainHtml():(_flKey?_flGuideHtml():_flCard('<div style="font-size:13px;color:var(--muted)">The food log could not be loaded. Check your connection and open this tab again.</div>'));}
+// ── API key in Settings (Henrik, 2026-10-22: "move this to Settings but provide the button
+// as well", with a one-step Change). Change saves the new key over the old one, so food
+// logging never pauses in between; the provider follows from the key as everywhere else.
+var _flKeyChanging=false;
+function _flKeyName(){return _flProvOf(_flKey&&_flKey.provider||'anthropic').name;}
+function _flKeyCardHtml(){
+  var inp='<input id="fl-key-new" type="password" autocomplete="off" placeholder="'+_flProvOf(_flProv).ph+'" style="width:100%;box-sizing:border-box;margin:8px 0;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:16px">';
+  var b='';
+  if(!_flKey)b='<div style="font-size:13px;color:var(--muted)">Could not load your API key status. Check your connection.</div>';
+  else if(!_flKey.set)b='<div style="font-size:13px;color:var(--text);line-height:1.5;margin-bottom:6px">No API key yet.</div>'+_flKeyHowTo()+inp+_flBtn('Save key',"flSaveKey('fl-key-new')",true);
+  else if(_flKeyChanging)b='<div style="font-size:13px;color:var(--text);margin-bottom:6px">The new key replaces the '+_flKeyName()+' key ending …'+_flEsc(_flKey.last4)+'.</div>'+_flKeyHowTo()+inp+
+    '<div style="display:flex;gap:8px">'+_flBtn('Save new key',"flSaveKey('fl-key-new')",true)+_flBtn('Cancel','flCancelChange()',false)+'</div>';
+  else b='<div style="font-size:13px;color:var(--text)">'+_flKeyName()+' key ending …'+_flEsc(_flKey.last4)+'</div>'+
+    '<div style="display:flex;gap:8px;margin-top:10px">'+_flBtn('Change','flStartChange()',true)+_flBtn('Remove','flRemoveKey()',false)+'</div>'+
+    '<div style="font-size:11px;color:var(--muted);margin-top:8px">One key serves every app and device signed in to your account.</div>';
+  if(_flErr&&_flKey&&(!_flKey.set||_flKeyChanging))b+='<div style="margin-top:10px;font-size:13px;color:var(--danger,#ff3b30)">'+_flEsc(_flErr)+'</div>';
+  return _flSecCard('flkey','Food log · API key',b);}
+// Settings cards follow the Settings design: a header bar that opens and closes, collapsed
+// by default (Henrik, 2026-10-22: "they should be default collapsed like all others").
+function _flSecCard(id,label,body){return'<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">'+sSecHdr(id,label)+sSecBody(id)+'<div style="padding:14px 16px">'+body+'</div></div></div>';}
+function _flRenderKeyCard(){var el=document.getElementById('fl-key-card');if(el)el.innerHTML=_flKeyCardHtml();}
+async function buildFlKeyCard(){_flRenderImportCard();try{var r=await fetch(AGENT_URL+'/food-log/key',{headers:authHeaders()});if(r.ok)_flKey=await r.json();}catch(e){}_flRenderKeyCard();}
+function flStartChange(){_flKeyChanging=true;_flErr='';_flProv=_flProvOf(_flKey&&_flKey.provider||'gemini').id;_flRenderKeyCard();}
+function flCancelChange(){_flKeyChanging=false;_flErr='';_flRenderKeyCard();}
+function _flOpenSettingsAt(id,sec){
+  if(typeof showPage==='function'&&document.getElementById('page-settings'))showPage('settings');
+  else if(typeof switchTab==='function')switchTab('settings',document.getElementById('tab-btn-settings'));
+  if(!_sOpen[sec])toggleSSec(sec);                    // the button opens the section it points at
+  var c=document.getElementById(id);if(c&&c.scrollIntoView)c.scrollIntoView({block:'start'});}
+function flOpenKeySettings(){_flOpenSettingsAt('fl-key-card','flkey');}
+function flOpenImportSettings(){_flOpenSettingsAt('fl-import-card','flimport');}
+// Import an old log from a CSV or Excel file (Henrik, 2026-10-22: "an "import" feature
+// Button in Macros tab but actual feature in Settings"). The backend reads the file;
+// rows already in the log are skipped, so the same file can be imported twice safely.
+var _flImp={busy:false,msg:'',err:''};
+function _flImportCardHtml(){
+  var s='';
+  if(_flImp.busy)s='<div style="margin-top:10px;font-size:13px;color:var(--muted)">Importing…</div>';
+  else if(_flImp.err)s='<div style="margin-top:10px;font-size:13px;color:var(--danger,#ff3b30)">'+_flEsc(_flImp.err)+'</div>';
+  else if(_flImp.msg)s='<div style="margin-top:10px;font-size:13px;color:var(--text)">'+_flEsc(_flImp.msg)+'</div>';
+  return _flSecCard('flimport','Food log · Import old log',
+    '<div style="font-size:13px;color:var(--text);line-height:1.5">Choose a CSV or Excel (.xlsx) file. It needs a header row with at least <b>Date</b> and <b>Kcal</b>; Food, Amount, Time, Protein, Carbs and Fat are read when present. Entries already in your log are skipped, so importing the same file twice is safe.</div>'+
+    '<input id="fl-import-file" type="file" accept=".csv,.xlsx,.txt,.tsv,text/csv,text/plain" onchange="flImportFile(this)"'+(_flImp.busy?' disabled':'')+' style="margin-top:10px;font-size:14px;color:var(--text)">'+s);}
+function _flRenderImportCard(){var el=document.getElementById('fl-import-card');if(el)el.innerHTML=_flImportCardHtml();}
+function _flImportSummary(j){
+  var t='Added '+j.added+' entr'+(j.added===1?'y':'ies')+'.';
+  if(j.duplicates)t+=' '+j.duplicates+' '+(j.duplicates===1?'was':'were')+' already in your log.';
+  if(j.skipped)t+=' '+j.skipped+' row'+(j.skipped===1?'':'s')+' skipped: '+(j.problems||[]).map(function(p){return'row '+p.row+' ('+p.reason+')';}).join(', ')+(j.skipped>(j.problems||[]).length?', …':'')+'.';
+  return t;}
+function _flReadB64(file){return new Promise(function(res,rej){var fr=new FileReader();fr.onerror=function(){rej(new Error('read'));};fr.onload=function(){res(String(fr.result).split(',')[1]||'');};fr.readAsDataURL(file);});}
+async function flImportFile(input){var f=input&&input.files&&input.files[0];if(!f||_flImp.busy)return;input.value='';
+  if(f.size>5000000){_flImp={busy:false,msg:'',err:'That file is larger than 5 MB.'};_flRenderImportCard();return;}
+  _flImp={busy:true,msg:'',err:''};_flRenderImportCard();
+  try{var b64=await _flReadB64(f);
+    var r=await fetch(AGENT_URL+'/food-log/import-file',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({filename:f.name,data_b64:b64})});
+    var j=await r.json().catch(function(){return{};});
+    _flImp=r.ok?{busy:false,msg:_flImportSummary(j),err:''}:{busy:false,msg:'',err:_flDetail(r,j)+' Nothing was imported.'};}
+  catch(e){_flImp={busy:false,msg:'',err:'Could not read or send the file. Check your connection and try again.'};}
+  _flRenderImportCard();}
+function flToggleList(){_flListOpen=!_flListOpen;_flRender();}
+// History as % of goals (Henrik, 2026-10-22: "average and median values for all macros
+// and kcal … as % of the goals"). Goals change, so the day's goals are recorded whenever
+// the page shows them, and the backend measures every past day against its own day's goals.
+var _flStats=null,_flGoalSent='';
+function _flRecordGoal(){var g=(typeof _macrosTargets!=='undefined')?_macrosTargets:null;if(!g||!(g.kcal>0))return;
+  var body={date:_flDay(),kcal:g.kcal,protein:g.protein||null,carbs:g.carbs||null,fat:g.fat||null},key=JSON.stringify(body);
+  if(key===_flGoalSent)return;_flGoalSent=key;
+  fetch(AGENT_URL+'/food-log/goals',{method:'PUT',headers:authHeaders({'Content-Type':'application/json'}),body:key})
+    .then(function(r){if(!r.ok){_flGoalSent='';return;}if(_flStats&&!_flStats.first_goal_date)return _flLoadStats().then(_flRender);})
+    .catch(function(){_flGoalSent='';});}
+async function _flLoadStats(){try{var r=await fetch(AGENT_URL+'/food-log/stats?today='+_flDay(),{headers:authHeaders()});if(r.ok)_flStats=await r.json();}catch(e){}}
+function _flShortDate(d){var m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];var p=String(d||'').split('-');return p.length===3?(+p[2])+' '+m[+p[1]-1]+' '+p[0]:'';}
+function _flStatsHtml(){var s=_flStats;if(!s)return'';
+  if(!s.days)return s.days_logged?_flCard('<div style="font-size:13px;color:var(--muted)">Averages against your goals start once your goals are set. They are recorded each day you open this page.</div>'):'';
+  var rows=[['Kcal','kcal'],['Protein','protein'],['Carbs','carbs'],['Fat','fat']].filter(function(x){return s.metrics[x[1]];});
+  var cell='padding:6px 0;text-align:right;font-variant-numeric:tabular-nums';
+  var h='<div style="font-size:12px;color:var(--muted);margin-bottom:6px">History · % of your goals</div>'+
+    '<table style="width:100%;border-collapse:collapse;font-size:14px;color:var(--text)"><tr style="color:var(--muted);font-size:12px"><td></td><td style="'+cell+'">Average</td><td style="'+cell+'">Median</td></tr>'+
+    rows.map(function(x){var m=s.metrics[x[1]];return'<tr style="border-top:1px solid var(--border)"><td style="padding:6px 0">'+x[0]+'</td><td style="'+cell+'">'+Math.round(m.avg)+' %</td><td style="'+cell+'">'+Math.round(m.median)+' %</td></tr>';}).join('')+'</table>'+
+    '<div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5">'+s.days+' day'+(s.days===1?'':'s')+' logged, '+_flShortDate(s.from)+' to '+_flShortDate(s.to)+'. Today is not included. Each day is measured against that day\'s goals.'+
+    (s.before_first_goal?' The '+s.before_first_goal+' day'+(s.before_first_goal===1?'':'s')+' before '+_flShortDate(s.first_goal_date)+' use the goals recorded that day, the first on record.':'')+'</div>';
+  return _flCard(h);}
+function _flRender(){var el=document.getElementById('food-log-body');if(!el)return;if(_flKey&&_flKey.set)_flRecordGoal();el.innerHTML=(_flKey&&_flKey.set)?_flMainHtml():(_flKey?_flGuideHtml():_flCard('<div style="font-size:13px;color:var(--muted)">The food log could not be loaded. Check your connection and open this tab again.</div>'));}
 function _flDetail(r,j){return(j&&j.detail&&typeof j.detail==='string')?j.detail:('The server answered '+r.status+'.');}
 async function _flLoadRows(date){try{var r=await fetch(AGENT_URL+'/food-log?date='+date,{headers:authHeaders()});if(!r.ok)return null;return await r.json();}catch(e){return null;}}
 async function buildFoodLog(){
   try{var r=await fetch(AGENT_URL+'/food-log/key',{headers:authHeaders()});if(r.ok)_flKey=await r.json();}catch(e){}
-  if(_flKey&&_flKey.set){var rows=await _flLoadRows(_flDay());if(rows)_flRows=rows;}
+  if(_flKey&&_flKey.set){var rows=await _flLoadRows(_flDay());if(rows)_flRows=rows;await _flLoadStats();}
   _flRender();
 }
-async function flSaveKey(){var el=document.getElementById('fl-key-in');var k=el?String(el.value||'').trim():'';if(!k)return;_flErr='';
-  try{var r=await fetch(AGENT_URL+'/food-log/key',{method:'PUT',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({api_key:k})});var j=await r.json().catch(function(){return{};});
-    if(!r.ok){_flErr=_flDetail(r,j);_flRender();return;}_flKey=j;}catch(e){_flErr='Could not reach the server. Check your connection and try again.';_flRender();return;}
-  buildFoodLog();}
-async function flRemoveKey(){if(!confirmGlobalDelete('your Anthropic API key (food logging stops until you add one again)'))return;
-  try{var r=await fetch(AGENT_URL+'/food-log/key',{method:'DELETE',headers:authHeaders()});if(r.ok)_flKey=await r.json();}catch(e){}_flRender();}
+function _flKeyBody(k){var b={api_key:k,provider:_flProv};if(_flProv==='azure'){var e=document.getElementById('fl-key-endpoint'),d=document.getElementById('fl-key-deployment');b.endpoint=e?String(e.value||'').trim():'';b.deployment=d?String(d.value||'').trim():'';}return b;}
+async function flSaveKey(inputId){var el=document.getElementById(inputId||'fl-key-in');var k=el?String(el.value||'').trim():'';if(!k)return;_flErr='';
+  try{var r=await fetch(AGENT_URL+'/food-log/key',{method:'PUT',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify(_flKeyBody(k))});var j=await r.json().catch(function(){return{};});
+    if(!r.ok){_flErr=_flDetail(r,j);_flRender();_flRenderKeyCard();return;}_flKey=j;_flKeyChanging=false;}catch(e){_flErr='Could not reach the server. Check your connection and try again.';_flRender();_flRenderKeyCard();return;}
+  _flRenderKeyCard();buildFoodLog();}
+async function flRemoveKey(){if(!confirmGlobalDelete('your API key (food logging stops until you add one again)'))return;
+  try{var r=await fetch(AGENT_URL+'/food-log/key',{method:'DELETE',headers:authHeaders()});if(r.ok)_flKey=await r.json();}catch(e){}_flKeyChanging=false;_flProv='gemini';_flRender();_flRenderKeyCard();}
 // Photos are shrunk to at most 1024 px on the long side before upload: the
 // estimate does not need more, and it keeps both the upload and the token cost small.
 function _flShrink(file){return new Promise(function(res,rej){var fr=new FileReader();fr.onerror=function(){rej(new Error('read'));};fr.onload=function(){var img=new Image();img.onerror=function(){rej(new Error('image'));};img.onload=function(){var s=Math.min(1,1024/Math.max(img.width,img.height));var c=document.createElement('canvas');c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);c.getContext('2d').drawImage(img,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',0.8).split(',')[1]);};img.src=fr.result;};fr.readAsDataURL(file);});}

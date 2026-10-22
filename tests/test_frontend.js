@@ -9,6 +9,13 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 const htmlPath = process.argv[2] || path.join(__dirname, '../index.html');
+// The Settings section helpers the food-log cards use, taken from the app itself, for the
+// food-log tests that run that block in a sandbox of its own.
+const _FL_SEC = (() => {
+  const t = fs.readFileSync(htmlPath, 'utf8');
+  const pick = n => (t.match(new RegExp('^function ' + n + '\\(.*$', 'm')) || [''])[0];
+  return 'var _sOpen={};function setData(){}\n' + pick('sSecHdr') + '\n' + pick('sSecBody') + '\n' + pick('toggleSSec') + '\n';
+})();
 const html = fs.readFileSync(htmlPath, 'utf8');
 const rawScript = html.slice(html.indexOf('<script>') + 8, html.lastIndexOf('</script>'));
 
@@ -8153,16 +8160,20 @@ console.log('\n── Food log ────────────────�
     JSON.stringify({kcal: 544, protein: 52, carbs: 61, fat: 10}));
   const _flGuide = G._flGuideHtml();
   check('food log: without a key the screen explains how to get one, in Chrome',
-    /console\.anthropic\.com/.test(_flGuide) && /Chrome/.test(_flGuide) && /sk-ant-/.test(_flGuide) && /flSaveKey\(\)/.test(_flGuide));
+    /id="fl-key-prov"/.test(_flGuide) && /aistudio\.google\.com/.test(_flGuide) && /Chrome/.test(_flGuide) && /flSaveKey\(\)/.test(_flGuide));
   check('food log: the guide offers no way to log food', !/flSubmit\(/.test(_flGuide));
   G._flKey = {set: true, last4: 'WXYZ'};
   G._flRows = [{id: 'a', food: 'Steak <b>', amount: '202 g', kcal: 280, protein: 46, carbs: 0, fat: 10}];
   G._flErr = ''; G._flPending = null; G._flBusy = false;
+  G._flListOpen = true;  // these checks read the list's rows
   let _flMain = G._flMainHtml();
   check('food log: with a key: text box, Log, Photo and today\'s total',
     /id="fl-text"/.test(_flMain) && /flSubmit\(\)/.test(_flMain) && /fl-photo/.test(_flMain) && /280 kcal/.test(_flMain) && /P 46 g/.test(_flMain));
-  check('food log: the key is shown only by its last 4 characters, with Remove',
-    /ending …WXYZ/.test(_flMain) && /flRemoveKey\(\)/.test(_flMain));
+  check('food log: the Macros page has no key line, only a button to the key settings',
+    !/ending …WXYZ/.test(_flMain) && !/flRemoveKey\(\)/.test(_flMain) && /API key settings/.test(_flMain) && /flOpenKeySettings\(\)/.test(_flMain));
+  G._flKeyChanging = false;
+  check('food log: the Settings card shows the key only by its last 4 characters, with Change and Remove',
+    /ending …WXYZ/.test(G._flKeyCardHtml()) && /flStartChange\(\)/.test(G._flKeyCardHtml()) && /flRemoveKey\(\)/.test(G._flKeyCardHtml()));
   check('food log: food names are escaped', _flMain.indexOf('Steak <b>') < 0 && _flMain.indexOf('Steak &lt;b&gt;') >= 0);
   G._flErr = 'Anthropic error 500. Try again.'; G._flPending = {text: '2 eggs', image_b64: ''};
   _flMain = G._flMainHtml();
@@ -8219,7 +8230,7 @@ console.log('\n── Food log ────────────────�
         return {ok: true, status: 200, json: async () => ({})};
       },
     });
-    vm.runInContext(_flBlock, F);
+    vm.runInContext(_FL_SEC + _flBlock, F);
     await F.buildFoodLog();
     check('food log: opening the tab reads the key, then today\'s rows',
       calls[0] && /\/food-log\/key$/.test(calls[0].url) && calls[1] && /\/food-log\?date=\d{4}-\d\d-\d\d$/.test(calls[1].url));
@@ -8317,7 +8328,7 @@ console.log('\n── Macro targets (suggested + override) ───────
       if (/\?date=/.test(url)) return {ok: true, status: 200, json: async () => [{id: 'c1', food: 'Cottage cheese', amount: '115 g', kcal: 83}]};
       return {ok: true, status: 200, json: async () => ({})}; },
   });
-  vm.runInContext(_blk, P);
+  vm.runInContext(_FL_SEC + _blk, P);
   P._flShrink = async () => 'UEhPVE8=';
   P._flKey = {set: true, last4: 'WXYZ'};
   (async () => {
@@ -8347,6 +8358,246 @@ console.log('\n── Macro targets (suggested + override) ───────
   })().catch(e => { check('food log photo: async checks ran', false, String(e && e.stack || e)); process.exitCode = 1; });
 }
 
+// ── Food log: the API key lives in Settings, with a one-step Change (2026-10-22) ──
+// Henrik, on how to remove and update the key: "yes, and move this to Settings but provide
+// the button as well." Change swaps the key with one PUT: there is no moment without a key.
+{
+  const _src = fs.readFileSync(htmlPath, 'utf8');
+  const _blk = _src.slice(_src.indexOf('// ── Food log (Macros)'), _src.indexOf('// ── end food log ──'));
+  check('food key: Settings carries the key card', /<div id="fl-key-card"[^>]*><\/div>/.test(_src));
+  check('  …and opening Settings loads it', /'settings'\)\{loadSettings\(\);buildFlKeyCard\(\);\}/.test(_src));
+  const calls = [], els = {};
+  const K = vm.createContext({console, Promise, JSON, Math, String, Number, parseFloat, encodeURIComponent,
+    AGENT_URL: 'https://agent', authHeaders: (x) => Object.assign({}, x || {}), confirmGlobalDelete: () => true, alert: () => {},
+    document: {getElementById: (id) => { if (!els[id]) { let h = ''; els[id] = {value: ''}; Object.defineProperty(els[id], 'innerHTML', {get: () => h, set: v => { h = v; }}); } return els[id]; }},
+    fetch: async (url, opt) => { const m = (opt && opt.method) || 'GET'; calls.push({url, method: m, body: opt && opt.body ? JSON.parse(opt.body) : null});
+      if (/\/food-log\/key$/.test(url) && m === 'PUT') { const k = JSON.parse(opt.body).api_key;
+        if (k === 'bad') return {ok: false, status: 400, json: async () => ({detail: 'That key was refused.'})};
+        return {ok: true, status: 200, json: async () => ({set: true, last4: k.slice(-4), provider: /^AIza/.test(k) ? 'gemini' : 'anthropic'})}; }
+      if (/\/food-log\/key$/.test(url) && m === 'DELETE') return {ok: true, status: 200, json: async () => ({set: false})};
+      if (/\/food-log\/key$/.test(url)) return {ok: true, status: 200, json: async () => ({set: true, last4: 'WXYZ', provider: 'anthropic'})};
+      return {ok: true, status: 200, json: async () => ([])}; },
+  });
+  vm.runInContext(_FL_SEC + _blk, K);
+  (async () => {
+    await K.buildFlKeyCard();
+    let h = els['fl-key-card'].innerHTML;
+    check('food key: the card shows the stored key with Change and Remove', /Anthropic key ending …WXYZ/.test(h) && /flStartChange\(\)/.test(h) && /flRemoveKey\(\)/.test(h));
+    K.flStartChange();
+    h = els['fl-key-card'].innerHTML;
+    check('  …Change asks for the new key and says which one it replaces',
+      /id="fl-key-new"/.test(h) && /replaces the Anthropic key ending …WXYZ/.test(h) && /flSaveKey\('fl-key-new'\)/.test(h) && /flCancelChange\(\)/.test(h));
+    check('  …and explains how to get a new key, the picker set to the current provider (2026-10-22)',
+      /<option value="anthropic" selected>/.test(h) && /https:\/\/console\.anthropic\.com/.test(h) && /in Chrome/.test(h) && /placeholder="sk-ant-…"/.test(h));
+    K.flPickProvider('gemini');
+    h = els['fl-key-card'].innerHTML;
+    check('  …and picking another provider shows its steps instead', /https:\/\/aistudio\.google\.com\/apikey/.test(h) && !/console\.anthropic\.com/.test(h) && /id="fl-key-new"/.test(h));
+    K.flCancelChange();
+    check('  …Cancel goes back without sending anything', !/id="fl-key-new"/.test(els['fl-key-card'].innerHTML) && calls.filter(c => c.method !== 'GET').length === 0);
+    K.flStartChange();
+    K.document.getElementById('fl-key-new').value = 'bad';
+    await K.flSaveKey('fl-key-new');
+    h = els['fl-key-card'].innerHTML;
+    check('  …a refused key says why and keeps the old one', /That key was refused/.test(h) && /id="fl-key-new"/.test(h) && K._flKey.last4 === 'WXYZ');
+    calls.length = 0;
+    K.document.getElementById('fl-key-new').value = 'AIzaNEWKEYGEMI';
+    await K.flSaveKey('fl-key-new');
+    h = els['fl-key-card'].innerHTML;
+    check('  …saving swaps it with one PUT and no DELETE',
+      calls.filter(c => c.method === 'PUT' && c.body.api_key === 'AIzaNEWKEYGEMI').length === 1 && !calls.some(c => c.method === 'DELETE'));
+    check('  …and the card then shows the new key', /Gemini key ending …GEMI/.test(h) && !/id="fl-key-new"/.test(h));
+    await K.flRemoveKey();
+    h = els['fl-key-card'].innerHTML;
+    check('  …Remove leaves the card offering to add a key, with how to get one',
+      /No API key yet/.test(h) && /flSaveKey\('fl-key-new'\)/.test(h) && /https:\/\/aistudio\.google\.com\/apikey/.test(h));
+    if (failed > 0) process.exitCode = 1;
+  })().catch(e => { check('food key: async checks ran', false, String(e && e.stack || e)); process.exitCode = 1; });
+}
+
+// ── Food log: OpenAI, xAI and Azure OpenAI keys (2026-10-22) ──
+// Henrik: "lets add OpenAI, Grok/xAI Key support as well as Copilot/Microsoft".
+{
+  const _src = fs.readFileSync(htmlPath, 'utf8');
+  const _blk = _src.slice(_src.indexOf('// ── Food log (Macros)'), _src.indexOf('// ── end food log ──'));
+  const calls = [], els = {};
+  const V = vm.createContext({console, Promise, JSON, Math, String, Number, parseFloat, encodeURIComponent,
+    AGENT_URL: 'https://agent', authHeaders: (x) => Object.assign({}, x || {}), confirmGlobalDelete: () => true, alert: () => {},
+    document: {getElementById: (id) => { if (!els[id]) { let h = ''; els[id] = {value: ''}; Object.defineProperty(els[id], 'innerHTML', {get: () => h, set: v => { h = v; }}); } return els[id]; }},
+    fetch: async (url, opt) => { const m = (opt && opt.method) || 'GET'; calls.push({url, method: m, body: opt && opt.body ? JSON.parse(opt.body) : null});
+      if (/\/food-log\/key$/.test(url) && m === 'PUT') { const b = JSON.parse(opt.body); return {ok: true, status: 200, json: async () => ({set: true, last4: b.api_key.slice(-4), provider: b.provider})}; }
+      if (/\/food-log\/key$/.test(url)) return {ok: true, status: 200, json: async () => ({set: false, last4: '', provider: ''})};
+      return {ok: true, status: 200, json: async () => ([])}; },
+  });
+  vm.runInContext(_FL_SEC + _blk, V);
+  const steps = (id) => { V.flPickProvider(id); return V._flKeyHowTo(); };
+  let h = steps('openai');
+  check('food key: OpenAI steps, in Chrome, with its key prefix', /https:\/\/platform\.openai\.com/.test(h) && /in Chrome/.test(h) && /<code>sk-<\/code>/.test(h) && /<option value="openai" selected>/.test(h));
+  h = steps('xai');
+  check('  …xAI steps, in Chrome', /https:\/\/console\.x\.ai/.test(h) && /in Chrome/.test(h) && /API Keys/.test(h));
+  h = steps('azure');
+  check('  …Azure steps say Copilot has no key and ask for endpoint and deployment',
+    /Copilot has no API key/.test(h) && /https:\/\/portal\.azure\.com/.test(h) && /Keys and Endpoint/.test(h) &&
+    /id="fl-key-endpoint"/.test(h) && /id="fl-key-deployment"/.test(h));
+  check('  …only Azure asks for an endpoint', !/fl-key-endpoint/.test(steps('openai')) && !/fl-key-endpoint/.test(steps('gemini')));
+  check('  …an unknown provider id falls back to a real one', (V.flPickProvider('copilot'), V._flProv) === 'anthropic');
+  check('  …the Settings card names each provider', ['openai', 'xai', 'azure'].every(p => {
+    V._flKey = {set: true, last4: 'ABCD', provider: p}; V._flKeyChanging = false;
+    return new RegExp(({openai: 'OpenAI', xai: 'xAI', azure: 'Azure OpenAI'})[p] + ' key ending …ABCD').test(V._flKeyCardHtml()); }));
+  (async () => {
+    V._flKey = {set: false, last4: '', provider: ''};
+    V.flPickProvider('xai');
+    V.document.getElementById('fl-key-in').value = 'xai-' + 'k'.repeat(30) + 'GROK';
+    await V.flSaveKey();
+    const put = calls.filter(c => c.method === 'PUT').pop();
+    check('food key: Save sends the picked provider with the key', put.body.provider === 'xai' && put.body.api_key.endsWith('GROK') && !('endpoint' in put.body));
+    V.flPickProvider('azure');
+    V.document.getElementById('fl-key-in').value = 'a'.repeat(32);
+    V.document.getElementById('fl-key-endpoint').value = ' https://my-food.openai.azure.com/ ';
+    V.document.getElementById('fl-key-deployment').value = 'gpt-5-mini';
+    await V.flSaveKey();
+    const az = calls.filter(c => c.method === 'PUT').pop();
+    check('  …and for Azure, the endpoint and deployment name too',
+      az.body.provider === 'azure' && az.body.endpoint === 'https://my-food.openai.azure.com/' && az.body.deployment === 'gpt-5-mini');
+    if (failed > 0) process.exitCode = 1;
+  })().catch(e => { check('food key providers: async checks ran', false, String(e && e.stack || e)); process.exitCode = 1; });
+}
+
+// ── Food log: import an old log from CSV or Excel (2026-10-22) ──
+// Henrik: "also need an "import" feature Button in Macros tab but actual feature in
+// Settings, so one can import a excel or csv file with an old log".
+{
+  const _src = fs.readFileSync(htmlPath, 'utf8');
+  const _blk = _src.slice(_src.indexOf('// ── Food log (Macros)'), _src.indexOf('// ── end food log ──'));
+  check('food import: Settings carries the import card', /<div id="fl-import-card"[^>]*><\/div>/.test(_src));
+  const calls = [], els = {};
+  let reply = {ok: true, status: 200, body: {ok: true, added: 3, duplicates: 2, skipped: 1, problems: [{row: 7, reason: 'no kcal'}]}};
+  const I = vm.createContext({console, Promise, JSON, Math, String, Number, parseFloat, encodeURIComponent,
+    AGENT_URL: 'https://agent', authHeaders: (x) => Object.assign({}, x || {}), confirmGlobalDelete: () => true, alert: () => {},
+    document: {getElementById: (id) => { if (!els[id]) { let h = ''; els[id] = {value: ''}; Object.defineProperty(els[id], 'innerHTML', {get: () => h, set: v => { h = v; }}); } return els[id]; }},
+    fetch: async (url, opt) => { const m = (opt && opt.method) || 'GET'; calls.push({url, method: m, body: opt && opt.body ? JSON.parse(opt.body) : null});
+      if (/import-file$/.test(url)) return {ok: reply.ok, status: reply.status, json: async () => reply.body};
+      return {ok: true, status: 200, json: async () => ({set: true, last4: 'GEMI', provider: 'gemini'})}; },
+  });
+  vm.runInContext(_FL_SEC + _blk, I);
+  I._flReadB64 = async () => 'Q1NW';
+  I._flKey = {set: true, last4: 'GEMI', provider: 'gemini'}; I._flRows = []; I._flErr = ''; I._flPending = null; I._flBusy = false;
+  const main = I._flMainHtml();
+  check('food import: the Macros page has an Import button that opens Settings', /Import old log/.test(main) && /flOpenImportSettings\(\)/.test(main) && !/fl-import-file/.test(main));
+  (async () => {
+    await I.buildFlKeyCard();
+    let h = els['fl-import-card'].innerHTML;
+    check('food import: opening Settings shows the card: CSV or Excel, needs Date and Kcal',
+      /type="file"/.test(h) && /accept="\.csv,\.xlsx,\.txt,\.tsv,/.test(h) && /<b>Date<\/b>/.test(h) && /<b>Kcal<\/b>/.test(h) && /importing the same file twice is safe/.test(h));
+    const inp = {files: [{name: 'old log.xlsx', size: 1200}], value: 'x'};
+    await I.flImportFile(inp);
+    const post = calls.find(c => /import-file$/.test(c.url));
+    check('  …picking a file sends its name and contents once', calls.filter(c => /import-file$/.test(c.url)).length === 1 &&
+      post.method === 'POST' && post.body.filename === 'old log.xlsx' && post.body.data_b64 === 'Q1NW' && inp.value === '');
+    h = els['fl-import-card'].innerHTML;
+    check('  …and says what was added, what was already there and which rows were skipped',
+      /Added 3 entries\. 2 were already in your log\. 1 row skipped: row 7 \(no kcal\)\./.test(h));
+    reply = {ok: false, status: 400, body: {detail: 'No header row with a date and a kcal column was found.'}};
+    await I.flImportFile({files: [{name: 'x.csv', size: 10}], value: 'x'});
+    h = els['fl-import-card'].innerHTML;
+    check('  …a refused file shows the reason and that nothing was imported', /No header row/.test(h) && /Nothing was imported/.test(h));
+    calls.length = 0;
+    await I.flImportFile({files: [{name: 'huge.csv', size: 6000000}], value: 'x'});
+    check('  …a file over 5 MB is refused without sending it', calls.length === 0 && /larger than 5 MB/.test(els['fl-import-card'].innerHTML));
+    if (failed > 0) process.exitCode = 1;
+  })().catch(e => { check('food import: async checks ran', false, String(e && e.stack || e)); process.exitCode = 1; });
+}
+
+// ── Food log: history as % of goals, average and median (2026-10-22) ──
+// Henrik: "average and median values for all macros and kcal section based on history …
+// as % of the goals". Goals change, so each day's goals are recorded and every past day is
+// measured against its own.
+{
+  const _src = fs.readFileSync(htmlPath, 'utf8');
+  const _blk = _src.slice(_src.indexOf('// ── Food log (Macros)'), _src.indexOf('// ── end food log ──'));
+  const calls = [], els = {};
+  let goalOk = true;
+  const S = vm.createContext({console, Promise, JSON, Math, String, Number, parseFloat, encodeURIComponent, Date,
+    AGENT_URL: 'https://agent', authHeaders: (x) => Object.assign({}, x || {}), confirmGlobalDelete: () => true, alert: () => {},
+    document: {getElementById: (id) => { if (!els[id]) { let h = ''; els[id] = {value: ''}; Object.defineProperty(els[id], 'innerHTML', {get: () => h, set: v => { h = v; }}); } return els[id]; }},
+    fetch: async (url, opt) => { const m = (opt && opt.method) || 'GET'; calls.push({url, method: m, body: opt && opt.body ? JSON.parse(opt.body) : null});
+      if (/\/goals$/.test(url)) return {ok: goalOk, status: goalOk ? 200 : 500, json: async () => ({})};
+      if (/\/stats\?/.test(url)) return {ok: true, status: 200, json: async () => ({days: 12, days_logged: 12, from: '2026-10-01', to: '2026-10-21', before_first_goal: 0, first_goal_date: '2026-10-01',
+        metrics: {kcal: {avg: 96.4, median: 98.6, days: 12}, protein: {avg: 88, median: 91, days: 12}, carbs: null, fat: {avg: 110, median: 104, days: 12}}})};
+      if (/\/key$/.test(url)) return {ok: true, status: 200, json: async () => ({set: true, last4: 'GEMI', provider: 'gemini'})};
+      return {ok: true, status: 200, json: async () => ([])}; },
+  });
+  vm.runInContext(_FL_SEC + _blk, S);
+  S._flStats = {days: 5, days_logged: 7, from: '2026-09-28', to: '2026-10-21', before_first_goal: 3, first_goal_date: '2026-10-19',
+    metrics: {kcal: {avg: 101.4, median: 99.5, days: 5}, protein: {avg: 87.6, median: 90.2, days: 5}, carbs: null, fat: {avg: 120, median: 118, days: 5}}};
+  let h = S._flStatsHtml();
+  check('food stats: a card shows average and median as % of goals',
+    /History · % of your goals/.test(h) && />Average</.test(h) && />Median</.test(h) &&
+    />Kcal<\/td><td[^>]*>101 %<\/td><td[^>]*>100 %</.test(h) && />Protein<\/td><td[^>]*>88 %<\/td><td[^>]*>90 %</.test(h) && />Fat<\/td>/.test(h));
+  check('  …a macro with no goal gets no row', !/>Carbs</.test(h));
+  check('  …it says how many days, from when, that today is out, and that each day has its own goals',
+    /5 days logged, 28 Sep 2026 to 21 Oct 2026\. Today is not included\. Each day is measured against that day's goals\./.test(h));
+  check('  …and says which days used the first recorded goals', /The 3 days before 19 Oct 2026 use the goals recorded that day, the first on record\./.test(h));
+  S._flStats = {days: 0, days_logged: 4, metrics: {}};
+  check('food stats: food logged but no goals yet says when it starts', /start once your goals are set/.test(S._flStatsHtml()));
+  S._flStats = {days: 0, days_logged: 0, metrics: {}};
+  check('  …and with nothing logged there is no card', S._flStatsHtml() === '');
+  (async () => {
+    S._flKey = {set: true, last4: 'GEMI', provider: 'gemini'}; S._flRows = []; S._flErr = ''; S._flPending = null; S._flBusy = false;
+    await S.buildFoodLog();
+    const st = calls.find(c => /\/stats\?/.test(c.url));
+    check('food stats: opening Macros loads the stats with today left out', st && st.url.endsWith('/food-log/stats?today=' + S._flDay()) && /History · % of your goals/.test(els['food-log-body'].innerHTML));
+    calls.length = 0;
+    S._macrosTargets = {kcal: 2400, protein: 180, carbs: 250, fat: 70};
+    S._flRender(); S._flRender();
+    await new Promise(r => setTimeout(r, 0));
+    let puts = calls.filter(c => /\/goals$/.test(c.url));
+    check("food stats: the day's goals are recorded once, with today's date",
+      puts.length === 1 && puts[0].method === 'PUT' && puts[0].body.date === S._flDay() && puts[0].body.kcal === 2400 && puts[0].body.fat === 70);
+    S._macrosTargets = {kcal: 2200, protein: 180, carbs: 220, fat: 70};
+    S._flRender();
+    await new Promise(r => setTimeout(r, 0));
+    puts = calls.filter(c => /\/goals$/.test(c.url));
+    check('  …and again when the goals change', puts.length === 2 && puts[1].body.kcal === 2200);
+    goalOk = false; S._macrosTargets = {kcal: 2000, protein: 150};
+    S._flRender();
+    await new Promise(r => setTimeout(r, 0)); await new Promise(r => setTimeout(r, 0));
+    goalOk = true; S._flRender();
+    await new Promise(r => setTimeout(r, 0));
+    puts = calls.filter(c => /\/goals$/.test(c.url));
+    check('  …a failed save is tried again on the next render', puts.length === 4 && puts[3].body.kcal === 2000 && puts[3].body.carbs === null);
+    calls.length = 0; S._macrosTargets = null; S._flGoalSent = ''; S._flRender();
+    check('  …and without goals nothing is recorded', calls.filter(c => /\/goals$/.test(c.url)).length === 0);
+    if (failed > 0) process.exitCode = 1;
+  })().catch(e => { check('food stats: async checks ran', false, String(e && e.stack || e)); process.exitCode = 1; });
+}
+
+// ── Food log: the Settings cards follow the Settings design (2026-10-22) ──
+// Henrik: "These Settings sections u added isn't following the design if the others, they
+// should be default collapsed like all others".
+{
+  const _src = fs.readFileSync(htmlPath, 'utf8');
+  const _blk = _src.slice(_src.indexOf('// ── Food log (Macros)'), _src.indexOf('// ── end food log ──'));
+  const els = {};
+  const C = vm.createContext({console, Promise, JSON, Math, String, Number, encodeURIComponent,
+    AGENT_URL: 'https://agent', authHeaders: (x) => Object.assign({}, x || {}), confirmGlobalDelete: () => true, alert: () => {},
+    document: {getElementById: (id) => { if (!els[id]) { let h = ''; els[id] = {value: '', classList: {toggle() {}}, previousElementSibling: {classList: {toggle() {}}}}; Object.defineProperty(els[id], 'innerHTML', {get: () => h, set: v => { h = v; }}); } return els[id]; }},
+    fetch: async () => ({ok: true, status: 200, json: async () => ({})}),
+  });
+  vm.runInContext(_FL_SEC + _blk, C);
+  C._flKey = {set: true, last4: 'CwAA', provider: 'anthropic'};
+  const key = C._flKeyCardHtml(), imp = C._flImportCardHtml();
+  check('food settings: the API key card is a Settings section, collapsed by default',
+    /class="s-sec-hdr" onclick="toggleSSec\('flkey'\)">Food log · API key/.test(key) && /class="s-sec-body collapsed" id="s-sec-flkey"/.test(key) && /Anthropic key ending …CwAA/.test(key));
+  check('  …and so is the import card', /onclick="toggleSSec\('flimport'\)">Food log · Import old log/.test(imp) && /class="s-sec-body collapsed" id="s-sec-flimport"/.test(imp));
+  check('  …neither carries its own boxed title any more', !/font-weight:700;color:var\(--text\);margin-bottom:8px">Food logging/.test(key + imp));
+  C.flOpenImportSettings();
+  check('  …the Macros buttons open the section they point at', C._sOpen.flimport === true && /class="s-sec-hdr open"/.test(C._flImportCardHtml()));
+  C.flOpenImportSettings();
+  check('  …and never close it again', C._sOpen.flimport === true);
+  C.flOpenKeySettings();
+  check('  …the API key button opens its own', C._sOpen.flkey === true);
+}
+
 // ── Food Edit: every entry has an editable amount, and correcting it rescales (2026-10-21) ──
 // Henrik: "each entry needs a grams total also, a typo for chicken breast should be possible
 // to Edit instead of forcing me to delete the line".
@@ -8360,7 +8611,7 @@ console.log('\n── Macro targets (suggested + override) ───────
     fetch: async (url, opt) => { if (opt && opt.method === 'PUT') puts.push({url, body: JSON.parse(opt.body)});
       return {ok: true, status: 200, json: async () => []}; },
   });
-  vm.runInContext(_blk, E);
+  vm.runInContext(_FL_SEC + _blk, E);
   const chick = {id: 'k1', food: 'Raw chicken breast', amount: '300g', kcal: 330, protein: 69, carbs: 0, fat: 4};
   const coffee = {id: 'k2', food: 'Coffee', amount: '300ml', kcal: 68, protein: 5, carbs: 7, fat: 2};
   const cups = {id: 'k3', food: 'Tea', amount: '2 cups', kcal: 4, protein: 0, carbs: 1, fat: 0};
@@ -8398,11 +8649,58 @@ console.log('\n── Macro targets (suggested + override) ───────
 {
   G._flKey = {set: true, last4: 'WXYZ'}; G._flErr = ''; G._flPending = null; G._flBusy = false;
   G._flRows = [{id: 't1', time: '07:40', food: 'Oats', amount: '80 g', kcal: 300}, {id: 't2', time: '', food: 'Daily total', amount: '', kcal: 2000}];
+  G._flListOpen = true;
   const _h = G._flMainHtml();
   check('food log: the list shows each entry\'s time before the food', /07:40<\/span>Oats/.test(_h));
   check('  …and an entry with no time (an imported daily total) shows none', /<span>Daily total/.test(_h));
   check('food edit: each card shows its time', />07:40<\/div>/.test(G._flEditHtml([G._flRows[0]], '2026-10-21')));
   G._flRows = [];
+}
+
+// ── Food log: a free Gemini key is the default, Anthropic the alternative (2026-10-21) ──
+// Henrik: "add support for Google Gemini API key also and provide instructions for how to
+// obtain a free one, this should be the default option".
+{
+  const _g = G._flGuideHtml();
+  const _fold = _g.indexOf('<details');
+  check('food log: the guide leads with the free Gemini key, in Chrome',
+    /<option value="gemini" selected>Google Gemini \(free\)/.test(_g) && /https:\/\/aistudio\.google\.com\/apikey/.test(_g) &&
+    /Chrome/.test(_g) && /starts with <code>AIza<\/code>/.test(_g) && /placeholder="AIza…"/.test(_g));
+  check('  …and offers Anthropic, OpenAI, xAI and Azure OpenAI as paid alternatives (2026-10-22)',
+    /value="anthropic">Anthropic Claude \(paid\)/.test(_g) && /value="openai">OpenAI ChatGPT \(paid\)/.test(_g) &&
+    /value="xai">xAI Grok \(paid\)/.test(_g) && /value="azure">Microsoft Azure OpenAI \(paid\)/.test(_g) && _fold < 0);
+  G._flErr = ''; G._flPending = null; G._flBusy = false; G._flRows = [];
+  G._flKey = {set: true, last4: 'GEMI', provider: 'gemini'};
+  check('  …the Settings card names the provider: Gemini', /Gemini key ending …GEMI/.test(G._flKeyCardHtml()));
+  G._flKey = {set: true, last4: 'WXYZ', provider: 'anthropic'};
+  check('  …or Anthropic', /Anthropic key ending …WXYZ/.test(G._flKeyCardHtml()));
+  G._flKey = {set: true, last4: 'WXYZ'};
+  check('  …and a key stored before Gemini existed reads as Anthropic', /Anthropic key ending …WXYZ/.test(G._flKeyCardHtml()));
+}
+
+// ── Macros page tweaks (2026-10-22): carbs and fat bars; the day's list starts collapsed ──
+{
+  G._flKey = {set: true, last4: 'GEMI', provider: 'gemini'}; G._flErr = ''; G._flPending = null; G._flBusy = false;
+  G._flRows = [{id: 'a', time: '07:40', food: 'Oats', amount: '80 g', kcal: 300, protein: 10, carbs: 50, fat: 6},
+               {id: 'b', time: '12:15', food: 'Chicken', amount: '200 g', kcal: 220, protein: 46, carbs: 0, fat: 3}];
+  const _saveT = G._macrosTargets;
+  G._macrosTargets = {kcal: 2574, protein: 213, carbs: 250, fat: 70};
+  G._flListOpen = false;
+  let _h = G._flMainHtml();
+  check('macros: carbs and fat get progress bars too',
+    /Carbs 50 of 250 g/.test(_h) && /200 g left/.test(_h) && /Fat 9 of 70 g/.test(_h) && /61 g left/.test(_h));
+  check('  …in the order calories, protein, carbs, fat',
+    _h.indexOf('Calories 520') < _h.indexOf('Protein 56') && _h.indexOf('Protein 56') < _h.indexOf('Carbs 50') && _h.indexOf('Carbs 50') < _h.indexOf('Fat 9'));
+  G._macrosTargets = {kcal: 2574, protein: 213};
+  check('  …and a target that is not set shows no bar', !/Carbs \d+ of/.test(G._flMainHtml()) && !/Fat \d+ of/.test(G._flMainHtml()));
+  check('macros: the day\'s list starts collapsed, saying how many and when you last ate',
+    /2 entries today · last at 12:15/.test(_h) && /flToggleList\(\)/.test(_h) && /Show ▼/.test(_h) && !/Oats/.test(_h));
+  G.flToggleList();
+  _h = G._flMainHtml();
+  check('  …one tap opens it', G._flListOpen === true && /Oats/.test(_h) && /Chicken/.test(_h) && /Hide ▲/.test(_h));
+  G.flToggleList();
+  check('  …and a second closes it', G._flListOpen === false && !/Oats/.test(G._flMainHtml()));
+  G._macrosTargets = _saveT; G._flRows = [];
 }
 
 setImmediate(() => {
