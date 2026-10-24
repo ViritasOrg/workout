@@ -183,6 +183,52 @@
   .ob-field input:focus{border-color:var(--accent);}
   .ob-gender-btn{flex:1;padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-family:var(--font-ui);font-size:14px;font-weight:600;cursor:pointer;transition:all 0.15s;}
   .ob-gender-btn.ob-sel{border-color:var(--accent);color:var(--accent);background:var(--surface2);}
+  /* Onboarding tour: an animated mock of the phone screen, one scene shown at a time */
+  .tour-stage{position:relative;width:100%;max-width:320px;height:330px;margin:0 auto;background:var(--bg);border:1px solid var(--border);border-radius:16px;overflow:hidden;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+  .tour-stage.paused *{animation-play-state:paused!important;}
+  .tour-scene{position:absolute;inset:0;display:none;padding:12px 12px 28px;font-size:12px;color:var(--text);}
+  .tour-swap{position:absolute;left:12px;right:12px;top:40px;}
+  .tour-day{padding:4px 0;border-top:1px solid var(--border);font-size:11.5px;}
+  .tour-day b{display:block;color:var(--text);font-weight:600;}
+  .tour-day span{color:var(--muted);}
+  .tour-lbl{position:relative;width:44px;height:14px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8d8d93;}
+  .tour-lbl span{position:absolute;left:0;top:0;}
+  .tour-scene.on{display:block;}
+  .tour-top{font-family:var(--font-display);font-size:15px;letter-spacing:2px;color:var(--accent);margin-bottom:8px;}
+  .tour-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:9px 10px;margin-bottom:8px;}
+  .tour-h{font-weight:700;font-size:13px;margin-bottom:4px;}
+  .tour-row{display:flex;justify-content:space-between;gap:8px;color:var(--muted);font-size:11.5px;padding:3px 0;}
+  .tour-row b{color:var(--text);font-weight:600;}
+  .tour-btn{background:var(--accent);color:#000;border-radius:8px;padding:7px 10px;font-weight:700;font-size:12px;text-align:center;margin-top:6px;}
+  .tour-q{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:7px;background:rgba(77,163,255,0.12);border:1px solid #4da3ff;color:#4da3ff;font-weight:700;font-size:14px;flex-shrink:0;}
+  .tour-set{display:flex;align-items:center;gap:8px;padding:3px 0;color:var(--muted);font-size:11.5px;}
+  .tour-box{width:40px;height:26px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);display:inline-flex;align-items:center;justify-content:center;color:var(--accent);font-weight:700;font-size:13px;}
+  .tour-box span{opacity:0;}
+  .tour-bar{height:7px;background:var(--surface2);border-radius:4px;overflow:hidden;margin:3px 0 7px;}
+  .tour-bar i{display:block;height:100%;width:0;background:var(--accent);border-radius:4px;}
+  .tour-tap{position:absolute;width:28px;height:28px;margin:-14px 0 0 -14px;border-radius:50%;background:var(--accent);opacity:0;pointer-events:none;}
+  .tour-sk{position:relative;display:flex;align-items:center;justify-content:center;gap:4px;background:#151517;border:1px solid #2a2a2e;border-radius:10px;padding:4px;}
+  .tour-sk svg{max-width:100%;height:auto;display:block;}
+  .tour-skf{position:relative;width:110px;height:124px;}
+  .tour-skf svg{position:absolute;inset:0;}
+  .tour-dots{position:absolute;left:0;right:0;bottom:8px;display:flex;justify-content:center;gap:6px;}
+  .tour-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+  .tour-tile{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 8px;font-size:11px;display:flex;align-items:center;gap:6px;}
+  .tour-tile b{font-family:var(--font-display);letter-spacing:1px;color:var(--accent);font-size:12px;}
+  .tour-cap{text-align:center;margin:12px auto 0;max-width:320px;}
+  .tour-cap .t{font-family:var(--font-display);font-size:22px;letter-spacing:1px;color:var(--text);}
+  .tour-cap .c{font-size:13px;color:var(--muted);line-height:1.55;margin-top:4px;min-height:60px;}
+  .tour-cap .hint{font-size:11px;color:var(--muted);opacity:.7;margin-top:6px;}
+  #tour-tablist{display:none;margin-top:14px;}
+  #tour-tablist.on{display:block;}
+  @keyframes tourIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  @keyframes tourOut{to{opacity:0;transform:translateY(-6px)}}
+  @keyframes tourShow{to{opacity:1}}
+  @keyframes tourTap{0%{opacity:0;transform:scale(.4)}30%{opacity:.8;transform:scale(1)}100%{opacity:0;transform:scale(1.9)}}
+  @keyframes tourType{to{width:100%}}
+  @keyframes tourFill{to{width:var(--w)}}
+  @keyframes tourGreen{to{border-color:#22c55e;box-shadow:inset 3px 0 0 #22c55e}}
+  @keyframes tourDim{to{opacity:.25}}
   .ob-result-card{background:var(--surface);border-radius:10px;padding:14px 16px;margin-top:12px;display:flex;justify-content:space-between;align-items:center;border:1px solid var(--border);}
   .s-sec-hdr{padding:10px 16px;font-size:12px;font-weight:600;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;-webkit-user-select:none;}
   .s-sec-hdr.open{border-bottom:1px solid var(--border);}
@@ -258,6 +304,7 @@
 </div>
 <div class="content">
   <div class="page active" id="page-today">
+    <div id="whats-new"></div>
     <div id="today-header" style="margin-bottom:16px"><button onclick="showPage('log')" style="width:100%;background:var(--accent);color:#000;border:none;border-radius:12px;padding:14px 16px;font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font-ui);letter-spacing:0.3px;text-transform:uppercase;">Log Workout</button></div>
     <div id="day-grid-container" class="day-grid"></div>
     <div id="workout-display"></div>
@@ -394,6 +441,7 @@
     </div>
   </div>
   <div class="page" id="page-settings" style="padding:20px;flex-direction:column;gap:14px;">
+    <button id="tour-replay-btn" onclick="openTour()" style="width:100%;background:var(--surface);color:var(--text);border:1px solid var(--accent);border-radius:12px;padding:13px 16px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font-ui);display:flex;align-items:center;justify-content:center;gap:8px"><span style="color:var(--accent)">▶</span>Watch the intro again</button>
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
       <div class="s-sec-hdr" onclick="toggleSSec('backend')">Backend<span class="s-chev">▾</span></div>
       <div class="s-sec-body collapsed" id="s-sec-backend">
@@ -907,7 +955,7 @@ async function copyDataToStage(){
   }
 }
 function wipeLocalCache(){if(!confirm('Clear all locally cached data? The app will reload and re-fetch everything from the backend. You will stay signed in.'))return;var _t=window.localStorage.getItem('google_token');var _e=window.localStorage.getItem('google_email');var _s=window.localStorage.getItem('session_token');window.localStorage.clear();if(_t)window.localStorage.setItem('google_token',_t);if(_e)window.localStorage.setItem('google_email',_e);if(_s)window.localStorage.setItem('session_token',_s);window.location.reload();}
-async function syncSettingsFromAgent(){try{const r=await fetch(AGENT_URL+'/user-settings',{headers:authHeaders()});if(!r.ok)return;const s=await r.json();if(!s)return;if(s['wkt-tab-vis']){_pageVis=Object.assign({},PAGE_DEFAULTS,s['wkt-tab-vis']);setData('wkt-tab-vis',s['wkt-tab-vis']);applyTabVis();buildTabsSettingsCard();}if(s['template_weights']){Object.entries(s['template_weights']).forEach(function(e){setData('template_weights_day'+e[0],e[1]);});}if(s['wkt-profile']){var _sp=s['wkt-profile'];if(_sp&&typeof _sp==='object'){setData('wkt-profile',Object.assign({},getData('wkt-profile',{}),_sp));if(typeof buildProfileCard==='function')buildProfileCard();}}if(s['wkt-theme']&&getData('wkt-theme',null)!==s['wkt-theme']&&typeof applyTheme==='function')applyTheme(s['wkt-theme']);if(s['wkt-macro-targets']!==undefined)setData('wkt-macro-targets',s['wkt-macro-targets']);if(s['wkt-macro-phase'])setData('wkt-macro-phase',s['wkt-macro-phase']);if(s['wkt-on-hormones']!==undefined)setData('wkt-on-hormones',s['wkt-on-hormones']===true);if(s['wkt-macro-include-training']!==undefined)setData('wkt-macro-include-training',s['wkt-macro-include-training']===true);if((s['wkt-macro-targets']!==undefined||s['wkt-macro-phase']||s['wkt-on-hormones']!==undefined||s['wkt-macro-include-training']!==undefined)&&typeof _currentPage!=='undefined'&&_currentPage==='macros')_wkFetchSuggest();if(s['wkt-chart-scale']){_chartScale=s['wkt-chart-scale'];setData('wkt-chart-scale',s['wkt-chart-scale']);}if(s['user_sex']||s['user_height']||s['user_weight']||s['user_age']){var _wp=getData('wkt-profile',{});if(s['user_sex'])_wp.gender=s['user_sex']==='female'?'female':'male';if(s['user_height'])_wp.height=parseFloat(s['user_height']);if(s['user_weight'])_wp.weight=parseFloat(s['user_weight']);if(s['user_age'])_wp.age=parseInt(s['user_age']);setData('wkt-profile',_wp);}if(s['wo_db_toggles']){Object.entries(s['wo_db_toggles']).forEach(function(e){localStorage.setItem('wk-db-'+e[0],String(e[1]));});}if(s['wo_gear_toggles']){Object.entries(s['wo_gear_toggles']).forEach(function(e){localStorage.setItem('wk-gear-'+e[0],String(e[1]));});}if(s['wo_cable2_toggles']){Object.entries(s['wo_cable2_toggles']).forEach(function(e){localStorage.setItem('wk-cable2-'+e[0],String(e[1]));});}if(s['wkt-unit']){localStorage.setItem('wkt-unit',String(s['wkt-unit']));_refreshUnitUI();}if(Array.isArray(s['wkt-home-equip']))setData('wkt-home-equip',s['wkt-home-equip']);if(s['wkt-deload']!==undefined){var _dlPrev=!!_deloadActive;_deloadActive=!!s['wkt-deload'];setData('wkt-deload',_deloadActive);var _ppD=document.getElementById('page-today');if(_ppD&&_ppD.classList&&_ppD.classList.contains('active'))renderWorkout(_selectedProgramDay);if(_dlPrev!==!!_deloadActive){var _lpD=document.getElementById('page-log');if(_lpD&&_lpD.classList&&_lpD.classList.contains('active')){var _lcD=document.getElementById('structured-log');var _hrD=_lcD&&Array.from(_lcD.querySelectorAll('input[data-type="reps"]')).some(function(i){return parseInt(i.value)>0;});if(!_hrD){var _ldD=document.getElementById('log-day');if(_ldD&&_ldD.value)prefillLog(_ldD.value);}}}}var _pp=document.getElementById('ppanel-overview');if(_pp&&!_pp.classList.contains('hidden')){drawBmiChart();drawLbmChart();}}catch(e){}}
+async function syncSettingsFromAgent(){try{const r=await fetch(AGENT_URL+'/user-settings',{headers:authHeaders()});if(!r.ok)return;const s=await r.json();if(!s)return;if(s['wkt-tab-vis']){_pageVis=Object.assign({},PAGE_DEFAULTS,s['wkt-tab-vis']);setData('wkt-tab-vis',s['wkt-tab-vis']);applyTabVis();buildTabsSettingsCard();}if(s['template_weights']){Object.entries(s['template_weights']).forEach(function(e){setData('template_weights_day'+e[0],e[1]);});}if(s['wkt-profile']){var _sp=s['wkt-profile'];if(_sp&&typeof _sp==='object'){setData('wkt-profile',Object.assign({},getData('wkt-profile',{}),_sp));if(typeof buildProfileCard==='function')buildProfileCard();}}if(s['wkt-theme']&&getData('wkt-theme',null)!==s['wkt-theme']&&typeof applyTheme==='function')applyTheme(s['wkt-theme']);if(s['wkt-macro-targets']!==undefined)setData('wkt-macro-targets',s['wkt-macro-targets']);if(s['wkt-macro-phase'])setData('wkt-macro-phase',s['wkt-macro-phase']);if(s['wkt-on-hormones']!==undefined)setData('wkt-on-hormones',s['wkt-on-hormones']===true);if(s['wkt-macro-include-training']!==undefined)setData('wkt-macro-include-training',s['wkt-macro-include-training']===true);if((s['wkt-macro-targets']!==undefined||s['wkt-macro-phase']||s['wkt-on-hormones']!==undefined||s['wkt-macro-include-training']!==undefined)&&typeof _currentPage!=='undefined'&&_currentPage==='macros')_wkFetchSuggest();if(s['wkt-chart-scale']){_chartScale=s['wkt-chart-scale'];setData('wkt-chart-scale',s['wkt-chart-scale']);}if(s['user_sex']||s['user_height']||s['user_weight']||s['user_age']){var _wp=getData('wkt-profile',{});if(s['user_sex'])_wp.gender=s['user_sex']==='female'?'female':'male';if(s['user_height'])_wp.height=parseFloat(s['user_height']);if(s['user_weight'])_wp.weight=parseFloat(s['user_weight']);if(s['user_age'])_wp.age=parseInt(s['user_age']);setData('wkt-profile',_wp);}if(s['wo_db_toggles']){Object.entries(s['wo_db_toggles']).forEach(function(e){localStorage.setItem('wk-db-'+e[0],String(e[1]));});}if(s['wo_gear_toggles']){Object.entries(s['wo_gear_toggles']).forEach(function(e){localStorage.setItem('wk-gear-'+e[0],String(e[1]));});}if(s['wo_cable2_toggles']){Object.entries(s['wo_cable2_toggles']).forEach(function(e){localStorage.setItem('wk-cable2-'+e[0],String(e[1]));});}if(s['wkt-unit']){localStorage.setItem('wkt-unit',String(s['wkt-unit']));_refreshUnitUI();}if(Array.isArray(s['wkt-home-equip']))setData('wkt-home-equip',s['wkt-home-equip']);if(s['wkt-whatsnew-seen']){setData('wkt-whatsnew-seen',String(s['wkt-whatsnew-seen']));buildWhatsNewCard();}if(s['wkt-deload']!==undefined){var _dlPrev=!!_deloadActive;_deloadActive=!!s['wkt-deload'];setData('wkt-deload',_deloadActive);var _ppD=document.getElementById('page-today');if(_ppD&&_ppD.classList&&_ppD.classList.contains('active'))renderWorkout(_selectedProgramDay);if(_dlPrev!==!!_deloadActive){var _lpD=document.getElementById('page-log');if(_lpD&&_lpD.classList&&_lpD.classList.contains('active')){var _lcD=document.getElementById('structured-log');var _hrD=_lcD&&Array.from(_lcD.querySelectorAll('input[data-type="reps"]')).some(function(i){return parseInt(i.value)>0;});if(!_hrD){var _ldD=document.getElementById('log-day');if(_ldD&&_ldD.value)prefillLog(_ldD.value);}}}}var _pp=document.getElementById('ppanel-overview');if(_pp&&!_pp.classList.contains('hidden')){drawBmiChart();drawLbmChart();}}catch(e){}}
 function buildTabsSettingsCard(){var card=document.getElementById('s-tabs-card');if(!card)return;var rows=Object.entries(PAGE_LABELS).map(function(e){var id=e[0];var label=e[1];var on=!!_pageVis[id];return'<div style="padding:11px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)"><span style="font-size:13px;color:var(--text)">'+label+'</span><button onclick="toggleTabVis(\''+id+'\')" style="background:'+(on?'var(--accent)':'var(--surface2)')+';color:'+(on?'#000':'var(--muted)')+';border:1px solid '+(on?'transparent':'var(--border)')+';border-radius:20px;padding:4px 14px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;min-width:48px">'+(on?'ON':'OFF')+'</button></div>';}).join('');card.innerHTML='<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:14px">'+sSecHdr('tabs','Tabs')+sSecBody('tabs')+rows+'<div style="padding:8px 16px 10px;font-size:11px;color:var(--muted)">Settings is always visible</div></div></div>';}
 const EX_OPTS_HTML='<optgroup label="Legs"><option>Squat</option><option>Romanian Deadlift</option><option>Deadlift</option><option>Leg Press</option><option>45° Leg Press</option><option>Bilateral Leg Press</option><option>Smith Machine Squat</option><option>Leg Curl</option><option>Leg Extension</option><option>Calf Raises</option><option>Lunges</option><option>Bulgarian Split Squat</option><option>Hip Thrust</option><option>Hip Adductor (inside hips)</option><option>Hip Abductor (outside hips)</option><option>Hack Squat</option><option>Seated Calf Raise</option><option>Kettlebell Goblet Squat</option><option>Kettlebell Front Squat</option><option>Kettlebell Reverse Lunge</option><option>Kettlebell Deadlift</option><option>Kettlebell Romanian Deadlift</option><option>Band Leg Curl</option><option>Band Leg Extension</option><option>Kettlebell Glute Bridge</option><option>Kettlebell Calf Raise</option><option>Bodyweight Squat</option><option>Single-leg RDL</option><option>Bodyweight Good Morning</option><option>Nordic Curl</option><option>Sissy Squat</option><option>Single-leg Glute Bridge</option><option>Single-leg Calf Raise</option></optgroup><optgroup label="Back"><option>Pull-ups</option><option>Weighted Pull-ups</option><option>Chin-ups</option><option>Barbell Row</option><option>Cable Row</option><option>Lat Pulldown</option><option>Drape Pulldowns</option><option>Straight-Arm Lat Pushdown</option><option>T-Bar Row</option><option>Face Pulls</option><option>Rear Delt Fly</option><option>Rear Delt Cable Fly</option><option>Shrug</option><option>Chest-Supported Row</option><option>Assisted Pull-up Machine</option><option>Muscle Up</option><option>Assisted Muscle Up</option><option>Clapping Pull-ups</option><option>Band Lat Pull</option><option>Band Straight-arm Pull</option><option>Kettlebell Row</option><option>Band Seated Row</option><option>Inverted Row</option><option>Underhand Inverted Row</option><option>Band Face Pull</option><option>Band Rear Delt Fly</option><option>Prone T-Raise</option></optgroup><optgroup label="Chest"><option>Chest Machine Press</option><option>Incline DB Press</option><option>Bench Press</option><option>Incline Bench Press</option><option>Cable Fly</option><option>Low-to-high Cable Fly</option><option>Push-ups</option><option>Dips</option><option>Pec Deck (chest fly machine)</option><option>Assisted Dip Machine</option><option>Plyo Push-ups</option><option>Kettlebell Floor Press</option><option>Band Incline Press</option><option>Band Chest Press</option><option>Band Chest Fly</option><option>Band Low-to-high Fly</option><option>Decline Push-ups</option><option>Wide Push-ups</option><option>Archer Push-ups</option><option>Chair Dips</option></optgroup><optgroup label="Shoulders"><option>Landmine Press</option><option>Overhead Press</option><option>Arnold Press</option><option>Lateral Raise</option><option>Cable Lateral Raise</option><option>Y-Raise</option><option>Front Raise</option><option>Upright Row</option><option>Cable External Rotation</option><option>Shoulder Press Machine</option><option>Machine Lateral Raise</option><option>Behind the Neck Press</option><option>Kettlebell Overhead Press</option><option>Band Shoulder Press</option><option>Kettlebell Half-kneeling Press</option><option>Band Lateral Raise</option><option>Band Y-Raise</option><option>Band External Rotation</option><option>Pike Push-ups</option><option>Prone Y-Raise</option><option>Prone External Rotation</option></optgroup><optgroup label="Arms"><option>Barbell Curl</option><option>Hammer Curl</option><option>EZ Bar Curl</option><option>Preacher Curl</option><option>Overhead Tricep Cable</option><option>Tricep Pushdown</option><option>Skull Crushers</option><option>Close Grip Press</option><option>Bicep Curl Machine</option><option>Tricep Extension Machine</option><option>Cable Bicep Curl</option><option>Band Curl</option><option>Kettlebell Hammer Curl</option><option>Band Tricep Extension</option><option>Band Overhead Tricep Extension</option><option>Diamond Push-ups</option></optgroup>';
 async function fetchAllMarkers(){let milestones=[];try{const r=await fetch(AGENT_URL+'/stack-milestones',{headers:authHeaders()});if(r.ok)milestones=await r.json();}catch(e){}let trt=[];try{const r2=await fetch(AGENT_URL+'/peptide-log',{headers:authHeaders()});if(r2.ok){const log=await r2.json();const seen=new Set();log.forEach(entry=>{(entry.doses||[]).forEach(id=>{let trtType=null;if(id.startsWith('testo_'))trtType='enanthate';else if(id.startsWith('nebido_'))trtType='nebido';if(!trtType)return;const k=entry.date+'_'+trtType;if(seen.has(k))return;seen.add(k);const p=entry.date.split('-');const nd=p[0]+'-'+p[1].padStart(2,'0')+'-'+p[2].padStart(2,'0');trt.push({date:nd,label:trtType==='nebido'?'TRT-N':'TRT-E',color:'#c084fc',trtType});});});}}catch(e){}return[...milestones,...trt].sort((a,b)=>a.date.localeCompare(b.date));}let logs=getData('workout_logs',[]);
@@ -1346,7 +1394,7 @@ function _diagRenderInto(host){
 function buildStoragePage(){var _el=document.getElementById('page-storage');if(!_el)return;var _esc=function(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};_lsDbgKeys=[];for(var _di=0;_di<localStorage.length;_di++){var _dk=localStorage.key(_di);if(_dk!=null)_lsDbgKeys.push(_dk);}_lsDbgKeys.sort();var _rows=_lsDbgKeys.map(function(k,i){var _raw=localStorage.getItem(k)||'';var _extra='';try{var _pv=JSON.parse(_raw);if(Array.isArray(_pv))_extra='array · '+_pv.length+' items';else if(_pv!==null&&typeof _pv==='object')_extra='object · '+Object.keys(_pv).length+' keys';else _extra=typeof _pv;}catch(e){_extra='string';}var _trunc=_raw.length>300;var _disp=_trunc?_raw.slice(0,300)+'…':_raw;return'<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px">'+'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">'+'<div><span style="font-family:monospace;font-size:12px;color:var(--accent);font-weight:600">'+_esc(k)+'</span><span style="font-size:10px;color:var(--muted);margin-left:8px">'+_esc(_extra)+'</span></div>'+'<button onclick="lsDbgCopy('+i+')" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 10px;font-size:10px;cursor:pointer;font-family:inherit;flex-shrink:0">Copy</button>'+'</div>'+'<pre style="font-family:monospace;font-size:10px;color:var(--muted);white-space:pre-wrap;word-break:break-all;margin:0;line-height:1.4;max-height:100px;overflow:hidden">'+_esc(_disp)+'</pre>'+'</div>';}).join('');_el.innerHTML='<div style="padding:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><div style="font-size:13px;color:var(--muted)">'+_lsDbgKeys.length+' keys in localStorage</div><div style="display:flex;gap:8px"><button onclick="buildStoragePage()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">Refresh</button><button onclick="lsDbgCopyAll()" style="background:var(--accent);color:#000;border:none;border-radius:8px;padding:7px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">Copy All</button></div></div>'+_rows+'</div>';_diagRenderInto(_el);}
 function lsDbgCopy(i){var k=_lsDbgKeys[i];if(k==null)return;var v=localStorage.getItem(k)||'';var out={};try{out[k]=JSON.parse(v);}catch(e){out[k]=v;}navigator.clipboard.writeText(JSON.stringify(out,null,2)).catch(function(){});}
 function lsDbgCopyAll(){var out={};for(var _ci=0;_ci<localStorage.length;_ci++){var _ck=localStorage.key(_ci);if(!_ck)continue;var _cv=localStorage.getItem(_ck)||'';try{out[_ck]=JSON.parse(_cv);}catch(e){out[_ck]=_cv;}}navigator.clipboard.writeText(JSON.stringify(out,null,2)).catch(function(){});}
-function showPage(name,btn){localStorage.setItem('wkt-last-page',name);_currentPage=name;var _pr=primaryOf(name);if(_pr){_currentPrimary=_pr;_lastSub[_pr]=name;try{localStorage.setItem('wkt-last-sub-'+_pr,name);}catch(e){}_setPrimaryActive(_pr);_applySubtabVis(_pr);}document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tabs .tab').forEach(b=>b.classList.remove('active'));document.getElementById('page-'+name).classList.add('active');var _tb=document.getElementById('tab-btn-'+name);if(_tb)_tb.classList.add('active');if(name==='macros'){buildWkMacroTargets();buildFoodLog();}if(name==='foodedit')buildFoodEdit();if(name==='today'||name==='plan')buildProgramSettingsCard();if(name==='history')renderHistory();if(name==='progress')renderProgress();if(name==='settings'){loadSettings();buildFlKeyCard();}if(name==='storage')buildStoragePage();if(name==='log'){var _lc=document.getElementById('structured-log');var _hasReps=_lc&&Array.from(_lc.querySelectorAll('input[data-type="reps"]')).some(function(i){return parseInt(i.value)>0;});var _curDay=parseInt(document.getElementById('log-day').value)||0;
+function showPage(name,btn){localStorage.setItem('wkt-last-page',name);_currentPage=name;var _pr=primaryOf(name);if(_pr){_currentPrimary=_pr;_lastSub[_pr]=name;try{localStorage.setItem('wkt-last-sub-'+_pr,name);}catch(e){}_setPrimaryActive(_pr);_applySubtabVis(_pr);}document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tabs .tab').forEach(b=>b.classList.remove('active'));document.getElementById('page-'+name).classList.add('active');var _tb=document.getElementById('tab-btn-'+name);if(_tb)_tb.classList.add('active');if(name==='macros'){buildWkMacroTargets();buildFoodLog();}if(name==='foodedit')buildFoodEdit();if(name==='today'||name==='plan')buildProgramSettingsCard();if(name==='today')buildWhatsNewCard();if(name==='history')renderHistory();if(name==='progress')renderProgress();if(name==='settings'){loadSettings();buildFlKeyCard();}if(name==='storage')buildStoragePage();if(name==='log'){var _lc=document.getElementById('structured-log');var _hasReps=_lc&&Array.from(_lc.querySelectorAll('input[data-type="reps"]')).some(function(i){return parseInt(i.value)>0;});var _curDay=parseInt(document.getElementById('log-day').value)||0;
     // Re-prefill when the on-screen log was built under a now-stale deload or unit
     // state (both toggles live outside the Log page, so their inline re-prefill only
     // fires when Log is already open). Never blow away a log with reps entered.
@@ -3888,11 +3936,19 @@ function obInit(){
   if(profile&&profile.onboarded)return;
   var overlay=document.getElementById('onboarding-overlay');
   if(!overlay)return;
-  overlay.classList.remove('hidden');_obStep=0;obRender();
+  _obTourOnly=false;overlay.classList.remove('hidden');_obStep=0;obRender();
 }
+// Henrik, 2026-10-24: "in settings/More add a button on top to re run the intro for users who want
+// to see it again." Tour only: the overlay opens on the last step with the saved profile (so the
+// movie matches the user), and Done or Skip just closes it: no profile write, no weight entry.
+var _obTourOnly=false;
+function openTour(){var overlay=document.getElementById('onboarding-overlay');if(!overlay)return;
+  var _ep=getData('wkt-profile',{})||{};_obData.gender=_ep.gender||null;
+  _obTourOnly=true;overlay.classList.remove('hidden');_obStep=5;obRender();}
+function _obCloseTour(){_tourStop();_obTourOnly=false;var overlay=document.getElementById('onboarding-overlay');if(overlay)overlay.classList.add('hidden');}
 function openOnboarding(){
   var overlay=document.getElementById('onboarding-overlay');
-  if(!overlay)return;
+  if(!overlay)return;_obTourOnly=false;
   var _ep=getData('wkt-profile',{});
   if(_ep.onboarded){_obData.gender=_ep.gender||null;_obData.age=_ep.age?String(_ep.age):'';_obData.height=_ep.height?String(_ep.height):'';_obData.weight=_ep.weight?String(_ep.weight):'';_obData.neck=_ep.neck?String(_ep.neck):'';_obData.waist=_ep.waist?String(_ep.waist):'';_obData.hips=_ep.hips?String(_ep.hips):'';_obData.theme=getData('wkt-theme',3);}
   overlay.classList.remove('hidden');_obStep=0;obRender();
@@ -3907,9 +3963,10 @@ function obRender(){
   var total=6;
   var dots='';for(var i=0;i<total;i++){dots+='<div class="ob-dot '+(i<_obStep?'done':i===_obStep?'active':'')+'"></div>';}
   dotsEl.innerHTML=dots;
-  backBtn.style.display=_obStep===0?'none':'';
+  backBtn.style.display=_obStep===0||_obTourOnly?'none':'';
   skipBtn.style.display=_obStep===total-1?'none':'';
-  nextBtn.textContent=_obStep===0?'Get Started':_obStep===total-1?"Let's Train!":'Continue';
+  dotsEl.style.visibility=_obTourOnly?'hidden':'';
+  nextBtn.textContent=_obTourOnly?'Done':_obStep===0?'Get Started':_obStep===total-1?"Let's Train!":'Continue';
   var html='';
   if(_obStep===0)html=_obHtml0();
   else if(_obStep===1)html=_obHtml1();
@@ -3918,6 +3975,7 @@ function obRender(){
   else if(_obStep===4)html=_obHtml4();
   else html=_obHtml5();
   body.innerHTML=html;
+  if(_obStep===5)_tourShow(0);else _tourStop();
 }
 function _obHtml0(){
   return '<div style="text-align:center;padding:40px 0 28px">'
@@ -3925,7 +3983,7 @@ function _obHtml0(){
     +'<div style="font-family:var(--font-display);font-size:54px;letter-spacing:3px;color:var(--accent);line-height:1">'+ownerTitleHtml(_ownerName,'TRAINING')+'</div>'
     +'<div style="margin:18px auto 0;width:40px;height:2px;background:var(--accent);border-radius:1px;opacity:0.5"></div></div>'
     +'<p style="font-size:15px;color:var(--text);line-height:1.7;margin-bottom:14px">Let\'s take 60 seconds to personalise the app for you.</p>'
-    +'<p style="font-size:13px;color:var(--muted);line-height:1.6">We\'ll pick a colour theme, collect your basic stats for body composition tracking, and give you a quick tour of the app.</p>';
+    +'<p style="font-size:13px;color:var(--muted);line-height:1.6">We\'ll pick a colour theme, collect your basic stats for body composition tracking, and show you the app in a short animated tour.</p>';
 }
 function _obHtml1(){
   var html='<div style="margin-bottom:20px">'
@@ -3986,25 +4044,120 @@ function _obHtml4(){
     +'<div id="ob-bf-result">'+bfHtml+'</div>'
     +'<div style="font-size:12px;color:var(--muted);margin-top:12px;line-height:1.5">All fields optional — skip if you don\'t have a tape.</div>';
 }
+// ── Onboarding tour ── Henrik, 2026-10-24: "the onboarding never shows how to create a program or how
+// to log a workout or how to check the stick figures. I want a animated movie running as onboarding
+// showing the main features incl macro tracking." The wizard's last step is an auto-playing tour: one
+// scene per feature, each a mock of the phone screen animated with CSS (simulated taps, typing, bars
+// filling) under a one-line caption. No video file: index.html carries it, so it plays offline in the
+// PWA. The sketch scene draws a real catalogue sketch through skPanels, so it shows what the ? really
+// shows. Tap the stage to pause and resume; the last scene is the tab overview and stays.
+// _obHtml5 renders every scene; CSS shows the one marked .on. A new feature worth a WHATS_NEW row
+// usually gets a scene here, or a line in the scene it belongs to.
+var TOUR_SCENES=[
+  {id:'program',ms:8000,title:'Build a program',cap:'Plan → New program. Pick a goal, your days and where you train; the wizard writes the whole program for you.'},
+  {id:'log',ms:8000,title:'Log your workout',cap:'Today → Log Workout. Type the reps of each set. A finished exercise turns green and Save Workout keeps it.'},
+  {id:'sketch',ms:8000,title:'See how to do it',cap:'Tap the blue ? on any exercise for a stick-figure sketch, start to finish, with the cue that matters.'},
+  {id:'macros',ms:8500,title:'Track your macros',cap:'Macros → type what you ate, or take a photo. The AI estimates calories and macros and saves them against your targets.'},
+  {id:'tabs',ms:0,title:'Where everything lives',cap:''}
+];
+// One entry per button in the tab bar (Storage is hidden). A test reads the tab bar and fails when a
+// tab is missing here, so this list cannot go stale again.
+var TOUR_TABS=[
+  {icon:'▤',name:'TODAY',desc:'Your next session: tap a day card to see its exercises, rep schemes and last weights. Tap the blue ? on any exercise for a stick-figure sketch of how to do it.'},
+  {icon:'📋',name:'PLAN',desc:'Your program library and templates. Build a program with the wizard — gym or home, with the equipment you have.'},
+  {icon:'💪',name:'LOG WORKOUT',desc:'After training, log your sets, weights, and reps. State is preserved while you train — even if you switch apps.'},
+  {icon:'🍽️',name:'MACROS',desc:'Type what you ate, or take a photo of the food or its label, and the AI estimates the calories and macros and saves them against your daily targets.'},
+  {icon:'✏️',name:'FOOD EDIT',desc:'Fix or delete a food entry, or change how much of it you ate.'},
+  {icon:'📅',name:'HISTORY',desc:'Review all past sessions with full exercise and set details.'},
+  {icon:'📈',name:'PROGRESS',desc:'Track bodyweight trends, weekly volume per muscle group, and estimated 1RM strength over time.'},
+  {icon:'⚙️',name:'SETTINGS',desc:'Manage programs, tab visibility, appearance, profile, and sync.'}
+];
+// The movie follows the answers given earlier in the wizard (Henrik, 2026-10-24: "ask the onboarding
+// questions first so a male user gets a Hypertrophy in the gym movie and a female a female aesthetics
+// at home movie"). Gender is asked on step 2; the tour is step 5. Day and exercise names are what
+// _generateWorkoutProgram really writes for that goal (4 days, 12 sets/muscle), so the movie shows the
+// program the user is about to get. Every exercise named here has a sketch; a test asserts it.
+function _tourProfile(){var f=(_obData&&_obData.gender)==='female';
+  return f?{goal:'Feminine Aesthetic',where:'Home',equip:'Bodyweight — nothing to buy',prog:'4-Day Feminine Aesthetic',
+      days:[['Day 1 — Quad & Glute','Bodyweight Squat · Bulgarian Split Squat · Push-ups'],['Day 2 — Posterior & Upper','Single-leg RDL · Lunges · Inverted Row'],['Day 3 — Hamstring & Glute','Bulgarian Split Squat · Pike Push-ups · Inverted Row']],
+      logEx:'Bodyweight Squat',logScheme:'3×max — stop 1–2 reps short of failure',logLoad:'BW',logUnit:'',reps:['15','14','12'],last:'Last (8 Oct): BW × 14, 13, 12',
+      sketchEx:'Bulgarian Split Squat',sketchScheme:'2×10 · Volume'}
+    :{goal:'Hypertrophy',where:'Gym',equip:null,prog:'4-Day Hypertrophy',
+      days:[['Day 1 — Full Body A','Squat · Bench Press · Barbell Row'],['Day 2 — Full Body B','Deadlift · Overhead Press · Pull-ups'],['Day 3 — Full Body C','Leg Press · Incline Bench · Cable Row']],
+      logEx:'Squat',logScheme:'4×8 · Last (8 Oct): 100 kg × 8, 8, 8',logLoad:'100',logUnit:'kg',reps:['8','8','7'],last:'',
+      sketchEx:'Squat',sketchScheme:'4×8 · Volume'};}
+// style="" for an element that fades in at `a` seconds and, if `b` is given, out again at `b`.
+function _tA(a,b){return 'opacity:0;animation:tourIn .4s ease '+a+'s both'+(b!=null?',tourOut .4s ease '+b+'s forwards':'');}
+function _tTap(x,y,at){return '<span class="tour-tap" style="left:'+x+'%;top:'+y+'%;animation:tourTap .9s ease '+at+'s forwards"></span>';}
+function _tourSceneHtml(id){var pf=_tourProfile();
+  if(id==='program'){var dd='';pf.days.forEach(function(d){dd+='<div class="tour-day"><b>'+_escP(d[0])+'</b><span>'+_escP(d[1])+'</span></div>';});
+    return '<div class="tour-top">PLAN</div>'
+    +'<div class="tour-card" style="'+_tA(0.2,4.2)+'"><div class="tour-h">Program wizard</div>'
+    +'<div class="tour-row">Goal<b>'+_escP(pf.goal)+'</b></div><div class="tour-row">Days per week<b>4</b></div>'
+    +'<div class="tour-row">Where do you train?<b style="'+_tA(1.3)+'">'+_escP(pf.where)+'</b></div>'
+    +(pf.equip?'<div class="tour-row">Equipment<b style="'+_tA(1.8)+'">'+_escP(pf.equip)+'</b></div>':'')
+    +'<div class="tour-btn" style="'+_tA(2.2)+'">Generate Program →</div></div>'+_tTap(50,pf.equip?58:52,3.3)
+    +'<div class="tour-card tour-swap" style="'+_tA(4.8)+'"><div class="tour-h" style="color:var(--accent)">'+_escP(pf.prog)+'</div>'+dd
+    +'<div class="tour-btn" style="'+_tA(5.8)+'">Set active</div></div>'+_tTap(50,74,6.6);}
+  if(id==='log'){var rows='';pf.reps.forEach(function(r,i){var at=1.2+i*1.1;
+      rows+='<div class="tour-set"><span>Set '+(i+1)+'</span><span class="tour-box" style="color:var(--text)">'+_escP(pf.logLoad)+'</span><span style="font-size:10px;width:14px">'+pf.logUnit+'</span>'
+        +'<span class="tour-box"><span style="animation:tourShow .1s linear '+(at+0.5)+'s forwards">'+r+'</span></span><span style="font-size:10px">reps</span></div>';});
+    return '<div class="tour-top">LOG WORKOUT</div>'
+      +'<div class="tour-card" style="animation:tourIn .4s ease .2s both,tourGreen .5s ease 4.6s forwards;opacity:0"><div style="display:flex;justify-content:space-between;align-items:center"><div class="tour-h" style="margin:0">'+_escP(pf.logEx)+'</div><span class="tour-q">?</span></div>'
+      +'<div style="font-size:11px;color:var(--muted);margin:2px 0 6px">'+_escP(pf.logScheme)+(pf.last?'<br>'+_escP(pf.last):'')+'</div>'+rows+'</div>'
+      +_tTap(58,38,1.3)+_tTap(58,49,2.4)+_tTap(58,60,3.5)
+      +'<div class="tour-btn" style="position:absolute;left:12px;right:12px;bottom:26px;'+_tA(5.2)+'">SAVE WORKOUT · 1 of 5 done</div>'+_tTap(50,88,6.4);}
+  if(id==='sketch'){var sp=typeof _exSketchSpec==='function'?_exSketchSpec(pf.sketchEx):null;var P=sp?skPanels(sp,110,124).side:['',''];
+    return '<div class="tour-top">TODAY</div>'
+      +'<div class="tour-card" style="'+_tA(0.2,2.0)+'"><div style="display:flex;justify-content:space-between;align-items:center"><div><div class="tour-h" style="margin:0">'+_escP(pf.sketchEx)+'</div><div style="font-size:11px;color:var(--muted)">'+_escP(pf.sketchScheme)+'</div></div><span class="tour-q">?</span></div></div>'
+      +_tTap(88,24,1.2)
+      +'<div class="tour-swap" style="'+_tA(2.6)+'"><div class="tour-h" style="font-family:var(--font-display);letter-spacing:2px;font-size:15px">'+_escP(pf.sketchEx.toUpperCase())+'</div>'
+      +'<div style="font-size:11.5px;color:var(--text);line-height:1.45;margin-bottom:6px">'+_escP(sp?sp.cue:'')+'</div>'
+      +'<div class="tour-sk"><div class="tour-skf"><div style="animation:tourDim .5s ease 5.2s forwards">'+P[0]+'</div><div style="position:absolute;inset:0;opacity:0;animation:tourShow .5s ease 5.2s forwards">'+P[1]+'</div></div>'
+      +'<span style="color:var(--accent);font-size:16px">→</span><div class="tour-lbl"><span style="animation:tourDim .5s ease 5.2s forwards">Start</span><span style="opacity:0;animation:tourShow .5s ease 5.2s forwards">Finish</span></div></div></div>';}
+  if(id==='macros')return '<div class="tour-top">MACROS</div>'
+    +'<div class="tour-card" style="'+_tA(0.2)+'"><div style="font-size:11px;color:var(--muted);margin-bottom:4px">What did you eat?</div>'
+    +'<div style="border:1px solid var(--border);border-radius:7px;padding:6px 8px;background:var(--surface2);min-height:28px"><span style="display:inline-block;overflow:hidden;white-space:nowrap;vertical-align:bottom;width:0;animation:tourType 1.8s steps(28,end) .6s forwards">202 g steak, 307 g boiled potato</span></div>'
+    +'<div style="display:flex;gap:6px;margin-top:6px"><div class="tour-btn" style="flex:1;margin:0">Log</div><div class="tour-btn" style="flex:1;margin:0;background:var(--surface2);color:var(--text);border:1px solid var(--border)">📷 Photo</div></div></div>'
+    +_tTap(30,46,2.9)
+    +'<div class="tour-card" style="'+_tA(3.7)+'"><div class="tour-row"><span>12:15 · Steak 202 g, potato 307 g</span><b>612 kcal</b></div>'
+    +'<div class="tour-row" style="font-size:11px"><span>P 58 g · C 54 g · F 24 g</span><span style="color:#22c55e">saved</span></div></div>'
+    +'<div class="tour-card" style="'+_tA(4.6)+'"><div class="tour-row"><span>Calories</span><b>612 of 2400</b></div><div class="tour-bar"><i style="--w:26%;animation:tourFill 1.2s ease 5s forwards"></i></div>'
+    +'<div class="tour-row"><span>Protein</span><b>58 of 180 g</b></div><div class="tour-bar" style="margin-bottom:2px"><i style="--w:32%;animation:tourFill 1.2s ease 5.2s forwards"></i></div></div>';
+  if(id==='tabs'){var g='';TOUR_TABS.forEach(function(t,i){g+='<div class="tour-tile" style="'+_tA(0.15*i)+'"><span>'+t.icon+'</span><b>'+t.name+'</b></div>';});
+    return '<div class="tour-top">'+TOUR_TABS.length+' SECTIONS</div><div class="tour-grid">'+g+'</div>';}
+  return '';}
 function _obHtml5(){
-  var tabs=[
-    {icon:'📋',name:'PROGRAM',desc:'Browse your training split. Tap any day card to see all exercises and rep schemes.'},
-    {icon:'💪',name:'LOG WORKOUT',desc:'After training, log your sets, weights, and reps. State is preserved while you train — even if you switch apps.'},
-    {icon:'📅',name:'HISTORY',desc:'Review all past sessions with full exercise and set details.'},
-    {icon:'📈',name:'PROGRESS',desc:'Track bodyweight trends, weekly volume per muscle group, and estimated 1RM strength over time.'},
-    {icon:'⚙️',name:'SETTINGS',desc:'Manage programs, tab visibility, appearance, profile, and sync.'}
-  ];
-  var html='<div style="margin-bottom:20px">'
-    +'<div style="font-family:var(--font-display);font-size:30px;letter-spacing:1px;color:var(--text)">App Overview</div>'
-    +'<div style="font-size:13px;color:var(--muted);margin-top:4px">5 sections — here\'s what each does.</div></div>';
-  tabs.forEach(function(t){
-    html+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px;">'
-      +'<div style="font-size:20px;margin-bottom:5px">'+t.icon+'</div>'
-      +'<div style="font-family:var(--font-display);font-size:17px;letter-spacing:1px;color:var(--accent);margin-bottom:3px">'+t.name+'</div>'
-      +'<div style="font-size:13px;color:var(--muted);line-height:1.5">'+t.desc+'</div></div>';
+  var html='<div class="tour-stage" id="tour-stage" onclick="_tourToggle()">';
+  TOUR_SCENES.forEach(function(sc,i){html+='<div class="tour-scene'+(i===0?' on':'')+'" id="tour-s'+i+'" data-tour-scene="'+sc.id+'">'+_tourSceneHtml(sc.id)+'</div>';});
+  html+='<div class="tour-dots">';TOUR_SCENES.forEach(function(sc,i){html+='<div class="ob-dot'+(i===0?' active':'')+'" id="tour-d'+i+'" onclick="event.stopPropagation();_tourShow('+i+')"></div>';});
+  html+='</div></div>'
+    +'<div class="tour-cap"><div class="t" id="tour-title">'+TOUR_SCENES[0].title+'</div><div class="c" id="tour-cap">'+TOUR_SCENES[0].cap+'</div><div class="hint">Tap the screen to pause · tap a dot to jump</div></div>';
+  html+='<div id="tour-tablist"><div style="font-size:13px;color:var(--muted);margin-bottom:10px">'+TOUR_TABS.length+' sections — here\'s what each does.</div>';
+  TOUR_TABS.forEach(function(t){
+    html+='<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px;">'
+      +'<div style="display:flex;align-items:center;gap:8px"><span style="font-size:16px">'+t.icon+'</span><span style="font-family:var(--font-display);font-size:15px;letter-spacing:1px;color:var(--accent)">'+t.name+'</span></div>'
+      +'<div style="font-size:12.5px;color:var(--muted);line-height:1.5;margin-top:3px">'+t.desc+'</div></div>';
   });
-  return html;
+  return html+'</div>';
 }
+// Scheduler: one timer, cleared on every scene change and whenever the wizard leaves step 5.
+var _tour={i:0,t:null,due:0,left:0,paused:false};
+function _tourClear(){if(_tour.t){clearTimeout(_tour.t);_tour.t=null;}}
+function _tourStop(){_tourClear();_tour.paused=false;}
+function _tourShow(i){_tourClear();if(i<0||i>=TOUR_SCENES.length)return;_tour.i=i;_tour.paused=false;
+  var st=document.getElementById('tour-stage');if(st)st.classList.remove('paused');
+  TOUR_SCENES.forEach(function(sc,k){var el=document.getElementById('tour-s'+k);if(el){if(k===i)el.classList.add('on');else el.classList.remove('on');}
+    var d=document.getElementById('tour-d'+k);if(d){if(k===i)d.classList.add('active');else d.classList.remove('active');}});
+  var sc=TOUR_SCENES[i],last=i===TOUR_SCENES.length-1;
+  var ti=document.getElementById('tour-title');if(ti)ti.textContent=sc.title;
+  var cp=document.getElementById('tour-cap');if(cp)cp.textContent=last?TOUR_TABS.length+' sections — here\'s what each does.':sc.cap;
+  var tl=document.getElementById('tour-tablist');if(tl){if(last)tl.classList.add('on');else tl.classList.remove('on');}
+  if(sc.ms>0){_tour.due=Date.now()+sc.ms;_tour.t=setTimeout(_tourNext,sc.ms);}}
+function _tourNext(){_tour.t=null;if(_tour.i<TOUR_SCENES.length-1)_tourShow(_tour.i+1);}
+function _tourToggle(){var st=document.getElementById('tour-stage');if(!st||TOUR_SCENES[_tour.i].ms===0)return;
+  if(_tour.paused){_tour.paused=false;st.classList.remove('paused');_tour.due=Date.now()+_tour.left;_tour.t=setTimeout(_tourNext,_tour.left);}
+  else{_tour.paused=true;st.classList.add('paused');_tour.left=Math.max(400,_tour.due-Date.now());_tourClear();}}
 function obSelectTheme(id){_obData.theme=id;applyTheme(id);obRender();}
 function obGender(g){
   _obData.gender=g;
@@ -4033,25 +4186,66 @@ function obUpdateBF(){
   var bf=calcNavyBF();
   el.innerHTML=bf?'<div class="ob-result-card"><div><div style="font-size:12px;color:var(--muted)">Estimated Body Fat</div><div style="font-size:11px;color:var(--muted);margin-top:2px">US Navy Method</div></div><div style="font-family:var(--font-display);font-size:32px;color:var(--accent)">'+bf+'%</div></div>':'';
 }
-function obNext(){if(_obStep===5){obFinish();return;}_obStep++;obRender();}
+function obNext(){if(_obTourOnly){_obCloseTour();return;}if(_obStep===5){obFinish();return;}_obStep++;obRender();}
 function obBack(){if(_obStep===0)return;_obStep--;obRender();}
-function obSkip(){obFinish();}
+function obSkip(){if(_obTourOnly){_obCloseTour();return;}obFinish();}
+// ── What's new ── Henrik, 2026-10-24: the Setup Wizard shows once, so an existing user
+// never heard about Macros or the ? sketches. One card on Today lists the features
+// newer than the version this account last dismissed ('wkt-whatsnew-seen', synced through
+// /user-settings like every other setting). Newest first; "Got it" marks the current
+// VERSION as seen. A brand-new account has the seen version set by obFinish, since the
+// wizard's App Overview has just shown it everything. No seen version on an already
+// onboarded account means the card never existed for it yet: it gets the whole list.
+// Add a row here when a feature ships that a user would not find on their own.
+var WHATS_NEW=[
+  {v:'1.307',title:'Animated tour',text:'The Setup Wizard ends with a short animated tour: building a program, logging a workout, the ? sketches and tracking macros. Watch it again from the button at the top of Settings.'},
+  {v:'1.287',title:'Today and Plan',text:'The Program tab is now Today (your next session) and Plan (your program library and templates).'},
+  {v:'1.283',title:'Macros: AI food logging',text:'Type what you ate, or take a photo of the food or its label, and the calories and macros are estimated and saved. Daily targets are suggested from your goal and weight; Food Edit fixes an entry.'},
+  {v:'1.274',title:'Home gym',text:'Tick the equipment you have at home and the program wizard builds for it. Change it later from the program view.'},
+  {v:'1.269',title:'Log Workout redesign',text:'One row per set, the last session\'s weights and reps under each exercise, and a Save bar that counts finished exercises.'},
+  {v:'1.266',title:'Exercise sketches',text:'Every exercise has a stick-figure sketch of how to perform it: tap the blue ? on a Log Workout card, a Today exercise or in the program editor.'}
+];
+function _verNum(v){var p=String(v||'0').split('.');return (parseInt(p[0])||0)*100000+(parseInt(p[1])||0);}
+function _whatsNewEntries(){
+  var seen=getData('wkt-whatsnew-seen',null);
+  if(seen===null){var _p=getData('wkt-profile',null);if(!_p||!_p.onboarded)return [];seen='0';}
+  var cur=_verNum(VERSION);
+  return WHATS_NEW.filter(function(e){var n=_verNum(e.v);return n>_verNum(seen)&&n<=cur;});
+}
+function _whatsNewHtml(entries){
+  if(!entries||!entries.length)return '';
+  var h='<div style="background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:14px 16px;margin-bottom:16px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="font-family:var(--font-display);font-size:17px;letter-spacing:1px;color:var(--accent)">WHAT\'S NEW</div>'
+    +'<button onclick="dismissWhatsNew()" style="background:var(--accent);color:#000;border:none;border-radius:20px;padding:4px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font-ui)">Got it</button></div>';
+  entries.forEach(function(e){h+='<div style="margin-bottom:8px"><div style="font-size:13px;font-weight:700;color:var(--text)">'+_escP(e.title)+'</div><div style="font-size:12px;color:var(--muted);line-height:1.5">'+_escP(e.text)+'</div></div>';});
+  return h+'</div>';
+}
+function buildWhatsNewCard(){var el=document.getElementById('whats-new');if(!el)return;el.innerHTML=_whatsNewHtml(_whatsNewEntries());}
+function dismissWhatsNew(){setData('wkt-whatsnew-seen',VERSION);pushSettingsToAgent({'wkt-whatsnew-seen':VERSION});buildWhatsNewCard();}
 function obFinish(){
+  _tourStop();
   var bf=calcNavyBF();
   var profile={gender:_obData.gender,age:_obData.age?parseInt(_obData.age):null,height:_obData.height?parseDec(_obData.height):null,weight:_obData.weight?unitToKg(_obData.weight):null,neck:_obData.neck?parseDec(_obData.neck):null,waist:_obData.waist?parseDec(_obData.waist):null,hips:_obData.hips?parseDec(_obData.hips):null,bf:bf,onboarded:true};
+  // Was this account onboarded before this finish? A re-run from Settings is not a new account.
+  var _wasOnboarded=!!(getData('wkt-profile',null)||{}).onboarded;
   setData('wkt-profile',profile);
   var _pf={};if(profile.gender)_pf['user_sex']=profile.gender;if(profile.age)_pf['user_age']=String(profile.age);if(profile.height)_pf['user_height']=String(profile.height);if(profile.weight)_pf['user_weight']=String(profile.weight);
   // The whole profile, not just the four shared user_* fields. neck/waist/hips
   // (the Navy BF inputs) and the onboarded flag lived only in localStorage, so a
   // cache wipe lost the measurements and replayed onboarding as if new.
+  // A NEW account has just been shown every feature by the App Overview, so nothing is new.
+  // An existing account re-running the wizard keeps its card: on 2026-10-24 a re-run marked
+  // the card seen before Henrik had read it, and nothing could bring it back.
+  if(!_wasOnboarded&&getData('wkt-whatsnew-seen',null)===null){setData('wkt-whatsnew-seen',VERSION);_pf['wkt-whatsnew-seen']=VERSION;}
   _pf['wkt-profile']=profile;
   pushSettingsToAgent(_pf);
+  buildWhatsNewCard();
   if(profile.weight&&profile.weight>0){var today=new Date().toISOString().split('T')[0];if(!weights.find(function(w){return w.date===today;})){weights.push({date:today,weight:profile.weight});weights.sort(function(a,b){return a.date.localeCompare(b.date);});setData('weight_log',weights);updateCurrentWeight();pushWeightToAgent(today,profile.weight);}}
   document.getElementById('onboarding-overlay').classList.add('hidden');
   buildAppearanceCard();buildCacheCard();buildStageCopyCard();buildProfileCard();
 }
 document.getElementById('log-date').value=new Date().toISOString().split('T')[0];document.getElementById('log-date').addEventListener('input',scheduleDraft);document.addEventListener('visibilitychange',function(){if(document.hidden)saveDraft();});
-applyOwnerName(_cachedOwnerName());updateCurrentWeight();_refreshUnitUI();initPrograms();(function(){var _ds=document.getElementById('log-day');if(_ds)_ds.value=_selectedProgramDay;prefillLog(_selectedProgramDay);})();document.getElementById('login-version').textContent='v'+VERSION;document.getElementById('header-version').textContent='v'+VERSION;(function(){if(!localStorage.getItem('bw_kg_migration_v1')){var bwNames=new Set();Object.values(DAY_TEMPLATES).forEach(function(day){day.forEach(function(ex){if(ex.kg===0)bwNames.add(ex.name);});});var migrated=0;logs.forEach(function(log){if(!log.exercises||!log.exercises.length)return;var relW=weights.filter(function(w){return w.date<=log.date;});if(!relW.length)return;var bw=relW[relW.length-1].weight;var changed=false;log.exercises.forEach(function(ex){if(!bwNames.has(ex.name))return;(ex.sets||[]).forEach(function(s){if(s.reps>0&&s.kg===0){s.kg=bw;changed=true;}});});if(changed){migrated++;pushWorkoutLogToAgent(log);}});if(migrated>0)setData('workout_logs',logs);localStorage.setItem('bw_kg_migration_v1','1');}})();syncWeightsFromAgent();syncWorkoutLogsFromAgent();syncProgramsFromAgent();syncSettingsFromAgent();syncBodyCompFromAgent();syncWorkoutDraftFromAgent();(function(){if(!IS_STAGING||localStorage.getItem('wk-bf-isol-v1'))return;localStorage.setItem('wk-bf-isol-v1','1');var _raw=null;try{_raw=typeof _r!=='undefined'&&_r&&_r.getItem?_r.getItem('bf_log'):null;}catch(e){}if(!_raw)return;var _old=[];try{_old=JSON.parse(_raw)||[];}catch(e){}if(!_old.length)return;_old.forEach(function(e){if(e&&e.date&&typeof e.bf==='number'&&e.bf>0)pushBodyCompToAgent(e.date,e.bf);});setTimeout(syncBodyCompFromAgent,2000);})();(function(){if(!localStorage.getItem('wk-gear-migration-v1')){fetch(AGENT_URL+'/workout-logs/migrate-gear',{method:'POST',headers:authHeaders()}).then(function(r){if(r.ok){localStorage.setItem('wk-gear-migration-v1','1');syncWorkoutLogsFromAgent();}}).catch(function(){});}})();checkAgentStatus();checkSyncStatus();initTabVis();buildAppearanceCard();buildCacheCard();buildStageCopyCard();buildProfileCard();obInit();(function(){const _lp=localStorage.getItem('wkt-last-page');if(_lp&&_pageVis[_lp]!==false&&document.getElementById('page-'+_lp)&&typeof primaryOf==='function'&&primaryOf(_lp))showPage(_lp);})();_initSwipeNav();
+applyOwnerName(_cachedOwnerName());updateCurrentWeight();_refreshUnitUI();initPrograms();buildWhatsNewCard();(function(){var _ds=document.getElementById('log-day');if(_ds)_ds.value=_selectedProgramDay;prefillLog(_selectedProgramDay);})();document.getElementById('login-version').textContent='v'+VERSION;document.getElementById('header-version').textContent='v'+VERSION;(function(){if(!localStorage.getItem('bw_kg_migration_v1')){var bwNames=new Set();Object.values(DAY_TEMPLATES).forEach(function(day){day.forEach(function(ex){if(ex.kg===0)bwNames.add(ex.name);});});var migrated=0;logs.forEach(function(log){if(!log.exercises||!log.exercises.length)return;var relW=weights.filter(function(w){return w.date<=log.date;});if(!relW.length)return;var bw=relW[relW.length-1].weight;var changed=false;log.exercises.forEach(function(ex){if(!bwNames.has(ex.name))return;(ex.sets||[]).forEach(function(s){if(s.reps>0&&s.kg===0){s.kg=bw;changed=true;}});});if(changed){migrated++;pushWorkoutLogToAgent(log);}});if(migrated>0)setData('workout_logs',logs);localStorage.setItem('bw_kg_migration_v1','1');}})();syncWeightsFromAgent();syncWorkoutLogsFromAgent();syncProgramsFromAgent();syncSettingsFromAgent();syncBodyCompFromAgent();syncWorkoutDraftFromAgent();(function(){if(!IS_STAGING||localStorage.getItem('wk-bf-isol-v1'))return;localStorage.setItem('wk-bf-isol-v1','1');var _raw=null;try{_raw=typeof _r!=='undefined'&&_r&&_r.getItem?_r.getItem('bf_log'):null;}catch(e){}if(!_raw)return;var _old=[];try{_old=JSON.parse(_raw)||[];}catch(e){}if(!_old.length)return;_old.forEach(function(e){if(e&&e.date&&typeof e.bf==='number'&&e.bf>0)pushBodyCompToAgent(e.date,e.bf);});setTimeout(syncBodyCompFromAgent,2000);})();(function(){if(!localStorage.getItem('wk-gear-migration-v1')){fetch(AGENT_URL+'/workout-logs/migrate-gear',{method:'POST',headers:authHeaders()}).then(function(r){if(r.ok){localStorage.setItem('wk-gear-migration-v1','1');syncWorkoutLogsFromAgent();}}).catch(function(){});}})();checkAgentStatus();checkSyncStatus();initTabVis();buildAppearanceCard();buildCacheCard();buildStageCopyCard();buildProfileCard();obInit();(function(){const _lp=localStorage.getItem('wkt-last-page');if(_lp&&_pageVis[_lp]!==false&&document.getElementById('page-'+_lp)&&typeof primaryOf==='function'&&primaryOf(_lp))showPage(_lp);})();_initSwipeNav();
 async function pushAllToBackend(){const btn=document.getElementById('sync-btn');btn.textContent='Syncing...';btn.disabled=true;try{const remote=await(await fetch(AGENT_URL+'/weights',{headers:authHeaders()})).json();const remoteDates=new Set(remote.map(w=>w.date));const local=getData('weight_log',[]);const toSync=local.filter(w=>!remoteDates.has(w.date));for(const w of toSync){await fetch(AGENT_URL+'/weights',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify(w)});}btn.textContent='✓ Synced '+toSync.length+' entries';setTimeout(()=>{btn.closest('.sync-banner').remove();},3000);}catch(e){btn.textContent='Failed';btn.disabled=false;}}
 if(!localStorage.getItem('sync_done_fly')&&getData('weight_log',[]).length){const b=document.createElement('div');b.className='sync-banner';b.style.cssText='position:fixed;bottom:calc(64px + env(safe-area-inset-bottom,0px));left:0;right:0;background:#1c1c1c;border-top:1px solid #e8ff3c;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;z-index:500;font-size:13px;';b.innerHTML='<span style="color:#f0f0f0">Sync local data to new backend?</span><button id="sync-btn" onclick="pushAllToBackend();localStorage.setItem(\u0027sync_done_fly\u0027,\u00271\u0027)" style="background:#e8ff3c;color:#000;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font-ui)">Sync Now</button>';document.body.appendChild(b);}
 if(!localStorage.getItem('workout_logs_synced_fly')&&getData('workout_logs',[]).length){const b2=document.createElement('div');b2.className='sync-banner';b2.style.cssText='position:fixed;bottom:calc(64px + env(safe-area-inset-bottom,0px));left:0;right:0;background:#1c1c1c;border-top:1px solid #e8ff3c;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;z-index:500;font-size:13px;';b2.innerHTML='<span style="color:#f0f0f0">Backup workout logs to backend?</span><button id="wl-sync-btn" onclick="pushAllWorkoutLogsToBackend()" style="background:#e8ff3c;color:#000;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font-ui)">Backup Now</button>';document.body.appendChild(b2);}
