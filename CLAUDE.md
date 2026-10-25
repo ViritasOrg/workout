@@ -1,5 +1,13 @@
 # Workout App — Claude Instructions
 
+## Verify before you speak (Henrik's standing rule)
+
+- Before telling Henrik a cause, a fix, or a step to take, check the facts yourself first: read the config, logs, code, settings or live state. Never present a guess as the answer.
+- Never send him to repeat something he may already have done; check whether it is already done first.
+- If something can't be verified, say exactly what is unverified, instead of giving an instruction built on an assumption.
+- If you notice you'd have to write "let me find the actual cause instead of guessing", you already broke this rule: the checking belongs before the first answer, not after he pushes back.
+
+
 ## Answer first (Henrik, 2026-10-10)
 
 - **Answer first, then say what you will do before doing it** ("You're right. I'll answer first and say what I'm doing before I start."). A question gets its answer in the first lines, before any tool call. Before starting any work (a workflow, a PR, a deploy, waiting on CI), say in one line what you are about to do and why; never disappear into tool calls on a simple question.
