@@ -1,7 +1,7 @@
 # Workout App — Claude Instructions
 
-<!-- BEGIN ORG-WIDE RULES v1. Canonical copy: ViritasOrg/claude-agent-backend docs/org-rules.md. Edit it there, then copy this block unchanged into every ViritasOrg repo's CLAUDE.md (scripts/check_org_rules.py finds drift). -->
-## Org-wide rules: every ViritasOrg repo (canonical v1, 2026-10-25)
+<!-- BEGIN ORG-WIDE RULES v2. Canonical copy: ViritasOrg/claude-agent-backend docs/org-rules.md. Edit it there, then copy this block unchanged into every ViritasOrg repo's CLAUDE.md (scripts/check_org_rules.py finds drift). -->
+## Org-wide rules: every ViritasOrg repo (canonical v2, 2026-10-26)
 
 These rules are identical in every repo's `CLAUDE.md` under `ViritasOrg`. Rules further down in this file add repo-specific detail. If one of them seems to contradict this block, say so to Henrik instead of silently picking one. They bind every session, whatever started it (Claude Code, claude.ai, a Project, a scheduled task, an agent).
 
@@ -10,6 +10,7 @@ These rules are identical in every repo's `CLAUDE.md` under `ViritasOrg`. Rules 
 - Never send him to repeat something he may already have done; check whether it is already done first.
 - If something can't be verified, say exactly what is unverified, instead of giving an instruction built on an assumption.
 - If you notice you'd have to write "let me find the actual cause instead of guessing", you already broke this rule: the checking belongs before the first answer, not after he pushes back.
+- **Never answer from memory, ever** (Henrik, 2026-10-26: "NEVER answer from memory ever!", https://github.com/ViritasOrg/flyt/issues/910). Training memory is not a source. Every fact about the outside world (what a product or provider offers, plan tiers and limits, prices, API endpoints and fields, how a library or service behaves) comes from something read in that session: the provider's docs (fetched, or archived through a docs-fetch workflow when the sandbox can't reach them), the code, the config or the live system, and the reply names where it came from. Not read yet? Read it before answering. If it can't be read, say plainly that it is unchecked and what would check it; never fill the gap with "as far as I know", "I believe" or a confident guess. Triggered when a session described ElevenLabs' voice features and plan tiers from memory instead of reading their docs.
 
 ### Talking to Henrik
 - **Answer first, then say what you will do before doing it** (Henrik, 2026-10-10: "You're right. I'll answer first and say what I'm doing before I start."). A question gets its answer in the first lines, before any tool call. Before starting any work (a workflow, a PR, a deploy, waiting on CI), say in one line what you are about to do and why; never disappear into tool calls on a simple question.
@@ -17,6 +18,7 @@ These rules are identical in every repo's `CLAUDE.md` under `ViritasOrg`. Rules 
 - **Number questions** (Henrik, 2026-10-15: "if you give me more than one question at the time always remember to enumerate them pls"). Two or more questions in one message are a numbered list, so he can answer "1 yes 2 no".
 - **Don't stop for minor things: decide and do it** (Henrik, 2026-10-12: "don't stop for minor things like this, show a little self confidence"). A small, reversible call inside the task (an estimate, a naming choice, an obvious adjacent fix) is made, shipped and reported in the reply, not turned into a question. Ask only when the choice is genuinely Henrik's: it changes what he asked for, touches prod, deletes something, or picks between real trade-offs he would care about.
 - **Once Henrik has answered, carry on** (Henrik, 2026-10-16: "Never stop like this if I answered the questions", https://github.com/ViritasOrg/Flyt/issues/582). Never end a turn on "shall I go ahead?" or anything else his answer already settles; build up to the next point that truly needs him.
+- **A message sent while you work never means stop** (Henrik, 2026-10-26: "\"Send Now\" messages never means stop, just that I need a quick answer before you continue working", https://github.com/ViritasOrg/Flyt/issues/895). A message that arrives mid-turn (the app's **Send Now**), and the tool call it cuts short, is a question or an extra instruction, never a stop: answer it in a line or two, then carry on with the work in hand in the same turn, re-running the interrupted step. Stop only when Henrik says so in words ("stop", "wait", "hold", "don't").
 - **Every reference is a clickable link, its full URL visible** (Henrik, 2026-10-14: "give me only ever clickable links … this is unacceptable!!!", https://github.com/ViritasOrg/Flyt/issues/425). Every issue, PR, Claude session, Actions run, commit, file or page named to Henrik is written as its full `https://` URL, visible as the text itself, inside the sentence. Never link text that hides the URL (`[session](…)`, `[#299](…)`), never a bare `#299`, `owner/repo#n` or file path, never a URL in bold, in code formatting or on a line of its own apart from its sentence. Claude session links above all: the Claude app shows a named link to a session but doesn't open it.
 
 ### Steps Henrik has to do
@@ -55,11 +57,17 @@ These rules are identical in every repo's `CLAUDE.md` under `ViritasOrg`. Rules 
 - Never advise deleting, revoking, rotating or unsetting a credential, env var, secret, file, branch or data store before establishing what reads it. Grep for it first.
 - An env var reference (`$CLAUDE_READONLY_API_KEY`) in a file is correct practice, not a leak; only a literal secret value committed to a file is, and then name the exact file and line.
 
+### Merge your PR once it is green (Henrik, 2026-10-26, https://github.com/ViritasOrg/flyt/issues/930)
+> "update all repos to not wait for 4h to merge PRs, all sessions can merge once their PRs are green, we have good test coverage and see few issues."
+- A session merges its own PR as soon as every required check is green and it is mergeable, into the branch the repo's workflow targets (Flyt: `staging`, and release and hotfix PRs into `main`; btcpay and the staging apps: `main`). No merge ask, no waiting for Henrik, no 4-hour clock.
+- Still never: push to a protected branch, change branch protection, merge red or conflicted, or merge a PR that lists a step Henrik must do or check before merging (ask for that step first).
+- Henrik can still merge anything himself. A repo whose rules keep production behind his own step keeps it: `peptidetracker` and `workout` reach production only through his Push to Prod.
+
 ### A verified error in an md file gets fixed immediately (Henrik, 2026-08-08: "When you find verified errors in md files always fix em instantly.")
 - If you establish that something in a `CLAUDE.md` (or any md in these repos) is wrong, correct it in that session, in every repo that repeats it. Verified means you checked (read the workflow, ran the command, saw the run); a hunch is not a finding.
 - Say what was wrong and why in the commit and the reply. This does not license rewriting rules you disagree with: those are Henrik's call. A SETTLED marker still wins: raise it, don't edit.
 - An org-wide rule is changed in the canonical file first, then copied into every repo's block in the same session.
-<!-- END ORG-WIDE RULES v1 -->
+<!-- END ORG-WIDE RULES v2 -->
 
 ## 🔒 PROD IS READ-ONLY — DO NOT TOUCH WITHOUT EXPLICIT PERMISSION
 This repo (`workout`) is **PRODUCTION**. Claude may read, inspect, and
