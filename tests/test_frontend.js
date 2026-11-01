@@ -852,15 +852,16 @@ console.log('\n── Key functions ──────────────�
   const sv = {alert: G.alert};
   const draft = (extra) => Object.assign({ v: 2, day: '2', date: '2026-09-30', tmpl: { 'Bench Press': { kg: ['80'], reps: ['8'] } }, custom: [] }, extra || {});
   const run = (resp, logId) => { const cur = G.fetch; G.fetch = async () => resp; const p = G._pushSavedLog({ id: logId, date: '2026-09-30' }); G.fetch = cur; return p; };
-  // Runs after the upload-report block above: both stub the shared fetch/alert.
-  globalThis.__uploadChecks.then(function(){
+  // Runs after the upload-report block above: both stub the shared fetch/alert. Chained (and
+  // its promise returned) so the next block waits for its draft DELETEs instead of seeing them.
+  globalThis.__uploadChecks = globalThis.__uploadChecks.then(function(){
   G.alert = () => {};
   G.setData('wkt-draft', draft());
   check('an unsaved workout with reps is the active draft', !!G._activeDraft());
   G.setData('wkt-draft', draft({ savedLogId: 111 }));
   check('once saved as a log it stops being the active draft (never restored twice)', G._activeDraft() === null);
   check('…but it is still stored until the upload succeeds', G.getData('wkt-draft', null) !== null);
-  run({ ok: false, status: 401 }, 111).then(function(){
+  return run({ ok: false, status: 401 }, 111).then(function(){
     check('a failed upload keeps the saved workout\'s draft', G.getData('wkt-draft', null) !== null);
     return run({ ok: true, status: 200 }, 999);
   }).then(function(){
@@ -945,7 +946,9 @@ console.log('\n── Key functions ──────────────�
   check('a different session on the same day does not hide it', G._activeDraft() !== null);
   check('a log with no start time never matches', G._draftLog(Object.assign({}, d, { startedAt: undefined })) === null);
   G.logs = sv.logs; G.localStorage.removeItem('wkt-draft');
-  globalThis.__uploadChecks = globalThis.__uploadChecks.then(function(){
+  // Let any draft request an earlier block queued (its _pushSavedLog → DELETE) finish first,
+  // or it lands on this block's recording fetch and reads as an extra DELETE.
+  globalThis.__uploadChecks = globalThis.__uploadChecks.then(() => G._draftQ).then(function(){
     // Ordering: the first PUT is slow; the DELETE must not start until it has finished.
     const seen = []; let release; const cur = G.fetch;
     G.fetch = (u, o) => { seen.push(o.method + ':start'); if (o.method === 'PUT') return new Promise(r => { release = () => { seen.push('PUT:end'); r({ ok: true }); }; }); seen.push(o.method + ':end'); return Promise.resolve({ ok: true }); };
@@ -960,8 +963,9 @@ console.log('\n── Key functions ──────────────�
       G.setData('wkt-draft', d);
       const keep = { logs: G.logs, stored: G.getData('workout_logs', []) };
       G.fetch = async (u, o) => { calls.push((o && o.method) || 'GET'); return (o && o.method) ? { ok: true } : { ok: true, json: async () => [{ id: 1790769301363, date: '2026-09-30', day: 2, started_at: st, exercises: [] }] }; };
-      const p = G.syncWorkoutLogsFromAgent(); G.fetch = cur;
-      return p.then(() => G._draftQ).then(function(){
+      // fetch stays stubbed until the DELETE the sync queues has gone out: restoring it right
+      // after the call sent that DELETE to the real fetch, unseen.
+      return G.syncWorkoutLogsFromAgent().then(() => G._draftQ).then(function(){
         check('the backend holding the saved session deletes the stale draft', G.getData('wkt-draft', null) === null && calls.indexOf('DELETE') >= 0, calls.join(','));
         G.fetch = cur; G.logs = keep.logs; G.setData('workout_logs', keep.stored);
       });
@@ -1505,16 +1509,20 @@ check('sync: source has no byDate dedup key',   !rawScript.includes('byDate'));
   check('sync merge: remote overwrites local on same ID', Object.values(_byId2)[0].notes === 'remote', `got "${Object.values(_byId2)[0].notes}"`);
 }
 
-// ── 34. getProgramRest — rest recommendation by program goal ──────────────────
-console.log('\n── getProgramRest — rest by program goal ────────────────────');
-check('getProgramRest defined', typeof G.getProgramRest === 'function');
-check('getProgramRest: strength → 3–5 min',     G.getProgramRest({goal:'strength'}).includes('3') && G.getProgramRest({goal:'strength'}).includes('5'));
-check('getProgramRest: hypertrophy → 60–90 s',  G.getProgramRest({goal:'hypertrophy'}).includes('60'));
-check('getProgramRest: aesthetic → 60–90 s',    G.getProgramRest({goal:'aesthetic'}).includes('60'));
-check('getProgramRest: rehab → 90 s – 2 min',   G.getProgramRest({goal:'rehab'}).includes('90'));
-check('getProgramRest: null prog → default (hypertrophy)', G.getProgramRest(null).includes('60'));
-check('getProgramRest: no goal → default (hypertrophy)',   G.getProgramRest({}).includes('60'));
-check('getProgramRest: strength label is string', typeof G.getProgramRest({goal:'strength'}) === 'string');
+// ── 34. No rest-timer line on the Program day view (Henrik 2026-11-01: "remove the timer … I nevr use it")
+console.log('\n── Program day view has no rest timer ───────────────────────');
+check('getProgramRest is gone', typeof G.getProgramRest === 'undefined');
+{
+  const _gd = G.getActiveProgramDay, _gp = G.getActiveProgram, _doc = G.document;
+  let html = null;
+  G.getActiveProgramDay = () => ({ name: 'Day 1 — Push', exercises: [{ name: 'Bench Press', sets: '8-8-8', scheme: '3×8', tag: 'volume', kg: 0 }] });
+  G.getActiveProgram = () => ({ goal: 'strength', days: [] });
+  G.document = { getElementById: (id) => id === 'workout-display' ? { set innerHTML(v) { html = v; } } : null };
+  try { G.renderWorkout(1); } catch (e) { html = 'THREW ' + e; }
+  G.getActiveProgramDay = _gd; G.getActiveProgram = _gp; G.document = _doc;
+  check('the day view still renders the day and its exercise', !!html && html.includes('Day 1 — Push') && html.includes('Bench Press'), String(html).slice(0, 120));
+  check('…with no ⏱ and no rest-between-sets line', !!html && !html.includes('⏱') && !/rest between sets/.test(html));
+}
 
 // ── 34b. restSecsForTag — rest preset by exercise tag ────────────────────────
 console.log('\n── restSecsForTag — rest preset by tag ──────────────────────────');
@@ -8755,7 +8763,326 @@ console.log('\n── Macro targets (suggested + override) ───────
   G._macrosTargets = _saveT; G._flRows = [];
 }
 
-setImmediate(() => {
+// ── Onboarding overview matches the tab bar; "What's new" card on Today (2026-10-24) ──
+// Henrik: "does it highlight new features as AI macro tracking or the stick man info cards?"
+// It did not: the wizard's App Overview still listed the five tabs of an older app, and
+// nothing told an existing user what had shipped since they onboarded.
+console.log('\n── Onboarding overview + What\'s new ──────────────────────');
+{
+  // The visible tab bar is the source of truth; the overview must name every button on it.
+  const tabBar = [...html.matchAll(/<button class="tab[^"]*" id="tab-btn-([a-z]+)"([^>]*)>([^<]+)</g)]
+    .filter(m => !/display:none/.test(m[2])).map(m => m[3].trim().toUpperCase());
+  const overview = G._obHtml5();
+  check('App Overview names every visible tab in the tab bar', tabBar.length >= 8 && tabBar.every(t => overview.includes('>' + t + '<')),
+    tabBar.filter(t => !overview.includes('>' + t + '<')).join(', ') || undefined);
+  check('  …and names nothing that is not a tab', !/>PROGRAM</.test(overview) && !/>STORAGE</.test(overview));
+  check('  …its count comes from the list, not a literal', /TOUR_TABS\.length\+' sections/.test(String(G._obHtml5)) && overview.includes(tabBar.length + ' sections'));
+  check('  …it tells the user about the AI food log', /MACROS/.test(overview) && /photo/i.test(overview) && /AI estimates/.test(overview));
+  check('  …and about the ? sketches', /blue \?/.test(overview) && /sketch/i.test(overview));
+
+  // The What's new list is well formed and only holds versions the app has reached.
+  const WN = G.WHATS_NEW;
+  check('WHATS_NEW: every entry has a version, a title and a text',
+    Array.isArray(WN) && WN.length >= 2 && WN.every(e => /^\d+\.\d+$/.test(e.v) && e.title && e.text));
+  check('  …sorted newest first', WN.every((e, i) => i === 0 || G._verNum(WN[i - 1].v) > G._verNum(e.v)));
+  // An entry is keyed to the version its PR ships AS, i.e. the bump after merge: one past
+  // the VERSION in this file. Further ahead is a typo; behind is a feature already shipped.
+  check('  …none further ahead than the next bump', WN.every(e => G._verNum(e.v) <= G._verNum(G.VERSION) + 1));
+  check('  …it names the AI macro tracking and the exercise sketches',
+    WN.some(e => /Macros/.test(e.title) && /photo/.test(e.text)) && WN.some(e => /sketch/i.test(e.title) && /\?/.test(e.text)));
+  check('version compare is numeric, not lexical', G._verNum('1.100') > G._verNum('1.99') && G._verNum('2.0') > G._verNum('1.999'));
+  // A row keyed to the NEXT bump (the version this branch ships as) is hidden until the build reaches it.
+  const reached = WN.filter(e => G._verNum(e.v) <= G._verNum(G.VERSION));
+
+  const ls = sandbox.localStorage._s;
+  const saveLs = Object.assign({}, ls);
+  const reset = () => { for (const k of Object.keys(ls)) delete ls[k]; };
+  const pushes = []; const _savePush = G.pushSettingsToAgent; G.pushSettingsToAgent = kv => { pushes.push(kv); };
+  const _saveV = G.VERSION;
+
+  // Nothing seen yet, not onboarded: a new account is in the wizard, the card stays away.
+  reset();
+  check('a brand-new account (no profile) gets no card', G._whatsNewEntries().length === 0 && G._whatsNewHtml(G._whatsNewEntries()) === '');
+  // Nothing seen yet, already onboarded: an existing user who predates the card gets the whole list.
+  reset(); ls['wkt-profile'] = JSON.stringify({ onboarded: true });
+  check('an onboarded account that never saw the card gets every entry the build has reached', G._whatsNewEntries().length === reached.length && reached.length >= 5);
+  let h = G._whatsNewHtml(G._whatsNewEntries());
+  check('  …the card lists them, titled WHAT\'S NEW, with a Got it button',
+    /WHAT'S NEW/.test(h) && /dismissWhatsNew\(\)/.test(h) && /Got it/.test(h) && reached.every(e => h.includes(e.title)));
+  check('  …text is escaped on the way in', G._whatsNewHtml([{ v: '1.1', title: 'a<b', text: 'c&d' }]).includes('a&lt;b') && G._whatsNewHtml([{ v: '1.1', title: 't', text: 'c&d' }]).includes('c&amp;d'));
+  // Only entries newer than the version last seen show.
+  ls['wkt-whatsnew-seen'] = JSON.stringify(WN[WN.length - 1].v);
+  check('entries at or below the seen version are hidden', G._whatsNewEntries().length === reached.length - 1 && !G._whatsNewEntries().some(e => e.v === WN[WN.length - 1].v));
+  ls['wkt-whatsnew-seen'] = JSON.stringify(G.VERSION);
+  check('seen at the current version: nothing to show', G._whatsNewEntries().length === 0);
+  // An entry for a version this device has not reached (an old cached build) is not shown yet.
+  G.VERSION = WN[WN.length - 1].v; ls['wkt-whatsnew-seen'] = JSON.stringify('0');
+  check('a build older than an entry does not announce it', G._whatsNewEntries().every(e => G._verNum(e.v) <= G._verNum(G.VERSION)) && G._whatsNewEntries().length === 1);
+  G.VERSION = _saveV;
+  // Got it: stored locally AND pushed to the backend, card rebuilt empty.
+  reset(); ls['wkt-profile'] = JSON.stringify({ onboarded: true }); pushes.length = 0;
+  delete _idStore['whats-new']; _idStore['whats-new'] = makeTrackingEl();
+  G.dismissWhatsNew();
+  check('Got it stores the current version as seen', JSON.parse(ls['wkt-whatsnew-seen']) === G.VERSION);
+  check('  …and pushes it to /user-settings in the same call', pushes.length === 1 && pushes[0]['wkt-whatsnew-seen'] === G.VERSION);
+  check('  …after which nothing is left to show', G._whatsNewEntries().length === 0);
+  // Wiring: the card is built on Today, at start-up, and when settings come back from the backend.
+  check('showPage(today) rebuilds the card', /if\(name==='today'\)buildWhatsNewCard\(\);/.test(rawScript));
+  check('start-up builds the card', /initPrograms\(\);buildWhatsNewCard\(\);/.test(rawScript));
+  check('the seen version comes back from the backend after a cache wipe',
+    String(G.syncSettingsFromAgent).includes("setData('wkt-whatsnew-seen',String(s['wkt-whatsnew-seen']))") && String(G.syncSettingsFromAgent).includes('buildWhatsNewCard()'));
+  check('the Today page has the slot the card renders into', /id="page-today">\s*<div id="whats-new"><\/div>/.test(html));
+  // A new account finishing the wizard has just seen everything: obFinish marks it as seen.
+  reset(); pushes.length = 0;
+  G._obData = { gender: 'male', age: '30', height: '180', weight: '', neck: '', waist: '', hips: '', theme: 3 };
+  G.obFinish();
+  check('finishing the wizard marks the current version as seen',
+    JSON.parse(ls['wkt-whatsnew-seen']) === G.VERSION && pushes.some(kv => kv['wkt-whatsnew-seen'] === G.VERSION && kv['wkt-profile']));
+  check('  …but an existing seen version is left alone (Edit profile is not a new account)',
+    (() => { ls['wkt-whatsnew-seen'] = JSON.stringify('1.1'); G.obFinish(); return JSON.parse(ls['wkt-whatsnew-seen']) === '1.1'; })());
+  // 2026-10-24: Henrik re-ran the wizard from Settings before reading the card; obFinish marked
+  // the card seen and it was gone for good. An already-onboarded account keeps its card.
+  reset(); pushes.length = 0; ls['wkt-profile'] = JSON.stringify({ onboarded: true, gender: 'male' });
+  G.obFinish();
+  check('re-running the wizard on an onboarded account does NOT mark the card seen',
+    ls['wkt-whatsnew-seen'] === undefined && !pushes.some(kv => 'wkt-whatsnew-seen' in kv) && G._whatsNewEntries().length === reached.length);
+
+  G.pushSettingsToAgent = _savePush; reset(); Object.assign(ls, saveLs);
+}
+
+// ── The onboarding tour (2026-10-24) ─────────────────────────────────────────────
+// Henrik: "the onboarding never shows how to create a program or how to log a workout or how to
+// check the stick figures. I want a animated movie running as onboarding showing the main features
+// incl macro tracking." Then: "ask the onboarding questions first so a male user gets a Hypertrophy
+// in the gym movie and a female a female aesthetics at home movie."
+console.log('\n── Onboarding tour ──────────────────────────────────────────');
+{
+  const S = G.TOUR_SCENES;
+  check('tour: five scenes, program → log → sketch → macros → tabs',
+    S.map(s => s.id).join(',') === 'program,log,sketch,macros,tabs');
+  check('  …each animated scene plays for at least 5 s and the last one stays',
+    S.slice(0, -1).every(s => s.ms >= 5000 && s.title && s.cap) && S[S.length - 1].ms === 0);
+  check('  …the tour step is the LAST wizard step, after the gender question (step 2)',
+    /if\(_obStep===5\)_tourShow\(0\);else _tourStop\(\);/.test(String(G.obRender)) && /_obStep===2\)html=_obHtml2/.test(String(G.obRender)) && /Biological Sex/.test(G._obHtml2()));
+  check('  …finishing or skipping the wizard stops the timer', /^function obFinish\(\)\{\s*_tourStop\(\);/m.test(rawScript));
+  check('  …the welcome step promises the tour', /animated tour/.test(G._obHtml0()));
+
+  const saveOb = G._obData;
+  const scenes = html5 => [...html5.matchAll(/data-tour-scene="([a-z]+)"/g)].map(m => m[1]);
+  // Male (and unset): Hypertrophy in the gym, Squat.
+  G._obData = Object.assign({}, saveOb, { gender: 'male' });
+  let h = G._obHtml5();
+  check('male: the program scene builds a Hypertrophy program in the Gym',
+    scenes(h).join(',') === 'program,log,sketch,macros,tabs' && /Goal<b>Hypertrophy</.test(h) && />Gym</.test(h) && /4-Day Hypertrophy/.test(h) && /Generate Program/.test(h) && !/Feminine/.test(h));
+  check('  …logs a Squat in kg and saves', /tour-h" style="margin:0">Squat</.test(h) && />100</.test(h) && /SAVE WORKOUT/.test(h));
+  check('  …and the ? scene shows the real Squat sketch, start and finish',
+    (h.match(/<svg/g) || []).length >= 2 && h.includes(G._escP(G._exSketchSpec('Squat').cue)) && />SQUAT</.test(h));
+  G._obData = Object.assign({}, saveOb, { gender: null });
+  check('  …unset gender gets the same movie', /4-Day Hypertrophy/.test(G._obHtml5()));
+  // Female: Feminine Aesthetic at home, the program's own exercises.
+  G._obData = Object.assign({}, saveOb, { gender: 'female' });
+  h = G._obHtml5();
+  check('female: the program scene builds a Feminine Aesthetic program at Home',
+    /Goal<b>Feminine Aesthetic</.test(h) && />Home</.test(h) && /4-Day Feminine Aesthetic/.test(h) && /Quad &amp; Glute/.test(h) && !/Hypertrophy/.test(h));
+  check('  …logs a bodyweight exercise (BW, no kg)', /tour-h" style="margin:0">Bodyweight Squat</.test(h) && />BW</.test(h) && !/>100</.test(h));
+  check('  …and the ? scene shows the real Bulgarian Split Squat sketch',
+    h.includes(G._escP(G._exSketchSpec('Bulgarian Split Squat').cue)) && />BULGARIAN SPLIT SQUAT</.test(h));
+  // The movie names only exercises the app can really generate and sketch.
+  const named = [];
+  for (const g of ['male', 'female']) { G._obData = Object.assign({}, saveOb, { gender: g }); const p = G._tourProfile();
+    p.days.forEach(d => d[1].split(' · ').forEach(n => named.push(n))); named.push(p.logEx, p.sketchEx); }
+  const alias = { 'Incline Bench': 'Incline Bench Press' };
+  const missing = named.map(n => alias[n] || n).filter(n => !G._exSketchSpec(n));
+  check('every exercise the movie names has a sketch', missing.length === 0, missing.join(', '));
+  const genNames = new Set();
+  [['hypertrophy', 'balanced', null], ['aesthetic', 'fullbody', 'home-bw']].forEach(([g, sub, eq]) => {
+    Object.values(G._generateWorkoutProgram(g, sub, 4, 'x', 12, [], eq).days).forEach(d => d.exercises.forEach(e => genNames.add(e.name))); });
+  const notGen = named.map(n => alias[n] || n).filter(n => !genNames.has(n));
+  check('  …and is one the generator really writes for that goal', notGen.length === 0, notGen.join(', '));
+  // Macros scene is shared.
+  check('macros scene: typing what you ate, Photo, Log, then the bars fill',
+    /What did you eat\?/.test(h) && /202 g steak/.test(h) && /Photo/.test(h) && /tourFill/.test(h) && /kcal/.test(h));
+  G._obData = saveOb;
+
+  // The scheduler flips one scene on, moves the dot and shows the tab list only on the last scene.
+  const trk = id => { delete _idStore[id]; _idStore[id] = makeTrackingEl(); return _idStore[id]; };
+  const st = trk('tour-stage'), s0 = trk('tour-s0'), s2 = trk('tour-s2'), s4 = trk('tour-s4'), d2 = trk('tour-d2'), tl = trk('tour-tablist');
+  G._tourShow(2);
+  check('_tourShow(2) shows scene 2 only and marks its dot', s2._classes.has('on') && !s0._classes.has('on') && !s4._classes.has('on') && d2._classes.has('active') && !tl._classes.has('on'));
+  G._tourShow(4);
+  check('  …the last scene shows the tab list under the stage', s4._classes.has('on') && !s2._classes.has('on') && tl._classes.has('on') && !d2._classes.has('active'));
+  G._tourShow(1);
+  check('  …and an earlier scene hides it again', !tl._classes.has('on'));
+  G._tourToggle();
+  check('tap pauses the animations', st._classes.has('paused') && G._tour.paused === true);
+  G._tourToggle();
+  check('  …a second tap resumes', !st._classes.has('paused') && G._tour.paused === false);
+  G._tourShow(4); G._tourToggle();
+  check('  …the last scene has nothing to pause', !st._classes.has('paused'));
+  G._tourStop();
+  check('WHATS_NEW announces the tour and where to replay it', G.WHATS_NEW.some(e => /tour/i.test(e.title) && /top of Settings/.test(e.text)));
+
+  // Henrik: "in settings/More add a button on top to re run the intro for users who want to see it again."
+  check('Settings opens with a "Watch the intro again" button, before the first section',
+    /id="page-settings"[^>]*>\s*<button id="tour-replay-btn" onclick="openTour\(\)"[^>]*>[^<]*<span[^>]*>▶<\/span>Watch the intro again<\/button>/.test(html));
+  const ov = trk('onboarding-overlay'); ov.classList.add('hidden');
+  const dots = trk('ob-dots'), backB = trk('ob-back'), nextB = trk('ob-next');
+  sandbox.localStorage._s['wkt-profile'] = JSON.stringify({ onboarded: true, gender: 'female', weight: 60 });
+  G._obData = Object.assign({}, saveOb, { gender: null });
+  G.openTour();
+  check('openTour opens the overlay straight on the tour with the saved profile\'s gender',
+    !ov._classes.has('hidden') && G._obStep === 5 && G._obData.gender === 'female' && G._obTourOnly === true);
+  check('  …no Back, no dots, and the button says Done', backB.style.display === 'none' && dots.style.visibility === 'hidden');
+  const pushesBefore = [];
+  const _sp2 = G.pushSettingsToAgent; G.pushSettingsToAgent = kv => pushesBefore.push(kv);
+  const wBefore = JSON.stringify(G.weights);
+  G.obNext();
+  check('  …Done closes it without saving a profile or a weight', ov._classes.has('hidden') && G._obTourOnly === false && pushesBefore.length === 0 && JSON.stringify(G.weights) === wBefore);
+  G.openTour(); G.obSkip();
+  check('  …Skip closes it the same way', ov._classes.has('hidden') && pushesBefore.length === 0);
+  G.pushSettingsToAgent = _sp2;
+  G.openOnboarding();
+  check('a real re-run of the wizard clears tour-only mode', G._obTourOnly === false && G._obStep === 0);
+  G._obData = saveOb; ov.classList.add('hidden');
+}
+
+
+// ── Macro targets per day (2026-10-24) ─────────────────────────────────────────────
+// Henrik: "I imported my old logs but the targets has changed since … the targets must be
+// saved for each day so real stats can be generated later." Food Edit shows the goals in force
+// on a day and saves a row on that date; /food-log/stats then measures every later day against
+// it until the next recorded change.
+console.log('\n── Macro targets per day ───────────────────────────────────');
+{
+  const goals = [{ date: '2026-10-20', kcal: 2400, protein: 213, carbs: 285, fat: 51 },
+                 { date: '2026-07-15', kcal: 2100, protein: 190, carbs: 200, fat: 55 }];
+  check('_flGoalFor: a row on the day is exact', JSON.stringify(G._flGoalFor('2026-10-20', goals)) === JSON.stringify({ goal: goals[0], origin: 'exact' }));
+  check('  …a later day inherits the latest row on or before it', G._flGoalFor('2026-09-01', goals).goal.kcal === 2100 && G._flGoalFor('2026-09-01', goals).origin === 'inherited');
+  check('  …a day before every row uses the first on record, as /stats does', G._flGoalFor('2026-06-01', goals).goal.kcal === 2100 && G._flGoalFor('2026-06-01', goals).origin === 'first');
+  check('  …no rows at all is null', G._flGoalFor('2026-06-01', []) === null && G._flGoalFor('2026-06-01', null) === null);
+  check('  …and the input order does not matter', G._flGoalFor('2026-10-25', goals.slice().reverse()).goal.kcal === 2400);
+
+  const saveGoals = G._flGoals, saveDate = G._flEditDate;
+  G._flGoals = goals; G._flEditDate = '2026-09-01';
+  let h = G._flEditHtml([], '2026-09-01');
+  check('Food Edit shows the targets card even on a day with nothing logged',
+    /Targets from this day/.test(h) && h.indexOf('Targets from this day') < h.indexOf('Nothing logged on this day'));
+  check('  …prefilled with the goals in force and saying where they come from',
+    /id="flg-kcal" value="2100"/.test(h) && /id="flg-protein" value="190"/.test(h) && /Inherited from 15 Jul 2026/.test(h) && /flGoalSave\(\)/.test(h) && !/flGoalDelete/.test(h));
+  h = G._flEditHtml([], '2026-10-20');
+  check('  …a day with its own row offers Remove this change', /Set on this day\./.test(h) && /flGoalDelete\(\)/.test(h) && /id="flg-kcal" value="2400"/.test(h));
+  h = G._flEditHtml([], '2026-06-01');
+  check('  …a day before the first row says so', /first on record \(15 Jul 2026\)/.test(h));
+  G._flGoals = [];
+  check('  …and no rows yet is said plainly', /No targets recorded yet/.test(G._flEditHtml([], '2026-06-01')) && /value=""/.test(G._flEditHtml([], '2026-06-01')));
+  G._flGoals = goals;
+  check('  …today says the Macros page re-records it', /re-recorded from the Macros page/.test(G._flEditHtml([], G._flDay())));
+
+  // Save PUTs a goal row on the edit date. flGoalSave is async, but its first await IS the
+  // fetch, so the request is observable synchronously; the global fetch is restored at once so
+  // no other test's recording is disturbed (the continuation then runs on the default stub).
+  const calls = []; const _fetch = G.fetch;
+  const vals = { kcal: '2100', protein: '190', carbs: '', fat: '55,5' };
+  const _gebi = G.document.getElementById;
+  G.document.getElementById = id => (id.indexOf('flg-') === 0 ? { value: vals[id.slice(4)] } : _gebi(id));
+  G._flEditDate = '2026-07-15';
+  G.fetch = async (url, opt) => { calls.push({ url, opt }); return { ok: true, status: 200, json: async () => ({ goals: [] }) }; };
+  G.flGoalSave(); G.fetch = _fetch;
+  const put = calls.find(c => c.opt && c.opt.method === 'PUT');
+  check('Save targets PUTs /food-log/goals for the edited date, with blanks as null and a comma decimal read',
+    calls.length === 1 && !!put && /\/food-log\/goals$/.test(put.url) && JSON.stringify(JSON.parse(put.opt.body)) === JSON.stringify({ date: '2026-07-15', kcal: 2100, protein: 190, carbs: null, fat: 55.5 }));
+  check('  …then reloads the goals, the stats, the Macros page and Food Edit',
+    /_flLoadGoals\(\)/.test(String(G._flGoalsChanged)) && /_flLoadStats\(\)/.test(String(G._flGoalsChanged)) && /buildFoodEdit\(_flEditDate\)/.test(String(G._flGoalsChanged)) && /await _flGoalsChanged\(\)/.test(String(G.flGoalSave)));
+  calls.length = 0; vals.kcal = '';
+  const alerts = []; const _alert = G.alert; G.alert = m => alerts.push(String(m));
+  G.fetch = async (url, opt) => { calls.push({ url, opt }); return { ok: false, json: async () => ({}) }; };
+  G.flGoalSave(); G.fetch = _fetch; G.alert = _alert;
+  check('  …no kcal: nothing is sent and the user is told', calls.length === 0 && alerts.length === 1 && /kcal/.test(alerts[0]));
+  G.fetch = async (url, opt) => { calls.push({ url, opt }); return { ok: false, json: async () => ({}) }; };
+  G.flGoalDelete(); G.fetch = _fetch;
+  check('Remove this change asks the global-delete confirmation first (declined here: nothing sent)',
+    calls.length === 0 && /confirmGlobalDelete\('the target change recorded on this day'\)/.test(String(G.flGoalDelete)));
+  check('  …and deletes /food-log/goals/<date> when confirmed', /\/food-log\/goals\/'\+_flEditDate/.test(String(G.flGoalDelete)) && /method:'DELETE'/.test(String(G.flGoalDelete)));
+  check('buildFoodEdit loads the recorded goals before rendering', /if\(_flGoals===null\)await _flLoadGoals\(\);/.test(String(G.buildFoodEdit)));
+  check('WHATS_NEW announces it', G.WHATS_NEW.some(e => /Macro targets per day/.test(e.title) && /Food Edit/.test(e.text)));
+  G.document.getElementById = _gebi; G._flGoals = saveGoals; G._flEditDate = saveDate;
+}
+
+// Print the summary only when every async check has finished: on beforeExit, which fires once
+// nothing is left pending. Exiting on setImmediate skipped any check that waits on a timer or a
+// few promise turns (the draft-ordering block, the food-stats retries), so they ran, and could
+// fail, only on a slow machine. The unref'd timer is a backstop if something never settles.
+let _summarised = false;
+// ── Water on the Macros page (2026-11-01) ───────────────────────────────────
+// Same block in both apps; drinks go to /water-log, the target comes from /water-log/target.
+console.log('\n── Water ───────────────────────────────────────────────────');
+{
+  const _src = fs.readFileSync(htmlPath, 'utf8');
+  const _wb = _src.slice(_src.indexOf('// ── Water (Macros)'), _src.indexOf('async function wlSetOwn'));
+  check('water: block present and outside the food-log block',
+    _wb.length > 1000 && _src.indexOf('// ── Water (Macros)') > _src.indexOf('// ── end food log ──'));
+  check('water: a water card sits above the food log on the Macros page',
+    /<div id="water-log-body"><\/div>\s*<div id="food-log-body">/.test(_src));
+  check('water: opening Macros builds it', /buildWaterLog\(\);buildFoodLog\(\)/.test(_src));
+  check('water: litres parse, empty means "use the research target"',
+    G._wlParseLitres('3.5') === 3500 && G._wlParseLitres('3,5') === 3500 && G._wlParseLitres('3500') === 3500 &&
+    G._wlParseLitres('') === 0 && G._wlParseLitres('0.1') === -1 && G._wlParseLitres('abc') === -1 && G._wlParseLitres('20') === -1);
+  G._wlRows = [{id: 'a', ml: 500, created_at: 1}, {id: 'b', ml: 250, created_at: 2}];
+  G._wlTarget = {ml: 3100}; G._wlOwn = 0; G._wlBusy = false; G._wlErr = '';
+  let _h = G._wlHtml();
+  check('water: shows the day\'s total against the target', /0\.8 L<\/b> \/ 3\.1 L/.test(_h) && /width:24%/.test(_h));
+  check('  …says where the target comes from', /Yamada 2022/.test(_h) && /Set my own/.test(_h));
+  check('  …with one-tap amounts and an undo', /wlAdd\(250\)/.test(_h) && /wlAdd\(500\)/.test(_h) && /wlUndo\(\)/.test(_h));
+  G._wlOwn = 3500;
+  _h = G._wlHtml();
+  check('  …and an own target replaces the research one', /\/ 3\.5 L/.test(_h) && /your own target/.test(_h) && !/Yamada/.test(_h));
+  G._wlOwn = 0; G._wlTarget = null; G._wlRows = [];
+  _h = G._wlHtml();
+  check('  …without a weight it asks for one instead of inventing a target', /add your weight/.test(_h) && !/Undo last/.test(_h));
+  check('water: the target uses the newest weigh-in, not the profile weight (dates are not zero-padded)',
+    G._wlLatestWeight([{date:'2026-6-12',weight:89.8},{date:'2026-10-25',weight:88.0},{date:'2026-10-3',weight:87}]).weight === 88 &&
+    G._wlLatestWeight([]) === null && /fetch\(AGENT_URL\+'\/weights'/.test(_wb));
+  check('water: undo is a global delete and says so', /confirmGlobalDelete\(/.test(_wb));
+  check('water: the own target is written to the backend with the device copy',
+    /\/user-settings',\{method:'POST'/.test(_src.slice(_src.indexOf('async function wlSetOwn'), _src.indexOf('async function wlSetOwn') + 1200)));
+}
+
+// ── Water from drinks logged as food (2026-11-01: "the water in milk needs to be counted") ──
+{
+  const _svF = G._flRows, _svW = G._wlRows, _svT = G._wlTarget, _svO = G._wlOwn;
+  G._wlRows = [{id: 'w', ml: 500, created_at: 1}]; G._wlTarget = {ml: 3000}; G._wlOwn = 0; G._wlBusy = false; G._wlErr = '';
+  G._flRows = [{id: 'a', food: 'Milk', amount: '300 ml', kcal: 150, water_ml: 268}, {id: 'b', food: 'Bread', amount: '50 g', kcal: 130, water_ml: 0},
+               {id: 'c', food: 'Old row', amount: '200 ml', kcal: 90}];
+  const h = G._wlHtml();
+  check('water: drinks in the food log count (500 + 268 = 0.8 L)', /0\.8 L<\/b> \/ 3\.0 L/.test(h) && /Includes 268 ml from drinks in the food log/.test(h));
+  G._flRows = [];
+  check('  …and without drinks there is no such line', !/from drinks/.test(G._wlHtml()));
+  const _src = fs.readFileSync(htmlPath, 'utf8');
+  check('water: a change to the food log redraws the water card', /function _flRender\(\)\{if\(typeof _wlRender==='function'\)_wlRender\(\);/.test(_src));
+  check('food edit: a corrected amount rescales the water in a drink', /body\.water_ml=_flNum\(_flNum\(row\.water_ml\)\*gNew\/g0\.n\)/.test(_src));
+  G._flRows = _svF; G._wlRows = _svW; G._wlTarget = _svT; G._wlOwn = _svO;
+}
+
+// ── Water: a failed target request is said as such (2026-11-01) ──────────────
+// The backend restarted mid-request and the card told a user with 88 kg logged to add his weight.
+{
+  const _sv = {t: G._wlTarget, f: G._wlTargetFail, o: G._wlOwn, r: G._wlRows, fl: G._flRows};
+  G._wlTarget = null; G._wlOwn = 0; G._wlRows = []; G._flRows = []; G._wlBusy = false; G._wlErr = '';
+  G._wlTargetFail = true;
+  let h = G._wlHtml();
+  check('water: a failed target request says so and offers a retry, not "add your weight"',
+    /could not be loaded/.test(h) && /buildWaterLog\(\)/.test(h) && !/add your weight/.test(h));
+  G._wlTargetFail = false;
+  h = G._wlHtml();
+  check('  …while a missing weight still asks for one', /add your weight/.test(h) && !/could not be loaded/.test(h));
+  G._wlTarget = _sv.t; G._wlTargetFail = _sv.f; G._wlOwn = _sv.o; G._wlRows = _sv.r; G._flRows = _sv.fl;
+}
+
+const _summary = () => {
+  if (_summarised) return; _summarised = true;
   console.log(`  ${passed} passed  ${failed} failed  ${passed + failed} total`);
-  process.exit(failed === 0 ? 0 : 1);
-});
+  process.exit(failed === 0 && !process.exitCode ? 0 : 1);
+};
+Promise.resolve(globalThis.__uploadChecks).catch(e => { check('async upload checks ran', false, String(e && e.stack || e)); });
+process.on('beforeExit', _summary);
+setTimeout(() => { check('every async check finished within 30 s', false); _summary(); }, 30000).unref();
