@@ -9021,6 +9021,13 @@ console.log('\n── Macro targets per day ────────────
 let _summarised = false;
 // ── Water on the Macros page (2026-11-01) ───────────────────────────────────
 // Same block in both apps; drinks go to /water-log, the target comes from /water-log/target.
+// 2026-11-01: the status route answered {status:'error'} on every poll and the card sat on empty dots.
+{ const el = { innerHTML: '' }; G._promoteStatusError('HTTP 403: Resource <not> accessible', el);
+  check('Push to Prod: a status error is shown in red with GitHub\'s reason, escaped, and a link to Actions',
+    /Can.t read the progress from GitHub: HTTP 403: Resource &lt;not&gt; accessible/.test(el.innerHTML) && /workout-staging\/actions\/workflows\/promote-to-prod\.yml/.test(el.innerHTML));
+  check('Push to Prod: the poller stops on a status error and gives the button back',
+    /if\(data\.status==='error'\)\{_promoteStatusError\(data\.detail,statusEl\);if\(btn\)\{btn\.textContent='Push to Prod';btn\.disabled=false;\}return;\}/.test(G.pollPromoteStatus.toString())); }
+
 console.log('\n── Water ───────────────────────────────────────────────────');
 {
   const _src = fs.readFileSync(htmlPath, 'utf8');
