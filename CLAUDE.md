@@ -1,7 +1,7 @@
 # Workout App — Claude Instructions
 
-<!-- BEGIN ORG-WIDE RULES v7. Canonical copy: ViritasOrg/claude-agent-backend docs/org-rules.md. Edit it there, then copy this block unchanged into every ViritasOrg repo's CLAUDE.md (scripts/check_org_rules.py finds drift). -->
-## Org-wide rules: every ViritasOrg repo (canonical v7, 2026-10-28)
+<!-- BEGIN ORG-WIDE RULES v8. Canonical copy: ViritasOrg/claude-agent-backend docs/org-rules.md. Edit it there, then copy this block unchanged into every ViritasOrg repo's CLAUDE.md (scripts/check_org_rules.py finds drift). -->
+## Org-wide rules: every ViritasOrg repo (canonical v8, 2026-11-01)
 
 These rules are identical in every repo's `CLAUDE.md` under `ViritasOrg`. Rules further down in this file add repo-specific detail. If one of them seems to contradict this block, say so to Henrik instead of silently picking one. They bind every session, whatever started it (Claude Code, claude.ai, a Project, a scheduled task, an agent).
 
@@ -34,11 +34,25 @@ Triggered by: asked for the highest recorded natural free testosterone in a male
 ### Steps Henrik has to do
 - **Every step Henrik must do comes with its commands, in the same message** (Henrik, 2026-10-10: "you must always provide detailed instructions and commands for stuff like this"). Give the full instructions and the exact, complete, copy-paste commands right there, saying which machine each runs on. Never "I'll give you the command when…" or "deploy as usual". **Never point back in the chat** (Henrik, 2026-10-22, https://github.com/ViritasOrg/Flyt/issues/679: "never ask me to search backwards in a session chatt , just show me the needed bash to copy into terminal!!!"): a message that asks him to run something carries the complete command itself, never "the command above", "as before" or "scroll up".
 - **Every step on a page links that exact page** (Henrik, 2026-10-28, https://github.com/ViritasOrg/flyt/issues/1015: "I want to make a org wide rule to always provide clickable links so I dont have to spend time on it when doing this!!!"). A step Henrik does in a browser (try a feature on staging, press a button in Admin, change a GitHub setting, open a board or console) carries the full `https://` URL of the page where he does it, inside that step's own sentence, the deepest page Claude can name (the new-link form, not the site's front page). Look the URL up (routes in the code, the app's host in its config) before writing it; never "on staging", "in Admin", "on the dashboard" or "the release PR" without its URL. The clickable-link rule above holds for the rest: full URL visible, never hidden behind link text. Triggered by a staging test that said "On staging, make a 20 EUR Direct card payment link and open it" with no link, and named the release PR as `[ViritasOrg/flyt#1013](…)`.
+- **Every published URL is listed in the URL directory** (Henrik, 2026-10-29: "any published URL must always be updated in the URL directory in the Whitelist UI"). The Links tab of https://claude-agent-api-aged-sun-3616.fly.dev/whitelist/ui is the one directory of every page Henrik's repos publish, grouped by repo and prod/stage. Whoever publishes a page, app, site or host (a new route that serves a page, a new Fly app, a GitHub Pages site, a staging copy), or moves or retires one, updates that directory in the same piece of work: a row in `SITES` (or the app's `url` in `APPS`) in `data_registry.py` of https://github.com/ViritasOrg/claude-agent-backend, through a PR there whichever repo the page lives in; a retired URL loses its row. The work is not done until the URL shows on the Links tab; say so to Henrik with that tab's URL. In claude-agent-backend `tests/test_url_directory.py` fails for any page route missing from the directory.
 - **Henrik's computer is a Mac: macOS with zsh, never bash** (Henrik, 2026-10-07). Commands he runs on his own computer must work as typed in zsh: `read -s "T?Prompt: "` (never `read -p`), BSD tools (`sed -i ''`, `base64 -D`, `date -v`, no `grep -P`, no `${!var}`, `open` not `xdg-open`). Fly machines, CI and the Pi are Linux/bash: say which machine each command runs on.
 - **Henrik's Macs have EU keyboards: the Option key is labelled `alt`** (Henrik, 2026-10-11: "no option on eu keyboards only alt"). Write **alt (⌥)**, never "Option", and **cmd (⌘)**, not "Command".
 - **Henrik uses Chrome, on his iPhone and his Macs, unless something forces him to use another browser** (Henrik, 2026-10-17: "update all repos that I only use Chrome unless forced to"). Every browser step is written for Chrome; on iPhone a page goes to the home screen through Chrome's **Share → Add to Home Screen**. Name Safari only when iOS genuinely requires it for that step, and say why.
 - **Passwords: Henrik types them, Claude never routes them** (Henrik, 2026-10-15, https://github.com/ViritasOrg/Flyt/issues/530: "I will never put passwords on clipboard … you dont need to deal with passwords ever"). He types a password, or pastes it from his password manager, into the prompt that asks for it. Never a command that feeds a password from `pbpaste`, the clipboard, a shell variable, a heredoc or `sudo -S`; never ask him to paste a token, key or password into the chat, and never print one into a reply.
 - **Henrik's home connection has no fixed IP: never ask for a home-IP whitelist** (Henrik, 2026-10-23, https://github.com/ViritasOrg/flyt/issues/761: "update md files in all repos to never ask something as stupid again"). Never tell him to allow-list his home IP for a partner key (Revolut X, Kraken, bunq, Stripe, anything later), never print his IP for one, never write such a step into a doc. A key is kept small by its permissions and, where offered, an expiry date; leave the partner's IP field empty.
+
+### Do what Henrik asked the first time, and keep doing it (Henrik, 2026-11-01)
+> "just move the clips to a folder in Downloads like I asked about three times by now!" / "an generic testfolder isnt helping at all"
+
+- An instruction Henrik gives once holds for the rest of the session and every session after it: it is written into the repo's `CLAUDE.md` in the same session, so he never has to repeat it. Before replying, check the request against what he already said in this conversation; if he has asked for something before, do it now, fully, and do not answer with a plan for it.
+- When he asks for something to be done to files on his own machine (move, sort, open), the reply is the complete command that does it now, in the first lines. A code change that makes the next run behave is extra, never the answer instead.
+- Files Henrik is meant to look at or listen to (test clips, reports, exports) go to `~/Downloads`, in a folder named after what it is, one new folder per run or test, named with what was tested and when (e.g. `~/Downloads/Deadair tests/story 2026-11-01 12.40`). Never a hidden app folder, never one generic folder that collects every run, never overwriting the last run's files.
+- If he has to say a thing twice, the first reply failed: fix it in that reply, and add the rule so the next session gets it right.
+
+### Never touch production during perf, load, sizing or test work without asking (Henrik, 2026-11-01)
+- Never send any request to production (`claude-agent-api-aged-sun-3616.fly.dev`, any repo's production app) or to any partner as part of perf, load, sizing or test work, including single read-only GETs, health checks and `/admin-data` reads, without Henrik's explicit permission in that conversation.
+- Read-only is not harmless: a full-file read on the 256 MB machine stalled production twice on 2026-11-01.
+- If production stops answering, stop all requests to it at once and report it to Henrik as an incident you caused.
 
 ### No legal advice unless Henrik asks for it (Henrik, 2026-10-21, https://github.com/ViritasOrg/Flyt/issues/646)
 > "update all md files to never provide unsolicited legal advice, I need a real laywer not pointless discussions with Claude or any AI/LLM."
@@ -102,7 +116,7 @@ Triggered by: asked for the highest recorded natural free testosterone in a male
 - If you establish that something in a `CLAUDE.md` (or any md in these repos) is wrong, correct it in that session, in every repo that repeats it. Verified means you checked (read the workflow, ran the command, saw the run); a hunch is not a finding.
 - Say what was wrong and why in the commit and the reply. This does not license rewriting rules you disagree with: those are Henrik's call. A SETTLED marker still wins: raise it, don't edit.
 - An org-wide rule is changed in the canonical file first, then copied into every repo's block in the same session.
-<!-- END ORG-WIDE RULES v7 -->
+<!-- END ORG-WIDE RULES v8 -->
 
 ## 🔒 PROD IS READ-ONLY — DO NOT TOUCH WITHOUT EXPLICIT PERMISSION
 This repo (`workout`) is **PRODUCTION**. Claude may read, inspect, and
