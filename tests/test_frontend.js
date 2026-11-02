@@ -9201,3 +9201,44 @@ setTimeout(() => { check('every async check finished within 30 s', false); _summ
     if (failed > 0) process.exitCode = 1;
   })().catch(e => { check('water: loading checks ran', false, String(e && e.stack || e)); process.exitCode = 1; });
 }
+
+// ── Water: a request that fails before it leaves the phone is tried again (2026-11-02 21:11) ──
+// "Water could not be loaded: no connection." while the backend logged no /water-log at all, and the /weights sent a
+// moment later arrived: the first request after the phone woke the app failed on the phone.
+{
+  const _src = require('fs').readFileSync(htmlPath, 'utf8');
+  const _a = _src.indexOf('// ── Water (Macros)'), _b = _src.indexOf('async function wlAdd(');
+  const mk = (failures) => {
+    const els = {}, calls = [];
+    let left = failures;
+    const W = require('vm').createContext({Promise, Object, Error, JSON, Math, Number, String, parseInt, parseFloat,
+      _flBtn: () => '', _flCard: (h) => h, _flEsc: (s) => String(s), _flNum: (v) => Number(v) || 0,
+      AGENT_URL: 'https://agent', authHeaders: (x) => Object.assign({}, x || {}), _flDay: () => '2026-11-02', _flRows: [],
+      AbortController: class { constructor() { this.signal = {}; } abort() {} },
+      setTimeout: (f, ms) => { if (ms < 5000) Promise.resolve().then(f); return 1; }, clearTimeout: () => {},
+      localStorage: {getItem: () => null, setItem: () => {}, removeItem: () => {}}, getData: (k, d) => d,
+      document: {hidden: false, addEventListener: () => {},
+        getElementById: id => { if (!els[id]) { let h = ''; els[id] = {offsetParent: {}}; Object.defineProperty(els[id], 'innerHTML', {get: () => h, set: v => { h = v; }}); } return els[id]; }},
+      fetch: (url) => { calls.push(url);
+        if (/\/water-log\?/.test(url)) { if (left-- > 0) return Promise.reject(new TypeError('Load failed'));
+          return Promise.resolve({ok: true, json: async () => [{id: 'a', ml: 500}, {id: 'b', ml: 500}]}); }
+        if (/\/weights/.test(url)) return Promise.resolve({ok: true, json: async () => [{date: '2026-11-02', weight: 88}]});
+        if (/\/water-log\/target/.test(url)) return Promise.resolve({ok: true, json: async () => ({ml: 3100})});
+        return Promise.resolve({ok: true, json: async () => ({})}); },
+    });
+    require('vm').runInContext(_src.slice(_a, _b), W);
+    return {W, els, calls};
+  };
+  (async () => {
+    const one = mk(1);
+    await one.W.buildWaterLog();
+    const h = one.els['water-log-body'].innerHTML;
+    check('water: a request that fails on the phone is tried again and the card loads',
+      /1\.0 L<\/b> \/ 3\.1 L/.test(h) && !/could not be loaded/.test(h) && one.calls.filter(u => /\/water-log\?/.test(u)).length === 2);
+    const all = mk(9);
+    await all.W.buildWaterLog();
+    check('  …three tries at most, then it says so',
+      /no connection/.test(all.els['water-log-body'].innerHTML) && all.calls.filter(u => /\/water-log\?/.test(u)).length === 3);
+    if (failed > 0) process.exitCode = 1;
+  })().catch(e => { check('water: retry checks ran', false, String(e && e.stack || e)); process.exitCode = 1; });
+}

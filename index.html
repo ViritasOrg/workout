@@ -566,7 +566,7 @@ const DAY_TEMPLATES={1:[{name:"Squat",sets:"5-5-5-5-5",kg:120},{name:"Romanian D
 const VERSION='1.247';
 // BUILD_NO counts staging builds and is never rewritten by Push to Prod (which resets VERSION to
 // prod's own counter). The What's new card is keyed to it, so its rows show in both apps (2026-11-01).
-const BUILD_NO='1.331';
+const BUILD_NO='1.332';
 const IS_STAGING=(window.location.pathname||'').startsWith('/workout-staging');
 // Backend data namespace, sent as X-App-Id on every call. Staging gets its own so
 // testing here cannot write over production data — before 2026-08-01 both sent no
@@ -4659,7 +4659,7 @@ function _wlDateNum(d){var p=String(d||'').split('-');return p.length===3?(+p[0]
 function _wlLatestWeight(rows){var best=null;(rows||[]).forEach(function(r){var w=parseFloat(r&&(r.weight!=null?r.weight:r.kg));if(!(w>=25))return;if(!best||_wlDateNum(r.date)>_wlDateNum(best.date))best={date:r.date,weight:w};});return best;}
 // A request that never answers counts as failed after WL_FETCH_MS (2026-11-02: a request
 // caught in a backend restart hung, and the card said "add your weight" meanwhile).
-var WL_FETCH_MS=15000,_wlTargetBusy=false;
+var WL_FETCH_MS=15000,WL_RETRY_MS=1000,_wlTargetBusy=false;
 function _wlFetchWithin(url,opts,ms){var ctrl=(typeof AbortController!=='undefined')?new AbortController():null;var tid=null;
   var late=new Promise(function(_,rej){tid=setTimeout(function(){try{if(ctrl)ctrl.abort();}catch(e){}rej(new Error('timeout'));},ms);});
   var o=Object.assign({},opts||{});if(ctrl)o.signal=ctrl.signal;
@@ -4678,7 +4678,13 @@ async function _wlLoadOwn(){_wlOwn=parseInt(localStorage.getItem('water-goal-ml'
 var _wlLoading=false;
 async function buildWaterLog(){_wlErr='';_wlLoading=true;_wlRender();
   try{
-    try{var r=await _wlFetchWithin(AGENT_URL+'/water-log?date='+_flDay(),{headers:authHeaders()},WL_FETCH_MS);if(r.ok)_wlRows=await r.json();else _wlErr='Water could not be loaded: the server answered '+r.status+'.';}catch(e){_wlErr='Water could not be loaded: no connection.';}
+    // The first request after the phone wakes the app can fail before it leaves the phone (2026-11-02 21:11: "Water
+    // could not be loaded: no connection." while the backend logged no /water-log at all, and the /weights sent a moment
+    // later arrived). Such a failure is tried again, twice, a second apart; a request that timed out is not.
+    for(var _wa=0;_wa<3;_wa++){
+      try{var r=await _wlFetchWithin(AGENT_URL+'/water-log?date='+_flDay(),{headers:authHeaders()},WL_FETCH_MS);_wlErr='';if(r.ok)_wlRows=await r.json();else _wlErr='Water could not be loaded: the server answered '+r.status+'.';break;}
+      catch(e){_wlErr='Water could not be loaded: no connection.';if((e&&e.message)==='timeout'||_wa===2)break;await new Promise(function(res){setTimeout(res,WL_RETRY_MS);});}
+    }
     await Promise.all([_wlLoadTarget(),_wlLoadOwn()]);
   }finally{_wlLoading=false;}
   _wlRender();}
