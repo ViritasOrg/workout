@@ -566,7 +566,7 @@ const DAY_TEMPLATES={1:[{name:"Squat",sets:"5-5-5-5-5",kg:120},{name:"Romanian D
 const VERSION='1.246';
 // BUILD_NO counts staging builds and is never rewritten by Push to Prod (which resets VERSION to
 // prod's own counter). The What's new card is keyed to it, so its rows show in both apps (2026-11-01).
-const BUILD_NO='1.330';
+const BUILD_NO='1.331';
 const IS_STAGING=(window.location.pathname||'').startsWith('/workout-staging');
 // Backend data namespace, sent as X-App-Id on every call. Staging gets its own so
 // testing here cannot write over production data — before 2026-08-01 both sent no
@@ -4635,6 +4635,7 @@ function _wlFoodMl(){return(typeof _flRows!=='undefined'?_flRows:[]).reduce(func
 function _wlL(ml){return(Math.round(ml/100)/10).toFixed(1)+' L';}
 function _wlGoal(){return _wlOwn>0?_wlOwn:(_wlTarget&&_wlTarget.ml)||0;}
 function _wlHtml(){
+  if(_wlLoading)return '<div style="font-size:12px;color:var(--muted)">Water today: loading…</div>';
   var food=Math.round(_wlFoodMl()),tot=_wlTotal(_wlRows)+food,goal=_wlGoal();
   var pct=goal>0?Math.min(100,Math.round(tot/goal*100)):0;
   // A failed request is said as such, never as a missing weight (2026-11-01: the backend restarted
@@ -4671,9 +4672,18 @@ async function _wlLoadTargetNow(){var p=_wlProfile();_wlTarget=null;_wlTargetFai
   try{var r=await _wlFetchWithin(AGENT_URL+'/water-log/target?'+q,{headers:authHeaders()},WL_FETCH_MS);if(r.ok)_wlTarget=await r.json();else _wlTargetFail=true;}catch(e){_wlTargetFail=true;}}
 async function _wlLoadOwn(){_wlOwn=parseInt(localStorage.getItem('water-goal-ml')||'0')||0;
   try{var r=await fetch(AGENT_URL+'/user-settings',{headers:authHeaders()});if(r.ok){var s=await r.json();var v=parseInt((s||{})['water-goal-ml'])||0;_wlOwn=v;if(v)localStorage.setItem('water-goal-ml',String(v));else localStorage.removeItem('water-goal-ml');}}catch(e){}}
-async function buildWaterLog(){_wlErr='';_wlRender();
-  try{var r=await fetch(AGENT_URL+'/water-log?date='+_flDay(),{headers:authHeaders()});if(r.ok)_wlRows=await r.json();else _wlErr='Water could not be loaded: the server answered '+r.status+'.';}catch(e){_wlErr='Water could not be loaded: no connection.';}
-  await Promise.all([_wlLoadTarget(),_wlLoadOwn()]);_wlRender();}
+// While the card loads it says so, never the last load's numbers (2026-11-02, Henrik: "Training isn't showing water
+// progress and is also missing 500cl water": the card showed the morning's rows and "add your weight" while the new
+// ones were on their way). Coming back to the app reloads it, since the other app may have added water meanwhile.
+var _wlLoading=false;
+async function buildWaterLog(){_wlErr='';_wlLoading=true;_wlRender();
+  try{
+    try{var r=await _wlFetchWithin(AGENT_URL+'/water-log?date='+_flDay(),{headers:authHeaders()},WL_FETCH_MS);if(r.ok)_wlRows=await r.json();else _wlErr='Water could not be loaded: the server answered '+r.status+'.';}catch(e){_wlErr='Water could not be loaded: no connection.';}
+    await Promise.all([_wlLoadTarget(),_wlLoadOwn()]);
+  }finally{_wlLoading=false;}
+  _wlRender();}
+function _wlReloadIfShown(){if(typeof document==='undefined'||document.hidden)return;var el=document.getElementById('water-log-body');if(el&&el.offsetParent!==null)buildWaterLog();}
+if(typeof document!=='undefined'&&document.addEventListener)document.addEventListener('visibilitychange',_wlReloadIfShown);
 async function wlAdd(ml){if(_wlBusy)return;_wlBusy=true;_wlErr='';_wlRender();
   var n=new Date(),t=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
   try{var r=await fetch(AGENT_URL+'/water-log',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({date:_flDay(),ml:ml,time:t})});

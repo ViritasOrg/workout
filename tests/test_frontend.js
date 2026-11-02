@@ -9158,3 +9158,46 @@ const _summary = () => {
 Promise.resolve(globalThis.__uploadChecks).catch(e => { check('async upload checks ran', false, String(e && e.stack || e)); });
 process.on('beforeExit', _summary);
 setTimeout(() => { check('every async check finished within 30 s', false); _summary(); }, 30000).unref();
+
+// ── Water: while the card loads it says so, and coming back to the app reloads it (2026-11-02) ──
+// Henrik: "Training isn't showing water progress and is also missing 500cl water": the card showed the morning's rows
+// and "add your weight" while the new ones were on their way, and the second 500 ml had been added in the other app.
+{
+  const _src = require('fs').readFileSync(htmlPath, 'utf8');
+  const _a = _src.indexOf('// ── Water (Macros)'), _b = _src.indexOf('async function wlAdd(');
+  const els = {}, listeners = {}, calls = [];
+  let release = null;
+  const W = require('vm').createContext({Promise, Object, Error, JSON, Math, Number, String, parseInt, parseFloat,
+    _flBtn: () => '', _flCard: (h) => h, _flEsc: (s) => String(s), _flNum: (v) => Number(v) || 0, AGENT_URL: 'https://agent', authHeaders: (x) => Object.assign({}, x || {}), _flDay: () => '2026-11-02', _flRows: [],
+    AbortController: class { constructor() { this.signal = {}; } abort() {} },
+    setTimeout: () => 1, clearTimeout: () => {},
+    localStorage: {getItem: () => null, setItem: () => {}, removeItem: () => {}},
+    getData: (k, d) => d,
+    document: {hidden: false, addEventListener: (ev, f) => { listeners[ev] = f; },
+      getElementById: id => { if (!els[id]) { let h = ''; els[id] = {offsetParent: {}}; Object.defineProperty(els[id], 'innerHTML', {get: () => h, set: v => { h = v; }}); } return els[id]; }},
+    fetch: (url) => { calls.push(url);
+      if (/\/water-log\?/.test(url)) return new Promise(res => { release = () => res({ok: true, json: async () => [{id: 'a', ml: 500}, {id: 'b', ml: 500}]}); });
+      if (/\/weights/.test(url)) return Promise.resolve({ok: true, json: async () => [{date: '2026-11-02', weight: 88}]});
+      if (/\/water-log\/target/.test(url)) return Promise.resolve({ok: true, json: async () => ({ml: 3100})});
+      return Promise.resolve({ok: true, json: async () => ({})}); },
+  });
+  check('water: the block runs on its own', _a > 0 && _b > _a);
+  require('vm').runInContext(_src.slice(_a, _b), W);
+  W._wlRows = [{id: 'a', ml: 500}];                                 // what the last load left
+  (async () => {
+    const p = W.buildWaterLog();
+    for (let i = 0; i < 20; i++) await Promise.resolve();
+    const h = els['water-log-body'].innerHTML;
+    check('water: while it loads the card says so, not the last load\'s numbers or "add your weight"',
+      /loading/.test(h) && !/0\.5 L/.test(h) && !/add your weight/.test(h));
+    release();
+    await p;
+    const h2 = els['water-log-body'].innerHTML;
+    check('  …then shows both entries and the target', /1\.0 L<\/b> \/ 3\.1 L/.test(h2));
+    const n = calls.length;
+    listeners.visibilitychange();
+    check('  …and coming back to the app loads it again', calls.length > n && /\/water-log\?/.test(calls[n]));
+    release();
+    if (failed > 0) process.exitCode = 1;
+  })().catch(e => { check('water: loading checks ran', false, String(e && e.stack || e)); process.exitCode = 1; });
+}
