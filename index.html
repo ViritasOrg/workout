@@ -566,7 +566,7 @@ const DAY_TEMPLATES={1:[{name:"Squat",sets:"5-5-5-5-5",kg:120},{name:"Romanian D
 const VERSION='1.245';
 // BUILD_NO counts staging builds and is never rewritten by Push to Prod (which resets VERSION to
 // prod's own counter). The What's new card is keyed to it, so its rows show in both apps (2026-11-01).
-const BUILD_NO='1.329';
+const BUILD_NO='1.330';
 const IS_STAGING=(window.location.pathname||'').startsWith('/workout-staging');
 // Backend data namespace, sent as X-App-Id on every call. Staging gets its own so
 // testing here cannot write over production data — before 2026-08-01 both sent no
@@ -4311,8 +4311,14 @@ function _wkMacroTargetsHtml(){var o=_wkTargetsFrom(getData('wkt-macro-targets',
   else h+='<div style="margin-top:6px;font-size:12px"><span onclick="_wkOverrideOpen=true;_wkRenderTargets()" style="color:var(--muted);text-decoration:underline;cursor:pointer">Change my targets</span></div>';
   return'<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:14px">'+h+'</div>';}
 function _wkRenderTargets(){_wkApplyTargets();var el=document.getElementById('wk-macro-targets');if(el)el.innerHTML=_wkMacroTargetsHtml();if(typeof _flRender==='function')_flRender();}
+// A request that never answers counts as failed after WK_FETCH_MS (2026-11-02: a request caught
+// in a backend restart hung, and the suggested targets never came).
+var WK_FETCH_MS=15000;
+function _wkFetchWithin(url,ms){var ctrl=(typeof AbortController!=='undefined')?new AbortController():null;var tid=null;
+  var late=new Promise(function(_,rej){tid=(typeof setTimeout==='function')?setTimeout(function(){try{if(ctrl)ctrl.abort();}catch(e){}rej(new Error('timeout'));},ms):null;});
+  return Promise.race([fetch(url,ctrl?{signal:ctrl.signal}:undefined),late]).then(function(r){if(tid)clearTimeout(tid);return r;},function(e){if(tid)clearTimeout(tid);throw e;});}
 async function _wkFetchSuggest(){var q=_wkMacroQuery();if(q===_wkSuggestQ&&_wkSuggest)return _wkRenderTargets();_wkSuggestErr=false;
-  try{var r=await fetch(AGENT_URL+'/macro-targets?'+q);if(r.ok){_wkSuggest=await r.json();_wkSuggestQ=q;}else _wkSuggestErr=true;}catch(e){_wkSuggestErr=true;}_wkRenderTargets();}
+  try{var r=await _wkFetchWithin(AGENT_URL+'/macro-targets?'+q,WK_FETCH_MS);if(r.ok){_wkSuggest=await r.json();_wkSuggestQ=q;}else _wkSuggestErr=true;}catch(e){_wkSuggestErr=true;}_wkRenderTargets();}
 async function buildWkMacroTargets(){_wkRenderTargets();
   try{var pr=getData('wkt-profile',{})||{};var bw=_wkLatest(weights,'weight')||parseFloat(pr.weight)||0;var r=await fetch(AGENT_URL+'/training-energy?days=14'+(bw?'&bodyweight_kg='+bw:'')+(pr.height?'&height_cm='+pr.height:''),{headers:authHeaders()});if(r.ok){var d=await r.json();_wkTrainKcal=(d&&isFinite(d.avg_per_calendar_day))?d.avg_per_calendar_day:0;}}catch(e){}
   return _wkFetchSuggest();}
@@ -4633,7 +4639,7 @@ function _wlHtml(){
   var pct=goal>0?Math.min(100,Math.round(tot/goal*100)):0;
   // A failed request is said as such, never as a missing weight (2026-11-01: the backend restarted
   // mid-request and the card told a user with 88 kg logged to add his weight).
-  var basis=_wlOwn>0?'your own target':(_wlTarget?'from your body weight, sex and age (Yamada 2022)':(_wlTargetFail?'the target could not be loaded <span onclick="buildWaterLog()" style="text-decoration:underline;cursor:pointer">Try again</span>':'add your weight in your profile to get a target'));
+  var basis=_wlOwn>0?'your own target':(_wlTarget?'from your body weight, sex and age (Yamada 2022)':(_wlTargetFail?'the target could not be loaded <span onclick="buildWaterLog()" style="text-decoration:underline;cursor:pointer">Try again</span>':(_wlTargetBusy?'loading your target…':'add your weight in your profile to get a target')));
   var h='<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px"><span style="font-size:12px;color:var(--muted)">Water today</span>'+
     '<span style="font-size:15px;color:var(--text)"><b>'+_wlL(tot)+'</b>'+(goal?' / '+_wlL(goal):'')+'</span></div>';
   if(goal)h+='<div style="height:8px;border-radius:4px;background:var(--surface2);margin:8px 0 4px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:#4fb3ff"></div></div>';
@@ -4650,11 +4656,19 @@ function _wlRender(){var el=document.getElementById('water-log-body');if(el)el.i
 // (2026-11-01: the profile still said 85.2 kg while the weight log said 88.0).
 function _wlDateNum(d){var p=String(d||'').split('-');return p.length===3?(+p[0])*10000+(+p[1])*100+(+p[2]):0;}
 function _wlLatestWeight(rows){var best=null;(rows||[]).forEach(function(r){var w=parseFloat(r&&(r.weight!=null?r.weight:r.kg));if(!(w>=25))return;if(!best||_wlDateNum(r.date)>_wlDateNum(best.date))best={date:r.date,weight:w};});return best;}
-async function _wlLoadTarget(){var p=_wlProfile();_wlTarget=null;_wlTargetFail=false;
-  try{var rw=await fetch(AGENT_URL+'/weights',{headers:authHeaders()});if(rw.ok){var lw=_wlLatestWeight(await rw.json());if(lw)p.weight=lw.weight;}else _wlTargetFail=true;}catch(e){_wlTargetFail=true;}
+// A request that never answers counts as failed after WL_FETCH_MS (2026-11-02: a request
+// caught in a backend restart hung, and the card said "add your weight" meanwhile).
+var WL_FETCH_MS=15000,_wlTargetBusy=false;
+function _wlFetchWithin(url,opts,ms){var ctrl=(typeof AbortController!=='undefined')?new AbortController():null;var tid=null;
+  var late=new Promise(function(_,rej){tid=setTimeout(function(){try{if(ctrl)ctrl.abort();}catch(e){}rej(new Error('timeout'));},ms);});
+  var o=Object.assign({},opts||{});if(ctrl)o.signal=ctrl.signal;
+  return Promise.race([fetch(url,o),late]).then(function(r){clearTimeout(tid);return r;},function(e){clearTimeout(tid);throw e;});}
+async function _wlLoadTarget(){_wlTargetBusy=true;try{await _wlLoadTargetNow();}finally{_wlTargetBusy=false;}}
+async function _wlLoadTargetNow(){var p=_wlProfile();_wlTarget=null;_wlTargetFail=false;
+  try{var rw=await _wlFetchWithin(AGENT_URL+'/weights',{headers:authHeaders()},WL_FETCH_MS);if(rw.ok){var lw=_wlLatestWeight(await rw.json());if(lw)p.weight=lw.weight;}else _wlTargetFail=true;}catch(e){_wlTargetFail=true;}
   if(!(p.weight>=25))return;_wlTargetFail=false;
   var q='weight_kg='+encodeURIComponent(p.weight)+'&sex='+encodeURIComponent(p.sex)+(p.age?'&age='+encodeURIComponent(p.age):'')+'&athlete=true';
-  try{var r=await fetch(AGENT_URL+'/water-log/target?'+q,{headers:authHeaders()});if(r.ok)_wlTarget=await r.json();else _wlTargetFail=true;}catch(e){_wlTargetFail=true;}}
+  try{var r=await _wlFetchWithin(AGENT_URL+'/water-log/target?'+q,{headers:authHeaders()},WL_FETCH_MS);if(r.ok)_wlTarget=await r.json();else _wlTargetFail=true;}catch(e){_wlTargetFail=true;}}
 async function _wlLoadOwn(){_wlOwn=parseInt(localStorage.getItem('water-goal-ml')||'0')||0;
   try{var r=await fetch(AGENT_URL+'/user-settings',{headers:authHeaders()});if(r.ok){var s=await r.json();var v=parseInt((s||{})['water-goal-ml'])||0;_wlOwn=v;if(v)localStorage.setItem('water-goal-ml',String(v));else localStorage.removeItem('water-goal-ml');}}catch(e){}}
 async function buildWaterLog(){_wlErr='';_wlRender();

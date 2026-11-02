@@ -9054,7 +9054,7 @@ console.log('\n── Water ─────────────────�
   check('  …without a weight it asks for one instead of inventing a target', /add your weight/.test(_h) && !/Undo last/.test(_h));
   check('water: the target uses the newest weigh-in, not the profile weight (dates are not zero-padded)',
     G._wlLatestWeight([{date:'2026-6-12',weight:89.8},{date:'2026-10-25',weight:88.0},{date:'2026-10-3',weight:87}]).weight === 88 &&
-    G._wlLatestWeight([]) === null && /fetch\(AGENT_URL\+'\/weights'/.test(_wb));
+    G._wlLatestWeight([]) === null && /_wlFetchWithin\(AGENT_URL\+'\/weights'/.test(_wb));
   check('water: undo is a global delete and says so', /confirmGlobalDelete\(/.test(_wb));
   check('water: the own target is written to the backend with the device copy',
     /\/user-settings',\{method:'POST'/.test(_src.slice(_src.indexOf('async function wlSetOwn'), _src.indexOf('async function wlSetOwn') + 1200)));
@@ -9088,7 +9088,66 @@ console.log('\n── Water ─────────────────�
   G._wlTargetFail = false;
   h = G._wlHtml();
   check('  …while a missing weight still asks for one', /add your weight/.test(h) && !/could not be loaded/.test(h));
+  G._wlTargetBusy = true;
+  h = G._wlHtml();
+  check('water: while the target loads it says so, never "add your weight" (2026-11-02)', /loading your target/.test(h) && !/add your weight/.test(h));
+  G._wlTargetBusy = false;
   G._wlTarget = _sv.t; G._wlTargetFail = _sv.f; G._wlOwn = _sv.o; G._wlRows = _sv.r; G._flRows = _sv.fl;
+}
+
+// ── Macro targets: a request that never answers fails after its time limit (2026-11-02) ──
+{
+  const _src = require('fs').readFileSync(htmlPath, 'utf8');
+  const _blk = _src.slice(_src.indexOf('// ── Macro targets (Workout) ──'), _src.indexOf('// ── Food log (Macros) ──'));
+  const ls = {}, els = {}, _tm = [];
+  const H = vm.createContext({console, Promise, JSON, Math, String, Number, parseInt, parseFloat, isFinite, Error,
+    AGENT_URL: 'https://agent', authHeaders: () => ({}),
+    getData: (k, d) => (k in ls ? JSON.parse(ls[k]) : d), setData: (k, v) => { ls[k] = JSON.stringify(v); },
+    pushSettingsToAgent: () => {}, _flRender: () => {},
+    AbortController: class{constructor(){this.signal={};}abort(){}},
+    setTimeout: (f, ms) => { _tm.push({f, ms}); return _tm.length; }, clearTimeout: () => {},
+    document: {getElementById: id => { if (!els[id]) { let h = ''; els[id] = {value: ''}; Object.defineProperty(els[id], 'innerHTML', {get: () => h, set: v => { h = v; }}); } return els[id]; }},
+    fetch: (url) => /training-energy/.test(url) ? Promise.resolve({ok: true, json: async () => ({avg_per_calendar_day: 0})}) : new Promise(() => {}),
+  });
+  vm.runInContext('var weights=[{date:"2026-10-20",weight:88}];var bfLog=[];' + _blk, H);
+  ls['wkt-profile'] = JSON.stringify({gender: 'male', height: 180, age: 45});
+  (async () => {
+    const _p = H._wkFetchSuggest();
+    for (let _i=0;_i<30;_i++) await Promise.resolve();
+    const _t = _tm.find(t => t.ms === H.WK_FETCH_MS);
+    check('macro targets: the suggestion request has a time limit of at most 20 s', !!_t && H.WK_FETCH_MS > 0 && H.WK_FETCH_MS <= 20000);
+    if (_t) _t.f();
+    await _p;
+    check('  …and a request that never answers then says it could not load, instead of waiting for ever',
+      H._wkSuggestErr === true && /Could not load suggested targets/.test(els['wk-macro-targets'] ? els['wk-macro-targets'].innerHTML : ''));
+    if (failed > 0) process.exitCode = 1;
+  })().catch(e => { check('macro targets: time-limit checks ran', false, String(e && e.stack || e)); process.exitCode = 1; });
+}
+
+// ── A request that never answers fails after its time limit (2026-11-02) ──
+// A request caught in a backend restart hung, and the targets never came.
+{
+  const _src = require('fs').readFileSync(htmlPath, 'utf8');
+  const _a = _src.indexOf('var WL_FETCH_MS'), _b = _src.indexOf('async function _wlLoadTarget(');
+  const _tm = [];
+  const W = require('vm').createContext({Promise, Object, Error, AbortController: class{constructor(){this.signal={};}abort(){}},
+    setTimeout:(f,ms)=>{_tm.push({f,ms});return _tm.length;}, clearTimeout:()=>{}, fetch:()=>new Promise(()=>{})});
+  check('water: the time-limited fetch is defined before the target loader', _a > 0 && _b > _a);
+  if (_a > 0 && _b > _a) {
+    require('vm').runInContext(_src.slice(_a, _b), W);
+    let _out = 'pending';
+    W._wlFetchWithin('https://agent/weights', {}, W.WL_FETCH_MS).then(()=>{_out='answered';}, ()=>{_out='failed';});
+    (async()=>{
+      for (let _i=0;_i<20;_i++) await Promise.resolve();
+      const _wasPending = _out === 'pending';
+      const _t = _tm.find(t => t.ms === W.WL_FETCH_MS); if (_t) _t.f();
+      for (let _i=0;_i<20;_i++) await Promise.resolve();
+      check('  …a hung request fails once its time limit (at most 20 s) passes', _wasPending && _out === 'failed' && W.WL_FETCH_MS > 0 && W.WL_FETCH_MS <= 20000);
+      if (failed > 0) process.exitCode = 1;
+    })();
+  }
+  check('  …and the weight, water-target and macro-target requests all use a time limit',
+    /_wlFetchWithin\(AGENT_URL\+'\/weights'/.test(_src) && /_wlFetchWithin\(AGENT_URL\+'\/water-log\/target\?'/.test(_src) && /_wkFetchWithin\(AGENT_URL\+'\/macro-targets\?'/.test(_src));
 }
 
 const _summary = () => {
