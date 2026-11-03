@@ -8195,6 +8195,56 @@ console.log('\n── Food log ────────────────�
   check('food log: deletes go through confirmGlobalDelete',
     /function flEditDelete[\s\S]*?confirmGlobalDelete\(/.test(_flBlock) && /function flRemoveKey[\s\S]*?confirmGlobalDelete\(/.test(_flBlock) && !/[^.]confirm\('/.test(_flBlock));
 
+  // Token cost (Henrik, 2026-11-03: "Both apps needs a token cost view, calculated weekly and monthly
+  // token spend in users choice of currency (default EUR)").
+  {
+    const wk = (label, calls, cost) => ({label, start: '2026-11-02', calls, input_tokens: 1200, output_tokens: 800, cost, unpriced_calls: 0});
+    G._tkErr = '';
+    G._tkCost = {currency: 'SEK', rate: 9.2, currencies: ['EUR', 'SEK', 'USD'],
+                 weeks: [wk('Week 45', 3, 1.5), wk('Week 44 <b>', 0, 0)], months: [wk('November 2026', 3, 12.25)]};
+    const h = G._tkCostCardHtml();
+    check('token cost: weekly and monthly tables with calls, tokens and cost in the chosen currency',
+      /Weekly/.test(h) && /Monthly/.test(h) && /Week 45/.test(h) && /November 2026/.test(h) && /2\.0 k/.test(h) && /SEK/.test(h) && /12[.,]25/.test(h));
+    check('token cost: the currency picker lists the currencies with the chosen one selected and saves on change',
+      /<option selected>SEK<\/option>/.test(h) && /<option>EUR<\/option>/.test(h) && /tkSetCurrency\(this\.value\)/.test(h));
+    check('token cost: labels are escaped', h.indexOf('Week 44 <b>') < 0 && h.indexOf('Week 44 &lt;b&gt;') >= 0);
+    G._tkCost = Object.assign({}, G._tkCost, {rate: null, weeks: [wk('Week 45', 1, null)]});
+    const n = G._tkCostCardHtml();
+    check('token cost: no exchange rate shows no figure and says why, never a guessed amount',
+      /No exchange rate for SEK/.test(n) && /–/.test(n));
+    G._tkCost = null; G._tkErr = '';
+  }
+  // The load and the currency save, in their own sandbox holding only this block, so the
+  // recorded fetch cannot collide with the suite's other async tests.
+  (async () => {
+    const _tkSrc = fs.readFileSync(htmlPath, 'utf8');
+    const _tkBlock = _tkSrc.slice(_tkSrc.indexOf('// Token cost (Henrik'), _tkSrc.indexOf('function flOpenKeySettings('));
+    const seen = [];
+    let mode = 'ok';
+    const T = vm.createContext({
+      AGENT_URL: 'https://agent', authHeaders: (x) => Object.assign({}, x || {}), JSON, Intl, encodeURIComponent,
+      _flEsc: (x) => String(x), _flSecCard: (id, label, body) => body,
+      document: {getElementById: () => null},
+      fetch: async (url, opt) => {
+        seen.push({url, m: (opt && opt.method) || 'GET', body: opt && opt.body});
+        if (mode === 'fail') return {ok: false, status: 500, json: async () => ({})};
+        if (/\/token-cost\/currency$/.test(url)) return {ok: true, status: 200, json: async () => ({ok: true})};
+        return {ok: true, status: 200, json: async () => ({currency: seen.some(x => x.m === 'PUT') ? 'USD' : 'EUR', rate: 1, currencies: ['EUR', 'USD'], weeks: [], months: []})};
+      },
+    });
+    vm.runInContext(_tkBlock, T);
+    await T.buildTokenCostCard();
+    const first = T._tkCost && T._tkCost.currency;
+    await T.tkSetCurrency('USD');
+    check('token cost: loads the cost (EUR by default) with the device\'s time zone',
+      first === 'EUR' && /\/token-cost\?tz=/.test(seen[0].url));
+    check('token cost: a picked currency is saved on the backend and the view reloads in it',
+      seen.some(x => x.m === 'PUT' && /\/token-cost\/currency$/.test(x.url) && JSON.parse(x.body).currency === 'USD') && T._tkCost.currency === 'USD');
+    check('token cost: nothing is kept in localStorage (the backend keeps the choice)', !/localStorage|setData\(/.test(_tkBlock));
+    mode = 'fail';
+    await T.buildTokenCostCard();
+    check('token cost: a failed load says so', /HTTP 500/.test(T._tkCostCardHtml()));
+  })();
   // Today's intake against the Macros tab's targets (2026-10-21).
   const _flSaveT = G._macrosTargets;
   G._flKey = {set: true, last4: 'WXYZ'}; G._flErr = ''; G._flPending = null; G._flBusy = false;
@@ -9242,3 +9292,93 @@ setTimeout(() => { check('every async check finished within 30 s', false); _summ
     if (failed > 0) process.exitCode = 1;
   })().catch(e => { check('water: retry checks ran', false, String(e && e.stack || e)); process.exitCode = 1; });
 }
+
+// ── Ask AI to change the program (Henrik, 2026-11-03) ───────────────────────────────────────
+// The AI answers with operations; _applyAiOps turns them into a changed COPY of the program
+// and/or a one-off session for today. Nothing outside what the operation names may change.
+{
+  const cat = G._exCatalogue();
+  check('AI: the catalogue is read from the exercise picker',
+    cat.includes('Cable External Rotation') && cat.includes('Pull-ups') && cat.includes('Cable Row'));
+  const prog = {name: 'Test', days: [
+    {name: 'Day 1 — Push A', exercises: [
+      {name: 'Bench Press', sets: '6-6-6', scheme: '3×6', tag: 'strength', kg: 80},
+      {name: 'Cable External Rotation', sets: '15-15', scheme: '2×15', tag: 'rehab', kg: 5, prehab: true}]},
+    {name: 'Day 2 — Pull A', exercises: [
+      {name: 'Pull-ups', sets: '8-8-8', scheme: '3×8', tag: 'volume', kg: 0},
+      {name: 'Barbell Row', sets: '10-10-10', scheme: '3×10', tag: 'volume', kg: 70}]},
+    {name: 'Day 3 — Push B', exercises: [
+      {name: 'Overhead Press', sets: '6-6-6', scheme: '3×6', tag: 'strength', kg: 50},
+      {name: 'Cable External Rotation', sets: '15-15', scheme: '2×15', tag: 'rehab', kg: 5}]}]};
+  const before = JSON.stringify(prog);
+  const op = (o) => Object.assign({days: [], exercise: '', with: '', exercises: [], title: ''}, o);
+
+  let p = G._applyAiOps(prog, [op({op: 'remove', days: [1, 3], exercise: 'cable external rotation'})], 1, cat);
+  check('AI remove: gone from every day named', p.prog && p.prog.days.every(d => d.exercises.every(x => x.name !== 'Cable External Rotation')));
+  check('AI remove: everything else is exactly as it was',
+    JSON.stringify(p.prog.days[0].exercises) === JSON.stringify([prog.days[0].exercises[0]]) &&
+    JSON.stringify(p.prog.days[1]) === JSON.stringify(prog.days[1]));
+  check('AI: the active program itself is untouched until Apply', JSON.stringify(prog) === before);
+  check('AI remove: the preview says what and where', /Remove cable external rotation from Day 1 — Push A, Day 3 — Push B/.test(p.lines[0]), p.lines[0]);
+
+  p = G._applyAiOps(prog, [op({op: 'replace', days: [2], exercise: 'Barbell Row', with: 'cable row'})], 1, cat);
+  const row = p.prog.days[1].exercises[1];
+  check('AI replace: the catalogue spelling, the same sets and scheme, no weight set yet',
+    row.name === 'Cable Row' && row.sets === '10-10-10' && row.scheme === '3×10' && row.kg === 0, JSON.stringify(row));
+
+  p = G._applyAiOps(prog, [op({op: 'replace', days: [2], exercise: 'Barbell Row', with: 'Rowing Unicorn'})], 1, cat);
+  check('AI: a name the app does not know blocks the whole change', p.prog === null && /Rowing Unicorn/.test(p.errors[0]));
+  p = G._applyAiOps(prog, [op({op: 'remove', days: [2], exercise: 'Squat'})], 1, cat);
+  check('AI: removing something that is not there is an error, not a silent no-op', p.prog === null && p.errors.length === 1);
+  p = G._applyAiOps(prog, [op({op: 'cannot', title: 'That is not a training change.'})], 1, cat);
+  check('AI cannot: its reason is shown', p.errors[0] === 'That is not a training change.');
+
+  p = G._applyAiOps(prog, [op({op: 'add', days: [2], exercises: [{name: 'Face Pulls', sets: 3, reps: '15'}]})], 1, cat);
+  const fp = p.prog.days[1].exercises[2];
+  check('AI add: appended with its tag read off the reps', fp.name === 'Face Pulls' && fp.sets === '15-15-15' && fp.tag === 'rehab' && fp.kg === 0, JSON.stringify(fp));
+
+  p = G._applyAiOps(prog, [op({op: 'today', title: 'Full body', exercises: [
+    {name: 'Squat', sets: 4, reps: '7'}, {name: 'Pull-ups', sets: 3, reps: 'max'}, {name: 'Leg Curl', sets: 3, reps: '20'}]})], 1, cat);
+  const oo = p.oneOff;
+  check('AI today: the program does not change', p.prog === null);
+  check('AI today: a one-off for today\'s day', oo && oo.day === 1 && oo.name === 'Today — Full body' && oo.date === new Date().toISOString().split('T')[0]);
+  check('AI today: reps snap onto a legal count and the tag follows',
+    oo.exercises[0].sets === '6-6-6-6' && oo.exercises[0].tag === 'strength' && oo.exercises[2].sets === '15-15-15' && oo.exercises[2].tag === 'rehab',
+    JSON.stringify(oo.exercises));
+  check('AI today: max stays max', oo.exercises[1].sets === 'max-max-max');
+
+  // The one-off holds for its own date, and after that only for the unsaved workout started on it.
+  G._programs = [prog]; G._activeProgramIndex = 0;
+  G.setData('wkt-draft', null);
+  G.setData('wkt-oneoff', oo);
+  check('one-off: today it replaces its day', G._planDay(1) === G.getData('wkt-oneoff', null) || G._planDay(1).name === 'Today — Full body');
+  check('one-off: other days are the program\'s', G._planDay(2).name === 'Day 2 — Pull A');
+  G.setData('wkt-oneoff', Object.assign({}, oo, {date: '2020-01-01'}));
+  check('one-off: an old one is ignored', G._planDay(1).name === 'Day 1 — Push A');
+  G.setData('wkt-draft', {day: '1', oneOff: oo.id});
+  check('one-off: …unless an unsaved workout was started on it', G._planDay(1).name === 'Today — Full body');
+  G.setData('wkt-draft', {day: '1', oneOff: oo.id, savedLogId: 5});
+  check('one-off: a saved workout lets it go', G._planDay(1).name === 'Day 1 — Push A');
+  G.setData('wkt-draft', null); G.setData('wkt-oneoff', null);
+
+  const save = SCRIPT_SRC_FOR_AI();
+  check('saveLog: a one-off session saves its own exercises', /var _oo=_oneOffFor\(day\);var _saveDay=_oo\|\|getActiveProgramDay\(day\)/.test(save));
+  check('saveLog: …does not overwrite the remembered weights of the day it replaced', /if\(!_oo\)setData\('template_weights_day'/.test(save));
+  check('saveLog: …and is cleared once the log is saved', /_pushSavedLog\(newLog\);if\(_oo\)_setOneOff\(null\)/.test(save));
+}
+{
+  const prog = {name: 'T', days: [{name: 'Day 1 — Push', exercises: []}, {name: 'Day 2 — Pull B', exercises: []}, {name: 'Day 3 — Legs', exercises: []}]};
+  G._programs = [prog]; G._activeProgramIndex = 0;
+  G.logs = [{id: 1, date: new Date().toISOString().split('T')[0], day: 2, exercises: []}];
+  const next = G._nextTrainingDay();
+  const p = G._applyAiOps(prog, [{op: 'extra', days: [], exercise: '', with: '', title: 'Pull C',
+    exercises: [{name: 'Lat Pulldown', sets: 3, reps: '10'}]}], 3, G._exCatalogue(), G._extraDay());
+  check('AI extra: filed under the day trained last, so the program does not move on',
+    p.prog === null && p.oneOff.extra && p.oneOff.day === 2 && next === 3, JSON.stringify(p.oneOff));
+  G.logs = [Object.assign({}, G.logs[0], {id: 2, day: p.oneOff.day})].concat(G.logs);
+  check('AI extra: after it is saved the next planned day is still the same', G._nextTrainingDay() === next);
+  G.logs = [];
+  check('AI extra: with no sessions yet it takes the last day, so day 1 stays next', G._extraDay() === 3);
+  G.logs = [];
+}
+function SCRIPT_SRC_FOR_AI() { return require('fs').readFileSync(require('path').join(__dirname, '..', 'index.html'), 'utf8'); }
