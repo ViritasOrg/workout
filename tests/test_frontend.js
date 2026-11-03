@@ -3690,8 +3690,8 @@ console.log('\n── Bottom navbar / PLASMA GUI port ────────�
   check('content bottom padding clears fixed navbar', src.includes('padding:16px 20px 116px'));
   check('rest timer bar sits above the bottom navbar',
     src.includes('bottom:calc(64px + env(safe-area-inset-bottom,0px))'));
-  check('boot restores last page via showPage without legacy nav button',
-    !src.includes("getElementById('nav-btn-'") && src.includes("localStorage.getItem('wkt-last-page')"));
+  check('boot opens on Log via showPage without legacy nav button',
+    !src.includes("getElementById('nav-btn-'") && src.includes("showPage('log');})();"));
   check('header restyled to pep hdr (34px display title, non-sticky)',
     src.includes('.header-title{font-family:var(--font-display);font-size:34px') && !src.includes('.header{position:sticky'));
   check('weight badge label cannot wrap (KG TODAY on one line)',
@@ -8212,6 +8212,11 @@ console.log('\n── Food log ────────────────�
     const n = G._tkCostCardHtml();
     check('token cost: no exchange rate shows no figure and says why, never a guessed amount',
       /No exchange rate for SEK/.test(n) && /–/.test(n));
+    G._flKey = {set: true, last4: 'WXYZ'}; G._flKeyChanging = false;
+    G._tkCost = {currency: 'EUR', rate: 1, currencies: ['EUR'], weeks: [wk('Week 45', 1, 0.5)], months: []};
+    check('token cost: shown in the same Settings card as the API key',
+      /Food log · API key/.test(G._flKeyCardHtml()) && /Token cost/.test(G._flKeyCardHtml()) && /Week 45/.test(G._flKeyCardHtml()));
+    check('token cost: not a card of its own', !/fl-cost-card/.test(fs.readFileSync(htmlPath, 'utf8')));
     G._tkCost = null; G._tkErr = '';
   }
   // The load and the currency save, in their own sandbox holding only this block, so the
@@ -8223,7 +8228,7 @@ console.log('\n── Food log ────────────────�
     let mode = 'ok';
     const T = vm.createContext({
       AGENT_URL: 'https://agent', authHeaders: (x) => Object.assign({}, x || {}), JSON, Intl, encodeURIComponent,
-      _flEsc: (x) => String(x), _flSecCard: (id, label, body) => body,
+      _flEsc: (x) => String(x), _flRenderKeyCard: () => {},
       document: {getElementById: () => null},
       fetch: async (url, opt) => {
         seen.push({url, m: (opt && opt.method) || 'GET', body: opt && opt.body});
@@ -8245,6 +8250,17 @@ console.log('\n── Food log ────────────────�
     await T.buildTokenCostCard();
     check('token cost: a failed load says so', /HTTP 500/.test(T._tkCostCardHtml()));
   })();
+  // Opening the app straight onto Settings (the last page) runs buildFlKeyCard before the
+  // import card's state is declared; that threw and left both food-log cards blank (2026-11-03).
+  {
+    const _imSrc = fs.readFileSync(htmlPath, 'utf8');
+    const _imFn = _imSrc.slice(_imSrc.indexOf('function _flImportCardHtml(){'), _imSrc.indexOf('function _flRenderImportCard()'));
+    const I = vm.createContext({_flEsc: (x) => String(x), _flSecCard: (id, t, b) => '<h>' + t + '</h>' + b});
+    vm.runInContext(_imFn, I);
+    let html = '';
+    try { html = I._flImportCardHtml(); } catch (e) { html = 'THREW ' + e.message; }
+    check('food-log import card: draws before its state is declared (app opened on Settings)', /Import old log/.test(html));
+  }
   // Today's intake against the Macros tab's targets (2026-10-21).
   const _flSaveT = G._macrosTargets;
   G._flKey = {set: true, last4: 'WXYZ'}; G._flErr = ''; G._flPending = null; G._flBusy = false;
