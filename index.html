@@ -454,7 +454,6 @@
       </div>
     </div>
     <div id="fl-key-card"></div>
-    <div id="fl-cost-card"></div>
     <div id="fl-import-card"></div>
     <div id="s-deploy-card"></div>
     <div id="s-tabs-card" style="margin-top:0"></div>
@@ -568,7 +567,7 @@ const DAY_TEMPLATES={1:[{name:"Squat",sets:"5-5-5-5-5",kg:120},{name:"Romanian D
 const VERSION='1.249';
 // BUILD_NO counts staging builds and is never rewritten by Push to Prod (which resets VERSION to
 // prod's own counter). The What's new card is keyed to it, so its rows show in both apps (2026-11-01).
-const BUILD_NO='1.336';
+const BUILD_NO='1.340';
 const IS_STAGING=(window.location.pathname||'').startsWith('/workout-staging');
 // Backend data namespace, sent as X-App-Id on every call. Staging gets its own so
 // testing here cannot write over production data — before 2026-08-01 both sent no
@@ -4322,7 +4321,7 @@ function obSkip(){if(_obTourOnly){_obCloseTour();return;}obFinish();}
 // onboarded account means the card never existed for it yet: it gets the whole list.
 // Add a row here when a feature ships that a user would not find on their own.
 var WHATS_NEW=[
-  {v:'1.336',title:'Token cost',text:'Settings → AI · Token cost shows what the AI calls on your own key cost each week and each month, in the currency you pick (EUR to start with).'},
+  {v:'1.336',title:'Token cost',text:'Settings → Food log · API key shows what the AI calls on your own key cost each week and each month, in the currency you pick (EUR to start with).'},
   {v:'1.335',title:'Ask AI to change your program',text:'On Plan, tell the AI what to change: remove or swap an exercise on some or all days, add one, get a different session for today only, or an extra session when you have already trained today. It shows the change first; tap Apply to keep it. Uses your own API key from Settings.'},
   {v:'1.322',title:'Water',text:'Macros now logs water: tap + 250 ml or + 500 ml. The daily target is worked out from your body weight, sex and age, or set your own.'},
   {v:'1.309',title:'Macro targets per day',text:'Food Edit shows the targets in force on any day and lets you set them from that day onward, so the history card measures each day against the right goals. Use it to fill in the periods of an imported log.'},
@@ -4373,7 +4372,7 @@ function obFinish(){
   buildAppearanceCard();buildCacheCard();buildStageCopyCard();buildProfileCard();
 }
 document.getElementById('log-date').value=new Date().toISOString().split('T')[0];document.getElementById('log-date').addEventListener('input',scheduleDraft);document.addEventListener('visibilitychange',function(){if(document.hidden)saveDraft();});
-applyOwnerName(_cachedOwnerName());updateCurrentWeight();_refreshUnitUI();initPrograms();buildWhatsNewCard();(function(){var _ds=document.getElementById('log-day');if(_ds)_ds.value=_selectedProgramDay;prefillLog(_selectedProgramDay);})();document.getElementById('login-version').textContent='v'+VERSION;document.getElementById('header-version').textContent='v'+VERSION;(function(){if(!localStorage.getItem('bw_kg_migration_v1')){var bwNames=new Set();Object.values(DAY_TEMPLATES).forEach(function(day){day.forEach(function(ex){if(ex.kg===0)bwNames.add(ex.name);});});var migrated=0;logs.forEach(function(log){if(!log.exercises||!log.exercises.length)return;var relW=weights.filter(function(w){return w.date<=log.date;});if(!relW.length)return;var bw=relW[relW.length-1].weight;var changed=false;log.exercises.forEach(function(ex){if(!bwNames.has(ex.name))return;(ex.sets||[]).forEach(function(s){if(s.reps>0&&s.kg===0){s.kg=bw;changed=true;}});});if(changed){migrated++;pushWorkoutLogToAgent(log);}});if(migrated>0)setData('workout_logs',logs);localStorage.setItem('bw_kg_migration_v1','1');}})();syncWeightsFromAgent();syncWorkoutLogsFromAgent();syncProgramsFromAgent();syncSettingsFromAgent();syncBodyCompFromAgent();syncWorkoutDraftFromAgent();(function(){if(!IS_STAGING||localStorage.getItem('wk-bf-isol-v1'))return;localStorage.setItem('wk-bf-isol-v1','1');var _raw=null;try{_raw=typeof _r!=='undefined'&&_r&&_r.getItem?_r.getItem('bf_log'):null;}catch(e){}if(!_raw)return;var _old=[];try{_old=JSON.parse(_raw)||[];}catch(e){}if(!_old.length)return;_old.forEach(function(e){if(e&&e.date&&typeof e.bf==='number'&&e.bf>0)pushBodyCompToAgent(e.date,e.bf);});setTimeout(syncBodyCompFromAgent,2000);})();(function(){if(!localStorage.getItem('wk-gear-migration-v1')){fetch(AGENT_URL+'/workout-logs/migrate-gear',{method:'POST',headers:authHeaders()}).then(function(r){if(r.ok){localStorage.setItem('wk-gear-migration-v1','1');syncWorkoutLogsFromAgent();}}).catch(function(){});}})();checkAgentStatus();checkSyncStatus();initTabVis();buildAppearanceCard();buildCacheCard();buildStageCopyCard();buildProfileCard();obInit();(function(){const _lp=localStorage.getItem('wkt-last-page');if(_lp&&_pageVis[_lp]!==false&&document.getElementById('page-'+_lp)&&typeof primaryOf==='function'&&primaryOf(_lp))showPage(_lp);})();_initSwipeNav();
+applyOwnerName(_cachedOwnerName());updateCurrentWeight();_refreshUnitUI();initPrograms();buildWhatsNewCard();(function(){var _ds=document.getElementById('log-day');if(_ds)_ds.value=_selectedProgramDay;prefillLog(_selectedProgramDay);})();document.getElementById('login-version').textContent='v'+VERSION;document.getElementById('header-version').textContent='v'+VERSION;(function(){if(!localStorage.getItem('bw_kg_migration_v1')){var bwNames=new Set();Object.values(DAY_TEMPLATES).forEach(function(day){day.forEach(function(ex){if(ex.kg===0)bwNames.add(ex.name);});});var migrated=0;logs.forEach(function(log){if(!log.exercises||!log.exercises.length)return;var relW=weights.filter(function(w){return w.date<=log.date;});if(!relW.length)return;var bw=relW[relW.length-1].weight;var changed=false;log.exercises.forEach(function(ex){if(!bwNames.has(ex.name))return;(ex.sets||[]).forEach(function(s){if(s.reps>0&&s.kg===0){s.kg=bw;changed=true;}});});if(changed){migrated++;pushWorkoutLogToAgent(log);}});if(migrated>0)setData('workout_logs',logs);localStorage.setItem('bw_kg_migration_v1','1');}})();syncWeightsFromAgent();syncWorkoutLogsFromAgent();syncProgramsFromAgent();syncSettingsFromAgent();syncBodyCompFromAgent();syncWorkoutDraftFromAgent();(function(){if(!IS_STAGING||localStorage.getItem('wk-bf-isol-v1'))return;localStorage.setItem('wk-bf-isol-v1','1');var _raw=null;try{_raw=typeof _r!=='undefined'&&_r&&_r.getItem?_r.getItem('bf_log'):null;}catch(e){}if(!_raw)return;var _old=[];try{_old=JSON.parse(_raw)||[];}catch(e){}if(!_old.length)return;_old.forEach(function(e){if(e&&e.date&&typeof e.bf==='number'&&e.bf>0)pushBodyCompToAgent(e.date,e.bf);});setTimeout(syncBodyCompFromAgent,2000);})();(function(){if(!localStorage.getItem('wk-gear-migration-v1')){fetch(AGENT_URL+'/workout-logs/migrate-gear',{method:'POST',headers:authHeaders()}).then(function(r){if(r.ok){localStorage.setItem('wk-gear-migration-v1','1');syncWorkoutLogsFromAgent();}}).catch(function(){});}})();checkAgentStatus();checkSyncStatus();initTabVis();buildAppearanceCard();buildCacheCard();buildStageCopyCard();buildProfileCard();obInit();(function(){if(_pageVis.log!==false&&document.getElementById('page-log'))showPage('log');})();// the app always opens on Log (Henrik, 2026-11-03: "Workout default should be Log")_initSwipeNav();
 async function pushAllToBackend(){const btn=document.getElementById('sync-btn');btn.textContent='Syncing...';btn.disabled=true;try{const remote=await(await fetch(AGENT_URL+'/weights',{headers:authHeaders()})).json();const remoteDates=new Set(remote.map(w=>w.date));const local=getData('weight_log',[]);const toSync=local.filter(w=>!remoteDates.has(w.date));for(const w of toSync){await fetch(AGENT_URL+'/weights',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify(w)});}btn.textContent='✓ Synced '+toSync.length+' entries';setTimeout(()=>{btn.closest('.sync-banner').remove();},3000);}catch(e){btn.textContent='Failed';btn.disabled=false;}}
 if(!localStorage.getItem('sync_done_fly')&&getData('weight_log',[]).length){const b=document.createElement('div');b.className='sync-banner';b.style.cssText='position:fixed;bottom:calc(64px + env(safe-area-inset-bottom,0px));left:0;right:0;background:#1c1c1c;border-top:1px solid #e8ff3c;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;z-index:500;font-size:13px;';b.innerHTML='<span style="color:#f0f0f0">Sync local data to new backend?</span><button id="sync-btn" onclick="pushAllToBackend();localStorage.setItem(\u0027sync_done_fly\u0027,\u00271\u0027)" style="background:#e8ff3c;color:#000;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font-ui)">Sync Now</button>';document.body.appendChild(b);}
 if(!localStorage.getItem('workout_logs_synced_fly')&&getData('workout_logs',[]).length){const b2=document.createElement('div');b2.className='sync-banner';b2.style.cssText='position:fixed;bottom:calc(64px + env(safe-area-inset-bottom,0px));left:0;right:0;background:#1c1c1c;border-top:1px solid #e8ff3c;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;z-index:500;font-size:13px;';b2.innerHTML='<span style="color:#f0f0f0">Backup workout logs to backend?</span><button id="wl-sync-btn" onclick="pushAllWorkoutLogsToBackend()" style="background:#e8ff3c;color:#000;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font-ui)">Backup Now</button>';document.body.appendChild(b2);}
@@ -4569,6 +4568,7 @@ function _flKeyCardHtml(){
     '<div style="display:flex;gap:8px;margin-top:10px">'+_flBtn('Change','flStartChange()',true)+_flBtn('Remove','flRemoveKey()',false)+'</div>'+
     '<div style="font-size:11px;color:var(--muted);margin-top:8px">One key serves every app and device signed in to your account.</div>';
   if(_flErr&&_flKey&&(!_flKey.set||_flKeyChanging))b+='<div style="margin-top:10px;font-size:13px;color:var(--danger,#ff3b30)">'+_flEsc(_flErr)+'</div>';
+  if(_flKey&&_flKey.set&&!_flKeyChanging)b+=_tkCostCardHtml();   // token cost lives with the key it is billed to (Henrik, 2026-11-03)
   return _flSecCard('flkey','Food log · API key',b);}
 // Settings cards follow the Settings design: a header bar that opens and closes, collapsed
 // by default (Henrik, 2026-10-22: "they should be default collapsed like all others").
@@ -4602,8 +4602,8 @@ function _tkCostCardHtml(){
       (c.rate===null?'<div style="font-size:12px;color:var(--danger,#ff3b30);margin-top:8px">No exchange rate for '+_flEsc(cur)+' yet, so costs cannot be shown.</div>':'')+
       _tkTable('Weekly',c.weeks||[],cur)+_tkTable('Monthly',c.months||[],cur)+
       '<div style="font-size:11px;color:var(--muted);margin-top:8px">AI calls on your own key, at the provider\'s list prices. A free-tier key is not charged.</div>';}
-  return _flSecCard('tkcost','AI · Token cost',b);}
-function _tkRenderCostCard(){var el=document.getElementById('fl-cost-card');if(el)el.innerHTML=_tkCostCardHtml();}
+  return '<div style="border-top:1px solid var(--border);margin-top:14px;padding-top:10px"><div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">Token cost</div>'+b+'</div>';}
+function _tkRenderCostCard(){_flRenderKeyCard();}
 async function buildTokenCostCard(){_tkErr='';var tz='';try{tz=Intl.DateTimeFormat().resolvedOptions().timeZone||'';}catch(e){}
   try{var r=await fetch(AGENT_URL+'/token-cost?tz='+encodeURIComponent(tz),{headers:authHeaders()});if(r.ok)_tkCost=await r.json();else _tkErr='Could not load the token cost (HTTP '+r.status+').';}catch(e){_tkErr='Could not load the token cost. Check your connection.';}
   _tkRenderCostCard();}
@@ -4616,13 +4616,15 @@ function flOpenImportSettings(){_flOpenSettingsAt('fl-import-card','flimport');}
 // rows already in the log are skipped, so the same file can be imported twice safely.
 var _flImp={busy:false,msg:'',err:''};
 function _flImportCardHtml(){
-  var s='';
-  if(_flImp.busy)s='<div style="margin-top:10px;font-size:13px;color:var(--muted)">Importing…</div>';
-  else if(_flImp.err)s='<div style="margin-top:10px;font-size:13px;color:var(--danger,#ff3b30)">'+_flEsc(_flImp.err)+'</div>';
-  else if(_flImp.msg)s='<div style="margin-top:10px;font-size:13px;color:var(--text)">'+_flEsc(_flImp.msg)+'</div>';
+  // The app can open straight onto Settings before this file has declared _flImp (the startup page
+  // restore runs first); an undefined state threw here and left both food-log cards blank.
+  var imp=(typeof _flImp!=='undefined'&&_flImp)||{busy:false,msg:'',err:''},s='';
+  if(imp.busy)s='<div style="margin-top:10px;font-size:13px;color:var(--muted)">Importing…</div>';
+  else if(imp.err)s='<div style="margin-top:10px;font-size:13px;color:var(--danger,#ff3b30)">'+_flEsc(imp.err)+'</div>';
+  else if(imp.msg)s='<div style="margin-top:10px;font-size:13px;color:var(--text)">'+_flEsc(imp.msg)+'</div>';
   return _flSecCard('flimport','Food log · Import old log',
     '<div style="font-size:13px;color:var(--text);line-height:1.5">Choose a CSV or Excel (.xlsx) file. It needs a header row with at least <b>Date</b> and <b>Kcal</b>; Food, Amount, Time, Protein, Carbs and Fat are read when present. Entries already in your log are skipped, so importing the same file twice is safe.</div>'+
-    '<input id="fl-import-file" type="file" accept=".csv,.xlsx,.txt,.tsv,text/csv,text/plain" onchange="flImportFile(this)"'+(_flImp.busy?' disabled':'')+' style="margin-top:10px;font-size:14px;color:var(--text)">'+s);}
+    '<input id="fl-import-file" type="file" accept=".csv,.xlsx,.txt,.tsv,text/csv,text/plain" onchange="flImportFile(this)"'+(imp.busy?' disabled':'')+' style="margin-top:10px;font-size:14px;color:var(--text)">'+s);}
 function _flRenderImportCard(){var el=document.getElementById('fl-import-card');if(el)el.innerHTML=_flImportCardHtml();}
 function _flImportSummary(j){
   var t='Added '+j.added+' entr'+(j.added===1?'y':'ies')+'.';
