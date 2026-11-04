@@ -9347,7 +9347,9 @@ setTimeout(() => { check('every async check finished within 30 s', false); _summ
   p = G._applyAiOps(prog, [op({op: 'remove', days: [2], exercise: 'Squat'})], 1, cat);
   check('AI: removing something that is not there is an error, not a silent no-op', p.prog === null && p.errors.length === 1);
   p = G._applyAiOps(prog, [op({op: 'cannot', title: 'That is not a training change.'})], 1, cat);
-  check('AI cannot: its reason is shown', p.errors[0] === 'That is not a training change.');
+  // Henrik, 2026-11-04, on "...so there is nothing to Nothing was changed.": the AI's answer is shown as it is, with
+  // no "Nothing was changed." tacked on; that is for a change that failed.
+  check('AI cannot: its reason is an answer, shown as it is', p.said[0] === 'That is not a training change.' && p.errors.length === 0);
 
   p = G._applyAiOps(prog, [op({op: 'add', days: [2], exercises: [{name: 'Face Pulls', sets: 3, reps: '15'}]})], 1, cat);
   const fp = p.prog.days[1].exercises[2];
@@ -9398,3 +9400,53 @@ setTimeout(() => { check('every async check finished within 30 s', false); _summ
   G.logs = [];
 }
 function SCRIPT_SRC_FOR_AI() { return require('fs').readFileSync(require('path').join(__dirname, '..', 'index.html'), 'utf8'); }
+// Henrik, 2026-11-03: "I need to be able to reply to the AI suggestions, today it suggests a machine not available in my
+// current gym, and now I am forced to start over", then "And keep the whole conversation in the replies".
+globalThis.__aiReply = (async function(){
+  const prog = {name: 'T', days: [{name: 'Day 1 — Push', exercises: [{name: 'Bench Press', sets: '3', kg: 60}]},
+    {name: 'Day 2 — Pull', exercises: [{name: 'Barbell Row', sets: '3', kg: 50}]}]};
+  G._programs = [prog]; G._activeProgramIndex = 0;
+  const sent = [], answers = [
+    {ok: true, status: 200, json: async () => ({ops: [{op: 'replace', days: [2], exercise: 'Barbell Row', with: 'T-Bar Row', exercises: [], title: ''}]})},
+    {ok: true, status: 200, json: async () => ({ops: [{op: 'replace', days: [2], exercise: 'Barbell Row', with: 'Cable Row', exercises: [], title: ''}]})},
+    {ok: true, status: 200, json: async () => ({ops: [{op: 'replace', days: [2], exercise: 'Barbell Row', with: 'Lat Pulldown', exercises: [], title: ''}]})}];
+  const ask = async (fn) => { const cur = G.fetch; G.fetch = async (u, o) => { sent.push(JSON.parse(o.body)); return answers.shift(); };
+    const p = fn(); G.fetch = cur; await p; };
+  G._pai = G._paiFresh();
+  G._pai.text = 'Swap the row';
+  await ask(() => G.progAiAsk());
+  check('AI reply: the first ask sends no conversation', sent[0].history.length === 0 && sent[0].request === 'Swap the row');
+  check('AI reply: the request stays on screen and the box is free for a reply',
+    G._pai.last === 'Swap the row' && G._pai.text === '' && G._pai.plan && /T-Bar Row/.test(G._pai.plan.lines.join(' ')));
+  check('AI reply: the card offers Reply next to Apply', /progAiReply\(\)/.test(G._progAiHtml()) && /progAiApply\(\)/.test(G._progAiHtml()));
+  G._pai.text = 'My gym has no T-bar row';
+  await ask(() => G.progAiReply());
+  check('AI reply: the reply carries the first turn and what was proposed',
+    sent[1].request === 'My gym has no T-bar row' && sent[1].history.length === 1 &&
+    sent[1].history[0].request === 'Swap the row' && /T-Bar Row/.test(sent[1].history[0].answer), JSON.stringify(sent[1].history));
+  G._pai.text = 'No cables either';
+  await ask(() => G.progAiReply());
+  check('AI reply: the whole conversation goes with every reply', sent[2] && sent[2].history.length === 2 &&
+    sent[2].history[1].request === 'My gym has no T-bar row' && /Cable Row/.test(sent[2].history[1].answer), JSON.stringify(sent[2]) + ' ' + JSON.stringify(G._pai));
+  const html = G._progAiHtml();
+  check('AI reply: the card shows the conversation', /Swap the row/.test(html) && /My gym has no T-bar row/.test(html) && /No cables either/.test(html));
+  check('AI reply: the plan on screen is the latest', /Lat Pulldown/.test(G._pai.plan.lines.join(' ')));
+  // a request that never reached the AI is not a turn
+  const cur = G.fetch; G.fetch = async () => { throw new Error('offline'); };
+  G._pai.text = 'Try again'; const p = G.progAiReply(); G.fetch = cur; await p;
+  check('AI reply: a network failure keeps the typed reply and the last turn', G._pai.text === 'Try again' && G._pai.last === 'No cables either');
+  check('AI reply: …and adds nothing to the conversation', G._pai.hist.length === 2, JSON.stringify(G._pai.hist));
+  G.progAiCancel();
+  check('AI reply: Cancel starts a fresh conversation', G._pai.hist.length === 0 && G._pai.last === '' && !G._pai.plan);
+  G._programs = []; G._activeProgramIndex = 0;
+})().catch(e => check('AI reply checks ran', false, String(e && e.stack || e)));
+
+Promise.resolve(globalThis.__aiReply).then(async function(){
+  const prog = {name: 'T', days: [{name: 'Day 1', exercises: [{name: 'Squat', sets: '3', kg: 0}]}]};
+  G._programs = [prog]; G._activeProgramIndex = 0; G._pai = G._paiFresh(); G._pai.text = 'Make it easier on my shoulders';
+  const cur = G.fetch; G.fetch = async () => ({ok: true, status: 200, json: async () => ({ops: [{op: 'cannot', days: [], exercise: '',
+    with: '', exercises: [], title: 'Day 1 has nothing hard on the shoulders, so there is nothing to change.'}]})});
+  const p = G.progAiAsk(); G.fetch = cur; await p;
+  check("AI cannot: the card shows the AI's sentence alone", G._pai.err === 'Day 1 has nothing hard on the shoulders, so there is nothing to change.', G._pai.err);
+  G._programs = []; G._pai = G._paiFresh();
+}).catch(e => check('AI cannot checks ran', false, String(e && e.stack || e)));

@@ -567,7 +567,7 @@ const DAY_TEMPLATES={1:[{name:"Squat",sets:"5-5-5-5-5",kg:120},{name:"Romanian D
 const VERSION='1.250';
 // BUILD_NO counts staging builds and is never rewritten by Push to Prod (which resets VERSION to
 // prod's own counter). The What's new card is keyed to it, so its rows show in both apps (2026-11-01).
-const BUILD_NO='1.340';
+const BUILD_NO='1.342';
 const IS_STAGING=(window.location.pathname||'').startsWith('/workout-staging');
 // Backend data namespace, sent as X-App-Id on every call. Staging gets its own so
 // testing here cannot write over production data — before 2026-08-01 both sent no
@@ -1550,7 +1550,10 @@ function buildProgramSettingsCard(){
 // changed COPY of the active program and/or a one-off session for today; nothing is saved until
 // the user taps Apply on the preview. A one-off session never changes the program: it is kept
 // as wkt-oneoff (phone + /user-settings) and the Log, Today and Save use it for that day only.
-var _pai={text:'',busy:false,err:'',plan:null};
+// hist: the conversation so far, [{request, answer}] (Henrik, 2026-11-03: "I need to be able to reply to the AI
+// suggestions ... And keep the whole conversation in the replies"); last: the request now on screen.
+function _paiFresh(){return{text:'',busy:false,err:'',plan:null,hist:[],last:''};}
+var _pai=_paiFresh();
 function _exCatalogue(){var out=[],re=/<option>([^<]+)<\/option>/g,m;while((m=re.exec(EX_OPTS_HTML)))out.push(m[1]);return out;}
 function _aiEx(e){
   var n=Math.max(1,Math.min(5,parseInt(e.sets)||3));var r=String(e.reps==null?'':e.reps).trim().toLowerCase();
@@ -1562,14 +1565,14 @@ function _aiEx(e){
 // Pure: the operations applied to a copy of prog. Returns {prog, oneOff, lines, errors}; prog is
 // null when nothing in the program changes. Any error blocks the whole change.
 function _applyAiOps(prog,ops,today,catalogue,extraDay){
-  var cp=JSON.parse(JSON.stringify(prog)),changed=false,oneOff=null,lines=[],errors=[];
+  var cp=JSON.parse(JSON.stringify(prog)),changed=false,oneOff=null,lines=[],errors=[],said=[];
   var known={};(catalogue||[]).forEach(function(n){known[n.toLowerCase()]=n;});
   cp.days.forEach(function(d){(d.exercises||[]).forEach(function(x){known[String(x.name).toLowerCase()]=x.name;});});
   function real(n){return known[String(n||'').trim().toLowerCase()]||null;}
   function dayNames(ds){return ds.map(function(i){return cp.days[i-1].name;}).join(', ');}
   function inDays(name,ds){var lc=String(name).trim().toLowerCase();return ds.filter(function(i){var d=cp.days[i-1];return d&&(d.exercises||[]).some(function(x){return String(x.name).toLowerCase()===lc;});});}
   (ops||[]).forEach(function(o){
-    if(o.op==='cannot'){errors.push(o.title||'The AI could not make that change.');return;}
+    if(o.op==='cannot'){said.push(o.title||'The AI could not make that change.');return;}   // an answer, not an error
     if(o.op==='remove'||o.op==='replace'){
       var hit=inDays(o.exercise,o.days||[]);
       if(!hit.length){errors.push(o.exercise+' is not in '+((o.days||[]).length?dayNames((o.days||[]).filter(function(i){return cp.days[i-1];})):'the program')+'.');return;}
@@ -1597,45 +1600,63 @@ function _applyAiOps(prog,ops,today,catalogue,extraDay){
       lines.push('Extra session today, the program stays where it is: '+(o.title||'extra session'));
       exs.forEach(function(x){lines.push('  • '+x.name+' '+x.scheme);});}
   });
-  return{prog:changed?cp:null,oneOff:oneOff,lines:lines,errors:errors};
+  return{prog:changed?cp:null,oneOff:oneOff,lines:lines,errors:errors,said:said};
 }
 function _progAiHtml(){
   var b='<div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:8px">Tell the AI what to change in your active program, or ask for a different session today only. It runs on your own API key (Settings, Food log · API key). Nothing changes until you tap Apply.</div>'+
-    '<textarea id="prog-ai-text" rows="2" placeholder="e.g. Replace Barbell Row with Cable Row on all pull days" oninput="_pai.text=this.value" style="width:100%;box-sizing:border-box;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:16px;font-family:inherit">'+_escP(_pai.text)+'</textarea>';
+    _paiConvoHtml()+
+    '<textarea id="prog-ai-text" rows="2" placeholder="'+(_pai.last?'Reply, e.g. My gym has no leg press':'e.g. Replace Barbell Row with Cable Row on all pull days')+'" oninput="_pai.text=this.value" style="width:100%;box-sizing:border-box;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:16px;font-family:inherit">'+_escP(_pai.text)+'</textarea>';
   if(_pai.busy)b+='<div style="font-size:14px;color:var(--muted);padding:10px 0">Asking the AI…</div>';
   else if(_pai.plan){
     b+='<div style="margin-top:10px;font-size:13px;color:var(--text);line-height:1.6">'+_pai.plan.lines.map(function(l){return'<div>'+_escP(l)+'</div>';}).join('')+'</div>'+
-      '<div style="display:flex;gap:8px;margin-top:10px">'+_flBtn('Apply','progAiApply()',true)+_flBtn('Cancel','progAiCancel()',false)+'</div>';}
+      '<div style="display:flex;gap:8px;margin-top:10px">'+_flBtn('Apply','progAiApply()',true)+_flBtn('Reply','progAiReply()',false)+_flBtn('Cancel','progAiCancel()',false)+'</div>';}
+  else if(_pai.last)b+='<div style="display:flex;gap:8px;margin-top:10px">'+_flBtn('Reply','progAiReply()',true)+_flBtn('Cancel','progAiCancel()',false)+'</div>';
   else b+='<div style="margin-top:10px">'+_flBtn('Ask AI','progAiAsk()',true)+'</div>';
   if(_pai.err)b+='<div style="margin-top:10px;font-size:13px;color:var(--danger,#ff3b30)">'+_escP(_pai.err)+'</div>'+
     (/API key/i.test(_pai.err)?'<div style="margin-top:8px">'+_flBtn('API key settings','flOpenKeySettings()',false)+'</div>':'');
   return'<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px"><div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px">Ask AI to change your program</div>'+b+'</div>';
+}
+// The conversation on screen: every earlier turn, then the request the current answer is for.
+function _paiConvoHtml(){
+  var turns=_pai.hist.concat(_pai.last?[{request:_pai.last,answer:''}]:[]);
+  if(!turns.length)return'';
+  return'<div style="margin-bottom:10px;font-size:13px;line-height:1.5">'+turns.map(function(t){
+    return'<div style="color:var(--text);margin-top:6px"><b>You:</b> '+_escP(t.request)+'</div>'+
+      (t.answer?'<div style="color:var(--muted);white-space:pre-line"><b>AI:</b> '+_escP(t.answer)+'</div>':'');}).join('')+'</div>';
+}
+// A reply: what the AI said to the request on screen joins the conversation, and the reply is asked with all of it.
+function progAiReply(){
+  if(!(_pai.text||'').trim()){_pai.err='Type your reply.';_renderProgAi();return;}
+  return progAiAsk(_pai.last?{request:_pai.last,answer:_pai.plan?_pai.plan.lines.join('\n'):(_pai.err||'')}:null);
 }
 function _renderProgAi(){var el=document.getElementById('prog-ai-card');if(el)el.innerHTML=_progAiHtml();}
 // The day an extra session is filed under: the one trained last (or the last day before any
 // session), so _nextTrainingDay gives the same answer after it is saved as before.
 function _extraDay(){var p=getActiveProgram();var n=p&&p.days?p.days.length:1;var l=logs&&logs[0]&&parseInt(logs[0].day);return(l>=1&&l<=n)?l:n;}
 function _progAiToday(){var ls=document.getElementById('log-day');return parseInt(ls&&ls.value)||_nextTrainingDay();}
-async function progAiAsk(){
+// turn: the exchange a reply answers; it joins the conversation only once the AI has answered.
+async function progAiAsk(turn){
   var prog=getActiveProgram();var t=(_pai.text||'').trim();
   if(!prog){_pai.err='There is no active program yet.';_renderProgAi();return;}
   if(!t){_pai.err='Type what you want changed.';_renderProgAi();return;}
-  _pai.busy=true;_pai.err='';_pai.plan=null;_renderProgAi();
+  var prev=_pai.last,back=function(){_pai.last=prev;_pai.text=t;};   // a request that never reached the AI is not a turn
+  _pai.busy=true;_pai.err='';_pai.plan=null;_pai.last=t;_pai.text='';_renderProgAi();
   var today=_progAiToday(),cat=_exCatalogue(),td=new Date().toISOString().split('T')[0];
   var doneToday=(logs||[]).filter(function(l){return l&&l.date===td;}).slice(0,5).map(function(l){var d=getActiveProgramDay(l.day);return{name:(d&&d.name)||('Day '+l.day),exercises:(l.exercises||[]).map(function(x){return x.name;}).slice(0,20)};});
   try{
-    var r=await fetch(AGENT_URL+'/program-ai',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({request:t,today:today,catalogue:cat,done_today:doneToday,
+    var r=await fetch(AGENT_URL+'/program-ai',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({request:t,today:today,catalogue:cat,done_today:doneToday,history:_pai.hist.concat(turn?[turn]:[]).slice(-10),
       program:{name:prog.name||'',days:prog.days.map(function(d){return{name:d.name||'',exercises:(d.exercises||[]).map(function(x){return x.name;})};})}})});
     var j=await r.json().catch(function(){return{};});
-    if(!r.ok){_pai.err=(j&&typeof j.detail==='string')?j.detail:'The AI request failed (HTTP '+r.status+').';}
+    if(turn&&(r.ok||r.status===422)){_pai.hist.push(turn);_pai.hist=_pai.hist.slice(-10);}
+    if(!r.ok){_pai.err=(j&&typeof j.detail==='string')?j.detail:'The AI request failed (HTTP '+r.status+').';if(r.status!==422)back();}
     else{var plan=_applyAiOps(prog,j.ops,today,cat,_extraDay());
       if(plan.errors.length)_pai.err=plan.errors.join(' ')+' Nothing was changed.';
-      else if(!plan.prog&&!plan.oneOff)_pai.err='The AI found nothing to change.';
+      else if(!plan.prog&&!plan.oneOff)_pai.err=plan.said.join(' ')||'The AI found nothing to change.';
       else _pai.plan=plan;}
-  }catch(e){_pai.err='Could not reach the server. Check your connection.';}
+  }catch(e){_pai.err='Could not reach the server. Check your connection.';back();}
   _pai.busy=false;_renderProgAi();
 }
-function progAiCancel(){_pai.plan=null;_pai.err='';_renderProgAi();}
+function progAiCancel(){_pai=_paiFresh();_renderProgAi();}
 function progAiApply(){
   var plan=_pai.plan;if(!plan)return;
   if(plan.prog){_programs[_activeProgramIndex]=plan.prog;_touchProgram(_activeProgramIndex);savePrograms();}
@@ -1646,7 +1667,7 @@ function progAiApply(){
   if(plan.oneOff&&ls)ls.value=plan.oneOff.day;
   if(!hasReps&&ls&&ls.value)prefillLog(ls.value);
   var pt=document.getElementById('page-today');if(pt&&pt.classList&&pt.classList.contains('active'))renderWorkout(_selectedProgramDay);
-  _pai={text:'',busy:false,err:'',plan:null};buildProgramSettingsCard();
+  _pai=_paiFresh();buildProgramSettingsCard();
   alert('Done.'+(hasReps?'\nYour workout in progress on the Log page is kept as it is.':'')+(plan.oneOff?'\nToday\'s session is on the Log page.':''));
 }
 // The one-off session for today. It counts for its own date, and after that only while an
@@ -4321,6 +4342,7 @@ function obSkip(){if(_obTourOnly){_obCloseTour();return;}obFinish();}
 // onboarded account means the card never existed for it yet: it gets the whole list.
 // Add a row here when a feature ships that a user would not find on their own.
 var WHATS_NEW=[
+  {v:'1.341',title:'Reply to the AI',text:'On Plan, after Ask AI suggests a change, type a reply and tap Reply (for example that your gym has no leg press). It answers with the whole conversation in mind; Apply keeps the latest suggestion.'},
   {v:'1.336',title:'Token cost',text:'Settings → Food log · API key shows what the AI calls on your own key cost each week and each month, in the currency you pick (EUR to start with).'},
   {v:'1.335',title:'Ask AI to change your program',text:'On Plan, tell the AI what to change: remove or swap an exercise on some or all days, add one, get a different session for today only, or an extra session when you have already trained today. It shows the change first; tap Apply to keep it. Uses your own API key from Settings.'},
   {v:'1.322',title:'Water',text:'Macros now logs water: tap + 250 ml or + 500 ml. The daily target is worked out from your body weight, sex and age, or set your own.'},
