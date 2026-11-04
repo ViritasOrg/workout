@@ -9461,6 +9461,7 @@ console.log('\n── Polestar climate ─────────────�
   check('polestar: staging only until Henrik says go', /var POLESTAR_ON=IS_STAGING;/.test(_blk));
   check('polestar: Settings carries the card', /<div id="ps-card"><\/div>/.test(_src));
   check('polestar: opening Settings loads it', /'settings'\)\{loadSettings\(\);buildFlKeyCard\(\);buildPolestarCard\(\);\}/.test(_src));
+  check('polestar: the header car is checked at start and after sign-in', /syncWorkoutDraftFromAgent\(\);syncPolestarCar\(\);\}else/.test(_src) && /\}\)\(\);syncPolestarCar\(\);checkAgentStatus\(\)/.test(_src));
   check('polestar: every set input reaches the check', /function _onLogInput\(e\)\{[^}]*_psCheck\(e\.target\)/.test(_src));
 
   // A tiny DOM: cards of reps inputs, the log's date/day selects, the header icon and the Polestar card.
@@ -9489,6 +9490,7 @@ console.log('\n── Polestar climate ─────────────�
         if (url === 'https://agent/polestar/climate' && o && o.method === 'POST') {
           if (opts.hold) await new Promise(r => { release = r; });
           return { ok: true, json: async () => opts.answer || { ok: true, status: 'SUCCESS', message: '' } }; }
+        if (url === 'https://agent/polestar/climate/stop') return { ok: true, json: async () => ({ ok: true, status: 'SUCCESS', message: '' }) };
         if (url === 'https://agent/polestar/climate') return { ok: true, json: async () => opts.status || { active: true, starting: false, status: 'ACTIVE', action: 'HEATING' } };
         if (url === 'https://agent/polestar' && o.method === 'PUT') return opts.putFail ? { ok: false, status: 400, json: async () => ({ detail: 'Polestar did not accept that email and password' }) } : { ok: true, json: async () => ({ set: true, email: 'me@x.com' }) };
         if (url === 'https://agent/polestar' && o.method === 'DELETE') return { ok: true, json: async () => ({ set: false, email: '' }) };
@@ -9541,7 +9543,7 @@ console.log('\n── Polestar climate ─────────────�
       const { r, cards } = threeSets(); const t = ctx({ cards, temp: 2, status: { active: false, starting: false, status: 'IDLE', action: 'UNDEFINED' } });
       r[1].value = '8'; await t.C._psCheck(r[1]); await t.C.psYes();
       await t.timers[0].f();
-      check('polestar: the header car goes when the car says climate stopped', t.els['hdr-car'].hidden === true && t.els['hdr-car'].innerHTML === '');
+      check('polestar: the header car turns grey when the car says climate stopped', t.els['hdr-car'].hidden === false && /ps-car-off/.test(t.els['hdr-car'].innerHTML) && !/#e53935/.test(t.els['hdr-car'].innerHTML));
     }
     {
       const { r, cards } = threeSets(); const t = ctx({ cards, temp: 2, status: { active: false, starting: true, status: 'START_ATTEMPT', action: 'COOLING' } });
@@ -9551,7 +9553,7 @@ console.log('\n── Polestar climate ─────────────�
       for (let i = 1; i < 9; i++) await t.timers[t.timers.length - 1].f();
       check('  …still there after 27 minutes of checks', t.els['hdr-car'].hidden === false);
       await t.timers[t.timers.length - 1].f();
-      check('  …and gone at 30 minutes, when Polestar stops climate', t.els['hdr-car'].hidden === true);
+      check('  …and grey again at 30 minutes, when Polestar stops climate', /ps-car-off/.test(t.els['hdr-car'].innerHTML));
     }
     {
       const { r, cards } = threeSets(); const t = ctx({ cards, temp: 15 });
@@ -9561,7 +9563,7 @@ console.log('\n── Polestar climate ─────────────�
     {
       const { r, cards } = threeSets(); const t = ctx({ cards, temp: 30 });
       r[1].value = '8'; await t.C._psCheck(r[1]); t.C.psClose();
-      check('polestar: Not now starts nothing and shows no car', !t.open.has('psModal') && !t.calls.some(c => /climate/.test(c.url)) && t.els['hdr-car'].hidden === true);
+      check('polestar: Not now starts nothing and leaves the car grey', !t.open.has('psModal') && !t.calls.some(c => /climate/.test(c.url)) && !/#e53935/.test(t.els['hdr-car'].innerHTML));
     }
     {
       const { r, cards } = threeSets(); const t = ctx({ cards, temp: 2, creds: { set: false, email: '' } });
@@ -9576,8 +9578,38 @@ console.log('\n── Polestar climate ─────────────�
     }
     {
       const { r, cards } = threeSets(); const t = ctx({ cards, temp: 2, answer: { ok: false, status: 'CAR_OFFLINE', message: '' } });
+      await t.C.syncPolestarCar();
       r[1].value = '8'; await t.C._psCheck(r[1]); await t.C.psYes();
-      check('polestar: the car\'s refusal is shown on the card, and no header car', /Climate did not start/.test(t.els['ps-modal-body'].innerHTML) && /The car answered CAR_OFFLINE/.test(t.els['ps-modal-body'].innerHTML) && t.els['hdr-car'].hidden === true);
+      check('polestar: the car\'s refusal is shown on the card, and the header car stays grey', /Climate did not start/.test(t.els['ps-modal-body'].innerHTML) && /The car answered CAR_OFFLINE/.test(t.els['ps-modal-body'].innerHTML) && /ps-car-off/.test(t.els['hdr-car'].innerHTML));
+    }
+    {
+      const t = ctx({ cards: [] });
+      await t.C.syncPolestarCar();
+      check('polestar: a saved Polestar ID shows a grey car in the header', t.els['hdr-car'].hidden === false && /ps-car-off/.test(t.els['hdr-car'].innerHTML) && /#8a8a8a/.test(t.els['hdr-car'].innerHTML));
+      t.C.psOpenStatus();
+      check('  …tapping it says climate is off, with Turn on', t.open.has('psModal') && /Climate is off/.test(t.els['ps-modal-body'].innerHTML) && /psTurnOn\(\)/.test(t.els['ps-modal-body'].innerHTML));
+      await t.C.psTurnOn();
+      check('  …Turn on starts climate and turns the car red, heat or cool not known yet', t.calls.some(c => c.url === 'https://agent/polestar/climate' && c.method === 'POST') && /ps-car-on/.test(t.els['hdr-car'].innerHTML) && /#e53935/.test(t.els['hdr-car'].innerHTML) && !t.calls.some(c => /open-meteo/.test(c.url)));
+      check('  …and asks the car again after 30 s to learn heat or cool', t.timers[t.timers.length - 1].ms === 30000);
+      check('  …the card now offers Turn off', /Climate is on/.test(t.els['ps-modal-body'].innerHTML) && /psTurnOff\(\)/.test(t.els['ps-modal-body'].innerHTML));
+      await t.timers[t.timers.length - 1].f();
+      check('  …the car\'s heating shows as the heat symbol', /ps-car-heat/.test(t.els['hdr-car'].innerHTML));
+      const p = t.C.psTurnOff(); 
+      check('  …Turn off shows a waiting message', /Stopping climate…/.test(t.els['ps-modal-body'].innerHTML));
+      t.C.psClose(); check('  …which cannot be closed while waiting', t.open.has('psModal'));
+      await p;
+      check('  …stops climate on the backend and turns the car grey', t.calls.some(c => c.url === 'https://agent/polestar/climate/stop' && c.method === 'POST') && /ps-car-off/.test(t.els['hdr-car'].innerHTML) && /Climate is off/.test(t.els['ps-modal-body'].innerHTML));
+    }
+    {
+      const t = ctx({ cards: [], creds: { set: false, email: '' } });
+      await t.C.syncPolestarCar();
+      check('polestar: no Polestar ID, no car in the header', t.els['hdr-car'].hidden === true);
+      t.C.psOpenStatus(); check('  …and nothing to open', !t.open.has('psModal'));
+    }
+    {
+      const t = ctx({ cards: [], staging: false });
+      await t.C.syncPolestarCar();
+      check('polestar: no car outside staging', t.els['hdr-car'].hidden === true && t.calls.length === 0);
     }
     {
       const t = ctx({ cards: [], creds: { set: false, email: '' } });
@@ -9588,9 +9620,11 @@ console.log('\n── Polestar climate ─────────────�
       await t.C.psSave();
       const put = t.calls.find(c => c.method === 'PUT');
       check('polestar card: Save sends both to the backend', put && JSON.stringify(JSON.parse(put.body)) === JSON.stringify({ email: 'me@x.com', password: 'pw' }));
+      check('  …the grey car appears in the header once saved', /ps-car-off/.test(t.els['hdr-car'].innerHTML));
       check('  …then shows who is signed in, never the password', /Signed in as me@x\.com/.test(t.els['ps-card'].innerHTML) && !/pw"/.test(t.els['ps-card'].innerHTML) && /psRemove\(\)/.test(t.els['ps-card'].innerHTML));
       await t.C.psRemove();
       check('polestar card: Remove deletes it on the backend', t.calls.some(c => c.method === 'DELETE') && /id="ps-email"/.test(t.els['ps-card'].innerHTML));
+      check('  …and the grey car leaves the header', t.els['hdr-car'].hidden === true);
     }
     {
       const t = ctx({ cards: [], creds: { set: false, email: '' }, putFail: true });
