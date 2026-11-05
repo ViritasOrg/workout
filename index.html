@@ -575,7 +575,7 @@ const DAY_TEMPLATES={1:[{name:"Squat",sets:"5-5-5-5-5",kg:120},{name:"Romanian D
 const VERSION='1.256';
 // BUILD_NO counts staging builds and is never rewritten by Push to Prod (which resets VERSION to
 // prod's own counter). The What's new card is keyed to it, so its rows show in both apps (2026-11-01).
-const BUILD_NO='1.348';
+const BUILD_NO='1.351';
 const IS_STAGING=(window.location.pathname||'').startsWith('/workout-staging');
 // Backend data namespace, sent as X-App-Id on every call. Staging gets its own so
 // testing here cannot write over production data — before 2026-08-01 both sent no
@@ -846,8 +846,8 @@ const THEMES=[
 ];
 function applyTheme(id){var t=THEMES.find(function(x){return x.id===id;})||THEMES[0];var r=document.documentElement.style;Object.entries(t.vars).forEach(function(e){r.setProperty('--'+e[0],e[1]);});setData('wkt-theme',id);pushSettingsToAgent({'wkt-theme':id});}
 (function(){var _st=getData('wkt-theme',1);if(_st!==1)applyTheme(_st);})();
-const PAGE_LABELS=Object.assign({today:'Today',plan:'Plan',log:'Log Workout',macros:'Macros',foodedit:'Food Edit',history:'History',progress:'Progress'},IS_STAGING?{storage:'Storage'}:{});
-const PAGE_DEFAULTS=Object.assign({today:true,plan:true,log:true,macros:true,foodedit:true,history:true,progress:true},IS_STAGING?{storage:true}:{});
+const PAGE_LABELS=Object.assign({today:'Today',plan:'Plan',log:'Log Workout',macros:'Macros',foodedit:'Food Edit',history:'History',progress:'Progress'},{storage:'Storage'});
+const PAGE_DEFAULTS=Object.assign({today:true,plan:true,log:true,macros:true,foodedit:true,history:true,progress:true},{storage:true});
 // Two-tier navigation (ported from the peptide app): 5 fixed bottom "primary" tabs,
 // each grouping one or more page destinations; a secondary sub-tab strip appears only
 // when the active group has more than one visible destination (More → Settings/Storage).
@@ -4350,6 +4350,7 @@ function obSkip(){if(_obTourOnly){_obCloseTour();return;}obFinish();}
 // onboarded account means the card never existed for it yet: it gets the whole list.
 // Add a row here when a feature ships that a user would not find on their own.
 var WHATS_NEW=[
+  {v:'1.349',title:'Polestar climate',text:'Settings → Polestar: sign in with your Polestar ID. On a cold or hot day the app asks on the last exercise whether to start the car\'s climate, and the car in the header turns it on or off.'},
   {v:'1.341',title:'Reply to the AI',text:'On Plan, after Ask AI suggests a change, type a reply and tap Reply (for example that your gym has no leg press). It answers with the whole conversation in mind; Apply keeps the latest suggestion.'},
   {v:'1.336',title:'Token cost',text:'Settings → Food log · API key shows what the AI calls on your own key cost each week and each month, in the currency you pick (EUR to start with).'},
   {v:'1.335',title:'Ask AI to change your program',text:'On Plan, tell the AI what to change: remove or swap an exercise on some or all days, add one, get a different session for today only, or an extra session when you have already trained today. It shows the change first; tap Apply to keep it. Uses your own API key from Settings.'},
@@ -4800,13 +4801,12 @@ async function flEditDelete(id){if(!confirmGlobalDelete('this food entry'))retur
 // exercise … in settings we need to add a Polestar card where a user can add their credentials."
 // The backend (/polestar, claude-agent-backend routers/polestar.py) keeps the Polestar ID and talks to Polestar;
 // nothing is stored on the phone. The outside temperature comes from Open-Meteo at the phone's location.
-// Staging only until Henrik has tried it and says go (org rule: nothing half-built is ever visible).
-var POLESTAR_ON=IS_STAGING;
+// In staging and prod alike (Henrik, 2026-11-04: "I push stage to prod, then all features must be available in prod!").
 var PS_COLD_C=10,PS_HOT_C=22;
 var _ps=null,_psErr='',_psChanging=false,_psAsked='';
 // Polestar runs climate for 30 minutes (Henrik, 2026-11-04), so the car is re-checked every 3 min for at most 30 min.
-var PS_RUN_MIN=30,PS_POLL_MS=180000,PS_POLL_MAX=10;
-var _psStep='',_psTemp=null,_psMsg='',_psCar=null,_psPolls=0,_psTimer=null;
+var PS_RUN_MIN=30,PS_POLL_MS=180000,PS_ASK_MS=30000;
+var _psStep='',_psTemp=null,_psMsg='',_psCar=null,_psRun=0,_psTimer=null;
 function _psNeedsClimate(t){return typeof t==='number'&&isFinite(t)&&(t<PS_COLD_C||t>PS_HOT_C);}
 // The reps input of the second-to-last set of the day's last exercise card, once it holds a number.
 function _psIsTrigger(inp){
@@ -4827,7 +4827,7 @@ async function _psOutsideTemp(){var pos=await _psPosition();if(!pos)return null;
 async function _psLoad(){try{var r=await fetch(AGENT_URL+'/polestar',{headers:authHeaders()});_ps=r.ok?await r.json():null;}catch(e){_ps=null;}return _ps;}
 // Asked at most once per workout (date + day); a second keystroke in the same box does not ask again.
 async function _psCheck(inp){
-  if(!POLESTAR_ON||!_psIsTrigger(inp))return;
+  if(!_psIsTrigger(inp))return;
   var key=_psWorkoutKey();if(_psAsked===key)return;_psAsked=key;
   var st=_ps&&_ps.set?_ps:await _psLoad();if(!st||!st.set)return;
   var t=await _psOutsideTemp();if(!_psNeedsClimate(t))return;
@@ -4873,21 +4873,25 @@ function _psCarSvg(mode,w){var sym=mode==='cool'
     +'<path d="M3 19v-4l3-1 4-4h11l5 4 5 1v4z" fill="'+c+'"/><circle cx="10" cy="19.5" r="2.6" fill="#222" stroke="'+c+'"/><circle cx="26" cy="19.5" r="2.6" fill="#222" stroke="'+c+'"/>'
     +'<path d="M11 11h4.5v3H8zM17 11h3.5l3.5 3h-7z" fill="'+glass+'"/></svg>';}
 function _psRenderCar(){var el=document.getElementById('hdr-car');if(!el)return;
-  var mode=_psCar||(POLESTAR_ON&&_ps&&_ps.set?'off':'');
+  var mode=_psCar||(_ps&&_ps.set?'off':'');
   if(!mode){el.hidden=true;el.innerHTML='';return;}
   el.innerHTML=_psCarSvg(mode,42);el.hidden=false;}
-function syncPolestarCar(){if(!POLESTAR_ON)return;return _psLoad().then(_psRenderCar);}
-// While climate is not known as heating or cooling the car is asked after 30 s, then every 3 minutes.
+function syncPolestarCar(){return _psLoad().then(_psRenderCar);}
+// While the car has not said whether it heats or cools it is asked every 30 s, after that every 3 minutes
+// (Henrik, 2026-11-05: "Stage car symbol has lost the heating symbol?": it was asked once at 30 s, then not for 3 minutes).
+function _psNextPoll(){return _psCar==='on'?PS_ASK_MS:PS_POLL_MS;}
 function _psShowCar(mode){_psCar=mode;_psRenderCar();
-  _psPolls=0;if(_psTimer)clearTimeout(_psTimer);_psTimer=setTimeout(_psPoll,mode==='on'?30000:PS_POLL_MS);}
+  _psRun=0;if(_psTimer)clearTimeout(_psTimer);_psSchedule();}
+// _psRun is the time since climate started, counted in the waits between checks.
+function _psSchedule(){var d=_psNextPoll();_psRun+=d;_psTimer=setTimeout(_psPoll,d);}
 function _psHideCar(){_psCar=null;_psRenderCar();if(_psTimer)clearTimeout(_psTimer);_psTimer=null;}
 // While the icon shows, ask the car every 3 minutes; it goes when the car says climate stopped, or after 30 minutes.
-async function _psPoll(){_psTimer=null;if(!_psCar)return;_psPolls++;
+async function _psPoll(){_psTimer=null;if(!_psCar)return;
   try{var r=await fetch(AGENT_URL+'/polestar/climate',{headers:authHeaders()});
     if(r.ok){var j=await r.json();if(!j.active&&!j.starting)return _psHideCar();
       if(/^COOLING/.test(j.action||''))_psShowCarMode('cool');else if(j.action==='HEATING')_psShowCarMode('heat');}}catch(e){}
-  if(_psPolls>=PS_POLL_MAX)return _psHideCar();
-  _psTimer=setTimeout(_psPoll,PS_POLL_MS);}
+  if(_psRun>=PS_RUN_MIN*60000)return _psHideCar();
+  _psSchedule();}
 function _psShowCarMode(mode){if(mode===_psCar)return;_psCar=mode;_psRenderCar();}
 function psOpenStatus(){if(_psCar)_psStep='on';else if(_ps&&_ps.set)_psStep='off';else return;_psRenderModal();openModal('psModal');}
 // Settings card, collapsed by default like the others.
@@ -4902,8 +4906,8 @@ function _psCardHtml(){var b;
   else b='<div style="font-size:13px;color:var(--text)">Signed in as '+_escP(_ps.email)+'</div><div style="display:flex;gap:8px;margin-top:6px">'+_psBtn('Change','psChange()',true)+_psBtn('Remove','psRemove()',false)+'</div>';
   if(_psErr)b+='<div style="margin-top:10px;font-size:13px;color:var(--danger,#ff3b30)">'+_escP(_psErr)+'</div>';
   return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">'+sSecHdr('polestar','Polestar')+sSecBody('polestar')+'<div style="padding:14px 16px">'+b+'</div></div></div>';}
-function _psRender(){var el=document.getElementById('ps-card');if(el)el.innerHTML=POLESTAR_ON?_psCardHtml():'';}
-async function buildPolestarCard(){if(!POLESTAR_ON)return _psRender();await _psLoad();_psRender();}
+function _psRender(){var el=document.getElementById('ps-card');if(el)el.innerHTML=_psCardHtml();}
+async function buildPolestarCard(){await _psLoad();_psRender();}
 function psChange(){_psChanging=true;_psErr='';_psRender();}
 function psCancel(){_psChanging=false;_psErr='';_psRender();}
 async function psSave(){var e=document.getElementById('ps-email'),p=document.getElementById('ps-pw');

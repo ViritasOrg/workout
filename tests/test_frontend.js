@@ -2716,8 +2716,9 @@ console.log('\n── Storage inspector ─────────────�
     src.includes('function lsDbgCopy('));
   check('lsDbgCopyAll function defined',
     src.includes('function lsDbgCopyAll()'));
-  check('storage tab included in PAGE_LABELS and PAGE_DEFAULTS via IS_STAGING (toggleable in Settings)',
-    src.includes("IS_STAGING?{storage:'Storage'}:{}") && src.includes('IS_STAGING?{storage:true}:{}'));
+  // In prod as on staging (Henrik, 2026-11-05: "The only feature we don't need in production is the push to prod card").
+  check('storage tab included in PAGE_LABELS and PAGE_DEFAULTS in prod as on staging (toggleable in Settings)',
+    src.includes(",{storage:'Storage'})") && src.includes(',{storage:true})') && !src.includes('IS_STAGING?{storage:'));
   check('buildStoragePage uses clipboard API to copy',
     src.includes('navigator.clipboard.writeText'));
 }
@@ -9458,7 +9459,8 @@ console.log('\n── Polestar climate ─────────────�
   const _blk = _src.slice(_src.indexOf('// ── Polestar climate (Henrik, 2026-11-04) ──'), _src.indexOf('// ── end polestar ──'));
   check('polestar: block present', _blk.length > 1000);
   check('polestar: nothing kept in localStorage (backend is the record)', !/localStorage\.|setData\(/.test(_blk));
-  check('polestar: staging only until Henrik says go', /var POLESTAR_ON=IS_STAGING;/.test(_blk));
+  // Henrik, 2026-11-04: "I push stage to prod, then all features must be available in prod!"
+  check('polestar: no staging gate (Push to Prod ships it)', !/IS_STAGING/.test(_blk) && !/POLESTAR_ON/.test(_blk));
   check('polestar: Settings carries the card', /<div id="ps-card"><\/div>/.test(_src));
   check('polestar: opening Settings loads it', /'settings'\)\{loadSettings\(\);buildFlKeyCard\(\);buildPolestarCard\(\);\}/.test(_src));
   check('polestar: the header car is checked at start and after sign-in', /syncWorkoutDraftFromAgent\(\);syncPolestarCar\(\);\}else/.test(_src) && /\}\)\(\);syncPolestarCar\(\);checkAgentStatus\(\)/.test(_src));
@@ -9496,7 +9498,7 @@ console.log('\n── Polestar climate ─────────────�
         if (url === 'https://agent/polestar' && o.method === 'DELETE') return { ok: true, json: async () => ({ set: false, email: '' }) };
         return { ok: false, status: 404, json: async () => ({}) }; } });
     vm.runInContext(_blk, C);
-    return { C, calls, els, open, timers, release: () => release && release() };
+    return { C, calls, els, open, timers, opts, release: () => release && release() };
   }
   const threeSets = () => { const r = [mkInp('8'), mkInp(''), mkInp('')]; return { r, cards: [mkCard([mkInp('5')]), mkCard(r)] }; };
   const tick = () => new Promise(r => setImmediate(r));
@@ -9573,8 +9575,8 @@ console.log('\n── Polestar climate ─────────────�
     {
       const { r, cards } = threeSets(); const t = ctx({ cards, temp: 2, staging: false });
       r[1].value = '8'; await t.C._psCheck(r[1]);
-      check('polestar: off outside staging (no calls at all)', t.calls.length === 0 && !t.open.has('psModal'));
-      t.els['ps-card'] = { innerHTML: 'x' }; t.C._psRender(); check('  …and no Settings card', t.els['ps-card'].innerHTML === '');
+      check('polestar: in prod it asks on a cold day, as on staging', t.open.has('psModal') && t.calls.some(c => /open-meteo/.test(c.url)));
+      t.els['ps-card'] = { innerHTML: '' }; await t.C.buildPolestarCard(); check('  …and prod has the Settings card', /Polestar/.test(t.els['ps-card'].innerHTML));
     }
     {
       const { r, cards } = threeSets(); const t = ctx({ cards, temp: 2, answer: { ok: false, status: 'CAR_OFFLINE', message: '' } });
@@ -9592,8 +9594,15 @@ console.log('\n── Polestar climate ─────────────�
       check('  …Turn on starts climate and turns the car red, heat or cool not known yet', t.calls.some(c => c.url === 'https://agent/polestar/climate' && c.method === 'POST') && /ps-car-on/.test(t.els['hdr-car'].innerHTML) && /#e53935/.test(t.els['hdr-car'].innerHTML) && !t.calls.some(c => /open-meteo/.test(c.url)));
       check('  …and asks the car again after 30 s to learn heat or cool', t.timers[t.timers.length - 1].ms === 30000);
       check('  …the card now offers Turn off', /Climate is on/.test(t.els['ps-modal-body'].innerHTML) && /psTurnOff\(\)/.test(t.els['ps-modal-body'].innerHTML));
+      // Henrik, 2026-11-05: "Stage car symbol has lost the heating symbol?" The car had not decided at 30 s and was
+      // not asked again for 3 minutes. It is asked every 30 s until it says heating or cooling.
+      t.opts.status = { active: true, starting: true, status: 'START_ATTEMPT', action: 'NOT_REQUIRED' };
+      await t.timers[t.timers.length - 1].f();
+      check('  …a car that has not decided yet is asked again 30 s later, not 3 minutes', /ps-car-on/.test(t.els['hdr-car'].innerHTML) && t.timers[t.timers.length - 1].ms === 30000);
+      t.opts.status = null;
       await t.timers[t.timers.length - 1].f();
       check('  …the car\'s heating shows as the heat symbol', /ps-car-heat/.test(t.els['hdr-car'].innerHTML));
+      check('  …and from then on it is asked every 3 minutes', t.timers[t.timers.length - 1].ms === 180000);
       const p = t.C.psTurnOff(); 
       check('  …Turn off shows a waiting message', /Stopping climate…/.test(t.els['ps-modal-body'].innerHTML));
       t.C.psClose(); check('  …which cannot be closed while waiting', t.open.has('psModal'));
@@ -9609,7 +9618,7 @@ console.log('\n── Polestar climate ─────────────�
     {
       const t = ctx({ cards: [], staging: false });
       await t.C.syncPolestarCar();
-      check('polestar: no car outside staging', t.els['hdr-car'].hidden === true && t.calls.length === 0);
+      check('polestar: prod shows the grey car for a saved Polestar ID', t.els['hdr-car'].hidden === false && /ps-car-off/.test(t.els['hdr-car'].innerHTML));
     }
     {
       const t = ctx({ cards: [], creds: { set: false, email: '' } });
@@ -9639,4 +9648,37 @@ console.log('\n── Polestar climate ─────────────�
       check('polestar card: Remove goes through the global-delete confirmation', !t.calls.some(c => c.method === 'DELETE'));
     }
   })().catch(e => { check('polestar: tests ran', false, String(e && e.stack || e)); process.exitCode = 1; });
+}
+
+// ── Push to Prod ships every feature: no feature is gated to staging (Henrik, 2026-11-04) ──
+// "I push stage to prod, then all features must be available in prod!" Polestar shipped behind
+// `POLESTAR_ON=IS_STAGING`, Henrik pushed to prod and the card was not there. Then (2026-11-05):
+// "The only feature we don't need in production is the push to prod card". IS_STAGING may only
+// switch ENVIRONMENT plumbing (data namespace, URLs, the stage-copy card) and the Push to Prod
+// card. Every use is listed here; anything else fails.
+console.log('\n── No feature is gated to staging ─────────────────────────');
+{
+  const _fs = require('fs'), _path = require('path');
+  const _dir = _path.dirname(_path.resolve(htmlPath));
+  const _files = [_path.resolve(htmlPath)].concat(_fs.readdirSync(_dir).filter(f => /\.js$/.test(f)).map(f => _path.join(_dir, f)));
+  const ALLOWED = [
+    /const IS_STAGING=\(window\.location\.pathname/,                 // the switch itself
+    /const APP_ID=IS_STAGING\?'stage':''/,                            // staging's own data namespace
+    /if\(IS_STAGING\)\{var _S='staging:'/,                           // staging's own localStorage keys
+    /if\(IS_STAGING\)\{card\.innerHTML='';return;\}/,                // prod→stage copy card, prod only
+    /env='\+\(\(typeof IS_STAGING/,                                   // environment name in a debug report
+    /if\(IS_STAGING\)buildDeployCard\(\)|s-deploy-card/,              // the Push to Prod card itself
+    /fetch\(\(IS_STAGING\?'https:\/\/viritasorg\.github\.io\//,       // each app's own version.json
+    /if\(!IS_STAGING\|\|localStorage\.getItem\('wk-bf-isol-v1'\)\)/, // staging data isolation migration
+  ];
+  const bad = [];
+  _files.forEach(f => {
+    const src = _fs.readFileSync(f, 'utf8'); let i = -1;
+    while ((i = src.indexOf('IS_STAGING', i + 1)) >= 0) {
+      const win = src.slice(Math.max(0, i - 80), i + 400);
+      if (!ALLOWED.some(re => re.test(win))) bad.push(_path.basename(f) + ': …' + src.slice(Math.max(0, i - 40), i + 60).replace(/\s+/g, ' ') + '…');
+    }
+  });
+  check('every IS_STAGING use is environment plumbing or the Push to Prod card, never a feature',
+    bad.length === 0, 'Push to Prod must ship every feature. Remove the gate:\n      ' + bad.join('\n      '));
 }
