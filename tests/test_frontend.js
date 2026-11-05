@@ -8996,8 +8996,18 @@ console.log('\n── Onboarding tour ──────────────
   check('WHATS_NEW announces the tour and where to replay it', G.WHATS_NEW.some(e => /tour/i.test(e.title) && /top of Settings/.test(e.text)));
 
   // Henrik: "in settings/More add a button on top to re run the intro for users who want to see it again."
-  check('Settings opens with a "Watch the intro again" button, before the first section',
-    /id="page-settings"[^>]*>\s*<button id="tour-replay-btn" onclick="openTour\(\)"[^>]*>[^<]*<span[^>]*>▶<\/span>Watch the intro again<\/button>/.test(html));
+  // Then 2026-11-05: "app version should be on top": the App card (version) comes first, the intro button right under it.
+  const _setTop = html.slice(html.indexOf('id="page-settings"'));
+  const _firstSec = _setTop.search(/<div class="s-sec-hdr"|<div id="(?:fl-|ps-|s-)/);
+  check('Settings opens with the App card (version), then the "Watch the intro again" button, before the other sections',
+    /id="page-settings"[^>]*>\s*<div[^>]*>\s*<div class="s-sec-hdr open"[^>]*>App<\/div>\s*<div class="s-sec-body" id="s-sec-app">[\s\S]*?id="s-version"/.test(html) &&
+    /^[^]*?<\/div>\s*<\/div>\s*<\/div>\s*<button id="tour-replay-btn" onclick="openTour\(\)"[^>]*>[^<]*<span[^>]*>▶<\/span>Watch the intro again<\/button>/.test(_setTop) &&
+    _setTop.indexOf('tour-replay-btn') < _firstSec);
+  // Henrik, 2026-11-05: "a weird gap between two cards". An empty card slot (Push to Prod in prod) took a flex gap,
+  // and some cards added a 14px margin on top of the gap.
+  check('Settings: an empty card slot takes no gap, and no card adds its own top margin',
+    /#page-settings>div:empty\{display:none;\}/.test(html) &&
+    !/overflow:hidden;margin-top:14px[^']*'\s*\+\s*sSecHdr\('(?:tabs|cache|stagecopy)'/.test(html));
   const ov = trk('onboarding-overlay'); ov.classList.add('hidden');
   const dots = trk('ob-dots'), backB = trk('ob-back'), nextB = trk('ob-next');
   sandbox.localStorage._s['wkt-profile'] = JSON.stringify({ onboarded: true, gender: 'female', weight: 60 });
@@ -9682,3 +9692,80 @@ console.log('\n── No feature is gated to staging ─────────
   check('every IS_STAGING use is environment plumbing or the Push to Prod card, never a feature',
     bad.length === 0, 'Push to Prod must ship every feature. Remove the gate:\n      ' + bad.join('\n      '));
 }
+
+// ── Push to Prod: Settings shows the push GitHub is running, not this page's memory (Henrik, 2026-11-05: "Just pushed
+// stage to prod but when I open the settings to check for progress it looks like I never even tried???? If it failed I
+// want an error showing what went wrong, and if it is still in progress I want the full list of promotion steps still
+// visible!!!") ──
+// The promotion functions run in a context of their own (their own fetch, timers, storage and elements), cut out of the
+// page by name, so they cannot race the other async tests over the shared globals.
+console.log('\n── Push to Prod: a running or failed push survives reopening Settings ─');
+check('opening Settings asks GitHub for the newest push', /buildLastPushDropdown\(\);resumePromote\(\);\}$/.test(String(G.buildDeployCard)));
+globalThis.__promoteResumeRun = (async function(){
+  const _page = require('fs').readFileSync(htmlPath, 'utf8');
+  const fnSrc = name => {
+    const at = _page.search(new RegExp('(?:async )?function ' + name + '\\('));
+    if (at < 0) throw new Error('no function ' + name);
+    let i = _page.indexOf('{', at), d = 0;
+    for (; i < _page.length; i++) { const c = _page[i]; if (c === '{') d++; else if (c === '}' && --d === 0) break; }
+    return _page.slice(at, i + 1);
+  };
+  const names = ['resumePromote', '_promoteRunning', '_promoteFailHtml', '_promoteEsc', 'renderPromoteStatus', 'pollPromoteStatus',
+    'saveLastPush', 'buildLastPushDropdown', '_promoteRetryBtn', '_promoteRunIdOf', '_fmtAgo', '_promoteStatusError', 'saveAbandonedPush'];
+  const code = names.filter(n => new RegExp('function ' + n + '\\(').test(_page)).map(fnSrc).join('\n');
+  function mk(answers) {
+    const store = {}, calls = [], els = {'s-deploy-card': {style: {display: ''}}, 'push-to-prod-status': {innerHTML: ''},
+      'push-to-prod-btn': {textContent: 'Push to Prod', disabled: false}, 'push-to-prod-last': {innerHTML: ''}};
+    const C = vm.createContext({console, Promise, JSON, Math, String, Number, Date, Object, Array, RegExp,
+      AGENT_URL: 'https://agent', authHeaders: () => ({}), _escP: x => String(x), _showLiveProdVersion: () => {},
+      _promoteRunId: null, _promoteMinAttempt: 0, _pollErrs: 0, _stagingVer: null, _prodVer: null, _lastPushData: null,
+      _promotePollAt: 0, _promoteLastData: null, _PROMOTE_WAIT_MS: 25 * 60 * 1000,
+      PROMOTE_STEPS: ['Checkout staging', 'Checkout prod', 'Sync files into prod branch', 'Open PR on prod', 'Wait for CI and merge prod PR'],
+      setTimeout: () => 0, pollProdVersion: () => {},
+      localStorage: {getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }},
+      document: {getElementById: id => els[id] || null, querySelectorAll: () => []},
+      fetch: async url => { calls.push(url); const body = answers.shift(); return {ok: true, status: 200, json: async () => body}; }});
+    vm.runInContext(code, C);
+    return {C, els, store, calls, answers};
+  }
+  const settle = async () => { for (let i = 0; i < 30; i++) await Promise.resolve(); };
+  const steps = last => ['Checkout staging', 'Checkout prod', 'Sync files into prod branch', 'Open PR on prod']
+    .map(n => ({name: n, status: 'completed', conclusion: 'success'})).concat([{name: 'Wait for CI and merge prod PR', status: 'completed', conclusion: last}]);
+  const running = {status: 'in_progress', run_id: 41985654271, run_attempt: 1, run_url: 'https://github.com/x/runs/41985654271',
+    steps: steps(null).map((s, i) => i < 4 ? s : {name: s.name, status: 'in_progress', conclusion: null})};
+  const failed = Object.assign({}, running, {status: 'completed', conclusion: 'failure', steps: steps('failure'),
+    failed_step: 'Wait for CI and merge prod PR', error: 'Timeout: PR #302 did not merge within 30 minutes'});
+
+  // 1. A push still running when Settings opens: every step and a busy button, then followed by its run id.
+  let t = mk([running]);
+  await t.C.resumePromote(); await settle();
+  const live = t.els['push-to-prod-status'].innerHTML;
+  check('a push still running when Settings opens shows every promotion step and a busy button',
+    t.els['push-to-prod-btn'].textContent === 'Pushing...' && t.els['push-to-prod-btn'].disabled &&
+    ['Checkout staging', 'Checkout prod', 'Sync files into prod branch', 'Open PR on prod', 'Wait for CI and merge prod PR'].every(n => live.includes(n)), live);
+  check('  …and is followed by its run id', t.calls.length === 2 && /run_id=41985654271/.test(t.calls[1]), t.calls.join(' | '));
+  // 2. The same push then fails: the step and the workflow's own error, kept in the record.
+  t = mk([running, failed]);
+  await t.C.resumePromote(); await settle();
+  const shown = t.els['push-to-prod-status'].innerHTML;
+  check('a push that fails shows the step it failed at and the workflow\'s own error',
+    /Push failed at “Wait for CI and merge prod PR”/.test(shown) && /did not merge within 30 minutes/.test(shown) && shown.includes('Checkout staging'), shown);
+  const rec = JSON.parse(t.store['wk-last-push'] || 'null');
+  check('  …the record keeps the run, the step and the error', rec && rec.runId === '41985654271' && rec.conclusion === 'failure' &&
+    rec.error === 'Timeout: PR #302 did not merge within 30 minutes' && rec.failedStep === 'Wait for CI and merge prod PR');
+  check('  …which the Last push line shows, opened', /<details open>/.test(t.els['push-to-prod-last'].innerHTML) &&
+    /did not merge within 30 minutes/.test(t.els['push-to-prod-last'].innerHTML));
+  // 3. Reopening Settings afterwards: the recorded failure is not drawn twice and nothing is polled.
+  t.answers.push(failed); t.els['push-to-prod-status'].innerHTML = ''; t.calls.length = 0; t.C._promoteLastData = null;
+  await t.C.resumePromote(); await settle();
+  check('a finished push already recorded is not drawn again, and nothing is polled', t.calls.length === 1 && t.els['push-to-prod-status'].innerHTML === '');
+  // 4. A push that failed while the app was closed: shown with its error when Settings opens.
+  t = mk([Object.assign({}, failed, {run_id: 42, run_url: 'https://github.com/x/runs/42', error: 'PR creation failed: Bad credentials', failed_step: 'Open PR on prod'})]);
+  await t.C.resumePromote(); await settle();
+  check('a push that failed while the app was closed is shown with its error when Settings opens',
+    /PR creation failed: Bad credentials/.test(t.els['push-to-prod-status'].innerHTML) && JSON.parse(t.store['wk-last-push']).runId === '42');
+  // 5. Prod hides or leaves out the Deploy card: nothing is asked.
+  t = mk([running]); t.els['s-deploy-card'].style.display = 'none';
+  await t.C.resumePromote(); await settle();
+  check('with the Deploy card hidden (prod) nothing is asked', t.calls.length === 0);
+})().catch(e => { check('promote resume checks ran', false, String(e && e.stack || e)); process.exitCode = 1; });
