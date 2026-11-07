@@ -1,13 +1,15 @@
 # Workout App — Claude Instructions
 
-<!-- BEGIN ORG-WIDE RULES v21. Canonical copy: ViritasOrg/claude-agent-backend docs/org-rules.md. Edit it there; the Sync org rules workflow opens the PRs that copy this block into every other ViritasOrg repo, and the daily drift check reports any copy that differs. -->
-## Org-wide rules: every ViritasOrg repo (canonical v21, 2026-11-07)
+<!-- BEGIN ORG-WIDE RULES v22. Canonical copy: ViritasOrg/claude-agent-backend docs/org-rules.md. Edit it there; the Sync org rules workflow opens the PRs that copy this block into every other ViritasOrg repo, and the daily drift check reports any copy that differs. -->
+## Org-wide rules: every ViritasOrg repo (canonical v22, 2026-11-07)
 
 Identical in every repo's `CLAUDE.md` under `ViritasOrg`; the rest of each file adds repo-specific rules. If one seems to contradict this block, say so to Henrik instead of picking one. They bind every session, whatever started it (Claude Code, claude.ai, a Project, a scheduled task, an agent). The quote and incident behind each rule: https://github.com/ViritasOrg/claude-agent-backend/blob/main/docs/org-rules-history.md.
 
 ### Verify before you speak
 - Check the facts (config, logs, code, live state) before giving a cause, a fix or a step. Never present a guess as the answer; say exactly what is unverified. Check whether a step is already done before asking Henrik to do it.
 - **Never answer from memory** (https://github.com/ViritasOrg/flyt/issues/910): every fact about the outside world (a provider's features, tiers, prices, API fields, a library's behaviour) comes from something read in that session (docs fetched or archived, code, config, the live system), and the reply says where from. Unreadable: say it is unchecked and what would check it, never "as far as I know".
+- **Read the record and the diagnostics before asking him** (2026-08-14, https://github.com/ViritasOrg/btcpay/issues/243): a question about data is answered from the data (`/admin-data/records`, `/diag/<source>` with `CLAUDE_READONLY_API_KEY`; check `[ -n "$CLAUDE_READONLY_API_KEY" ]` first, an unset key is reported, never engineered around or widened); never a counter, chip or debug line added to the UI to find out what is stored; a stale diagnostics snapshot is itself the finding.
+- **A source the sandbox cannot reach comes through a fetch workflow on a GitHub runner** (`scripts/fetch_sources.py`, `scripts/fetch_api_docs.py` in claude-agent-backend; `docs/sources/requests.txt` in appstore_app): pre-authorised, never ask, never make him approve web access, never call a value unsourceable before running it, always open what came back before citing it.
 
 ### Talking to Henrik
 - **Answer first**: a question gets its answer in the first lines, before any tool call. Before starting work, say in one line what you are about to do and why.
@@ -35,12 +37,21 @@ Identical in every repo's `CLAUDE.md` under `ViritasOrg`; the rest of each file 
 - **Chrome** on his iPhone and Macs unless something forces another browser (iPhone home screen: Chrome's Share → Add to Home Screen); name Safari only when iOS requires it, and say why.
 - **Passwords: Henrik types them, Claude never routes them** (https://github.com/ViritasOrg/Flyt/issues/530): never `pbpaste`, the clipboard, a shell variable, a heredoc or `sudo -S`; never ask for a token, key or password in chat; never print one.
 - **No fixed home IP** (https://github.com/ViritasOrg/flyt/issues/761): never ask him to allow-list his home IP for a partner key, never print his IP, never write such a step into a doc; keep a key small by permissions and expiry, leave the IP field empty.
+- **One copy-paste block, self-checking** (2026-10-14): anything he must run is one fenced block (```zsh for the Mac, ```bash for a Linux machine) that generates its own values, checks its prerequisites, verifies itself and prints OK / NOT OK; never inline in prose, never a `<placeholder>` he edits. Default to doing it in the session; a block is the fallback for what the sandbox cannot reach, and it appears only when it is time to run it.
+- **A command for a machine other than the M1 Max carries its own `ssh`** (https://github.com/ViritasOrg/flyt/issues/817): a one-liner is `ssh -t btcpay 'sudo …'`, a script goes whole as `ssh -t btcpay "$(cat <<'REMOTE'` … `REMOTE` newline `)"`; never "first ssh in, then paste". **Machine names** (https://github.com/ViritasOrg/flyt/issues/637): the M1 Max (perf host, where updates are pushed from; never "the M1"), flyt-ops (the always-on Intel Mac with the boards and consoles), the Pi (btcpay).
+- **GitHub steps are links, never `gh` commands** (2026-10-10): the exact https://github.com/… page and what to click.
+- **A step Henrik does goes through the page or console built for it, never the terminal command behind it** (https://github.com/ViritasOrg/Flyt/issues/606); a terminal command only when no page has the control, said so in one line, and a step an operator will repeat gets its control in the same PR.
+- **Never tell him to change how a machine is reached** (https://github.com/ViritasOrg/Flyt/issues/427): Remote Login, Screen Sharing, Remote Management, firewall, Tailscale, SSH keys, users, unless Flyt's `docs/ops.md` lists the setting and nothing documented depends on it; a real change updates that table in the same PR.
+- **The apps are installed iOS PWAs**: never a browser hard-reload or clear-cache instruction; a new version comes through the in-app update checker or by closing and reopening the app. **Tailnet addresses in Chrome**: `*.ts.net` needs Use secure DNS off (`chrome://settings/security`).
 
 ### Do what Henrik asked the first time, and keep doing it
 - An instruction given once holds for the session and every session after: write it into the repo's `CLAUDE.md` in the same session. Before replying, check the request against what he already said; if he asked before, do it now, fully, not as a plan.
 - Something to do to files on his machine (move, sort, open): the reply is the complete command that does it now, first; a code change for next time is extra.
 - Files he is meant to look at or listen to go to `~/Downloads/<what>/<what was tested> <date time>`, one new folder per run; never a hidden app folder, one generic folder or an overwrite.
 - If he has to say a thing twice, the first reply failed: fix it in that reply and add the rule.
+- **Only fix what was asked**: one PR = one requested change; appearance, layout and unrelated logic untouched; an improvement is mentioned, never made. **Do not ask permission for the fix itself** (2026-08-20): what caused, hid or misreported the bug is part of it. **Build the MVP, suggest the rest** (2026-09-03): the smallest version that does what was asked; a setting, extra panel, second way or unasked case ships as one sentence, not code.
+- **"My fix made it redundant" is not permission to remove it** (2026-06-25): only code named in the request is removed; say so and ask.
+- **A file he will use is pasted whole in the reply** (2026-09-12) and committed too; complete files, never partial edits.
 
 ### Never touch production during perf, load, sizing or test work without asking
 - No request to production (`claude-agent-api-aged-sun-3616.fly.dev`, any repo's production app) or to any partner as part of such work, read-only GETs and health checks included, without his explicit permission in that conversation. If production stops answering, stop all requests at once and report it as an incident you caused.
@@ -68,14 +79,31 @@ Identical in every repo's `CLAUDE.md` under `ViritasOrg`; the rest of each file 
 
 ### Merge your PR once it is green (https://github.com/ViritasOrg/flyt/issues/930)
 - A session merges its own PR as soon as every required check is green and it is mergeable, into the branch the repo targets (Flyt: `staging`, release and hotfix PRs into `main`; others: `main`). No merge ask, no waiting. Still never: push to a protected branch, change branch protection, merge red or conflicted, or merge a PR that lists a step Henrik must do first (ask for that step). `peptidetracker` and `workout` reach production only through his Push to Prod.
+- **Done means merged** (2026-09-10): until the PR is in its target branch, "on a branch, not delivered"; quote the target branch's SHA, never the branch SHA; opening a PR is not delivery; before ending a session confirm every branch is merged or abandoned with a reason.
+- **Absent checks are not green checks**: `total_count: 0` is not success; re-trigger with `git commit --allow-empty -m "chore: re-trigger CI" && git push`; if no run comes, run the suite locally, say so, don't merge; never route around a required check.
+- **Promotion to prod is Henrik's alone and is never mentioned** (2026-09-10): never trigger Push to Prod, never hand-merge the prod PR, never write "reaches prod via Push to Prod", "still needs promoting" or "prod still has the bug" unless he asks in that turn; a go-ahead for prod holds for that turn only. **Local clones are not up to date**: fetch before reading or copying from one.
 
 ### Every repo has CI and tests (https://github.com/ViritasOrg/flyt/issues/982)
 - Every repo has a GitHub Actions workflow running its tests on every PR and push to its main branch; one without gets both in its own PR before the next code change merges. A new repo gets CI and first tests in its first PR, its line in `REPOS` in `ViritasOrg/claude-agent-backend` `scripts/check_org_rules.py`, and this block in its `CLAUDE.md`.
 - New or changed behaviour comes with tests in the same PR; a bug fix with a regression test that fails before the fix. Tests call the code and check what it returns; a source grep is a structural guard, never behaviour coverage. CI never calls a real partner or needs a real secret.
 - A PR merges only after CI ran green on its latest commit; no checks is not green (the one exception: a docs-only PR in a repo whose CI doesn't run on PRs yet). Never skip, disable or loosen a test, a coverage floor or a CI step.
+- **A red settled or model test means revert the change** (`*_is_settled_*`, the free-T model tests): never rewrite the test to match; if the settled value seems wrong, say so and let Henrik decide. A test that encodes a bug is corrected, not deleted. Docs are updated in the same PR as the change they describe (`docs/state.md`, `docs/program-rules.md`, `docs/deadair.md`, the vendor guide, every `docs/*.md` a change touches).
 
 ### Every background job has a readable name (https://github.com/ViritasOrg/flyt/issues/1004)
 - A LaunchAgent or LaunchDaemon starts a link or wrapper named after what it is (product and service, as Henrik would say it: `Flyt Ops Board (production)`, `btcpay CFO Console`), unique, never a bare `node`/`python`/`bash` (macOS Login Items shows the interpreter's name otherwise). A Python job's link sits in its venv's `bin/` next to `python`. A new job gets its name in the same PR, with a test that its plist starts the named link.
+
+### Every page has its own icon, and is readable for Henrik
+- **Every page or app ships its icon in its first PR**: favicon, PWA manifest with 192, 512 and maskable PNGs, `apple-touch-icon`; distinct per app, clear colours on black; production and staging never look alike (own title, manifest name and icon); a test that every page links them.
+- **High contrast, nothing small and grey** (https://github.com/ViritasOrg/flyt/issues/766, https://github.com/ViritasOrg/btcpay/issues/175): every text colour at least 7:1 (WCAG AAA) in every theme, no informational text under 15px, secondary text marked by size or weight never by greying; a `readable` test per page. **Bigger text never spills out of its card** (https://github.com/ViritasOrg/flyt/issues/847): layout tests busy and quiet, desktop to phone.
+
+### Security, auth and money
+- **Security takes precedence over convenience** (2026-10-11): build the more secure option and say what it costs. **No PIN or non-Google end-user login, ever**; the `x-api-secret` and read-only keys are Claude's tooling only, GET-only where read-only, never widened.
+- **Never hardcode a real user's own records** as defaults, seeds or repair helpers (neutral fallbacks only; tests fail on it); a row is matched by owner and id, never id alone; deletes are global and say so.
+- **Key names in a cloud environment say which environment they are for** (`_TEST_`, `_PRODUCTION`; check `sk_test_`/`sk_live_` before use). **Henrik types every amount and every address himself** (2026-10-12): a command, script or page that moves money never has a sum or an address written into it; it asks, shows both back and needs an explicit confirmation.
+- **Limits are operations' to change, not Claude's** (https://github.com/ViritasOrg/Flyt/issues/530): any limit, cap or switch an operator may need at night gets a console control in the same PR, never "PR + release" only; **never leave something out because of a limit** (https://github.com/ViritasOrg/flyt/issues/1073): put the whole thing in and say which cap and where it is raised.
+
+### Work starts and ends on the board (Flyt and btcpay; `docs/operating-model.md`)
+- An issue first, claimed with `CLAIM <session URL>` and `status:now`, one session per issue; every PR `Closes #n` or `Refs #n`; a claimed issue is always named to Henrik with its owner's session URL in the same sentence (https://github.com/ViritasOrg/Flyt/issues/587); findings go in the issue or `docs/`, never only in chat.
 
 ### Every warning and error tells the user what to do, and links to why
 - In all software (every app, page, console, board, CLI, email, log line a person reads, API error): a warning or error says what happened, carries one clear call to action (the button, step or command that fixes it, or who to contact), and links to a page that explains the warning or error in full: what it means, its consequences if ignored, and how to solve it. Never a bare "Something went wrong", a code with no words, or a warning with no way out.
@@ -86,7 +114,7 @@ Identical in every repo's `CLAUDE.md` under `ViritasOrg`; the rest of each file 
 
 ### CLAUDE.md holds rules, not records
 - A repo's root `CLAUDE.md` is loaded into every session, so it stays under 200 lines: imperative rules, one line each, an issue URL as provenance, at most one line of why. Quotes, incident stories, feature logs, "current state" and design notes go to `docs/` (pointed to from `CLAUDE.md` in one line), or to `.claude/rules/<area>.md` with `paths:` frontmatter when a rule only matters for part of the repo. A rule Henrik gives goes in as a rule; the quote goes to `docs/rule-history.md`.
-<!-- END ORG-WIDE RULES v21 -->
+<!-- END ORG-WIDE RULES v22 -->
 
 ## 🔒 PROD IS READ-ONLY — DO NOT TOUCH WITHOUT EXPLICIT PERMISSION
 This repo (`workout`) is **PRODUCTION**. Claude may read, inspect, and
