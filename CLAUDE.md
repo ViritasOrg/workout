@@ -1,7 +1,7 @@
 # Workout App — Claude Instructions
 
-<!-- BEGIN ORG-WIDE RULES v22. Canonical copy: ViritasOrg/claude-agent-backend docs/org-rules.md. Edit it there; the Sync org rules workflow opens the PRs that copy this block into every other ViritasOrg repo, and the daily drift check reports any copy that differs. -->
-## Org-wide rules: every ViritasOrg repo (canonical v22, 2026-11-07)
+<!-- BEGIN ORG-WIDE RULES v23. Canonical copy: ViritasOrg/claude-agent-backend docs/org-rules.md. Edit it there; the Sync org rules workflow opens the PRs that copy this block into every other ViritasOrg repo, and the daily drift check reports any copy that differs. -->
+## Org-wide rules: every ViritasOrg repo (canonical v23, 2026-11-09)
 
 Identical in every repo's `CLAUDE.md` under `ViritasOrg`; the rest of each file adds repo-specific rules. If one seems to contradict this block, say so to Henrik instead of picking one. They bind every session, whatever started it (Claude Code, claude.ai, a Project, a scheduled task, an agent). The quote and incident behind each rule: https://github.com/ViritasOrg/claude-agent-backend/blob/main/docs/org-rules-history.md.
 
@@ -109,12 +109,17 @@ Identical in every repo's `CLAUDE.md` under `ViritasOrg`; the rest of each file 
 - In all software (every app, page, console, board, CLI, email, log line a person reads, API error): a warning or error says what happened, carries one clear call to action (the button, step or command that fixes it, or who to contact), and links to a page that explains the warning or error in full: what it means, its consequences if ignored, and how to solve it. Never a bare "Something went wrong", a code with no words, or a warning with no way out.
 - The explanation page lives with the product's docs (a `docs/` page served or published by the repo, anchored per warning), is written when the warning is, and ships in the same PR; a test checks every user-facing warning carries its link and that the link resolves. Existing warnings without one get theirs when the code they are in is next touched.
 
+### Finding files Henrik lost on his Desktop or in Downloads (Desktop & Downloads Tidy)
+- A menu-bar app moves files out of `~/Desktop` and `~/Downloads` every hour. Before saying a file is missing, ask it where the file went, on the Mac: `"/Applications/Desktop & Downloads Tidy.app/Contents/MacOS/DesktopTidy" where <old path or file name>`. A bare file name matches any file that had that name before its first move, in any case; an old path (`~` allowed) matches exactly; several names or paths can go in one call.
+- The output is JSON, one object per file: `originalPath`, `currentPath`, `exists` (is something still at `currentPath`), `inTrash`, and `moves` (each with `from`, `to`, `movedAt`, `reason`, `trashed`). Use `currentPath`; if `inTrash` is true, the file is in the Trash and Finder's Put Back works. Exit code 0 found, 1 not found (prints `[]`), 2 wrong arguments. `… DesktopTidy moves --since 2026-11-01` lists every move since that date, oldest first. Times are in the Mac's own zone with its offset. Running it never moves anything and never starts a second copy of the app; undone cleans are left out; the last 1000 cleans that moved something are kept.
+- Where it puts files: Desktop files not touched today go to `~/Desktop Archive/<yyyy-MM>/`; Downloads files untouched for 2 days go to `~/Downloads/<Type>/<yyyy-MM>/` (Images, Screenshots, PDFs, Documents, Spreadsheets, Presentations, Archives, Installers, Audio, Video, Code, Other); downloads from a site in `siteRules` go to that rule's folder; opened installers, unfinished downloads, byte-identical "(1)"/"copy" duplicates and unpacked zips go to the Trash. Settings: `~/Library/Application Support/Desktop & Downloads Tidy/config.json`. **Undo last clean** in the app's menu (sparkles icon) puts back everything one clean moved. Full docs: https://github.com/ViritasOrg/misc/blob/main/DesktopTidy/README.md#api-for-other-tools
+
 ### A verified error in an md file gets fixed immediately
 - Something in a `CLAUDE.md` or any md established as wrong (checked, not a hunch) is corrected in that session, in every repo that repeats it, saying what was wrong and why in the commit and the reply. Rules you disagree with are Henrik's call; a SETTLED marker wins: raise it, don't edit. An org-wide rule is changed in the canonical file first.
 
 ### CLAUDE.md holds rules, not records
 - A repo's root `CLAUDE.md` is loaded into every session, so it stays under 200 lines: imperative rules, one line each, an issue URL as provenance, at most one line of why. Quotes, incident stories, feature logs, "current state" and design notes go to `docs/` (pointed to from `CLAUDE.md` in one line), or to `.claude/rules/<area>.md` with `paths:` frontmatter when a rule only matters for part of the repo. A rule Henrik gives goes in as a rule; the quote goes to `docs/rule-history.md`.
-<!-- END ORG-WIDE RULES v22 -->
+<!-- END ORG-WIDE RULES v23 -->
 
 ## 🔒 PROD IS READ-ONLY — DO NOT TOUCH WITHOUT EXPLICIT PERMISSION
 This repo (`workout`) is **PRODUCTION**. Claude may read, inspect, and
