@@ -452,6 +452,7 @@
       <div style="padding:12px 16px;display:flex;justify-content:space-between;align-items:center;"><span style="font-size:13px;color:var(--muted)">Setup Wizard</span><button onclick="openOnboarding()" style="background:var(--accent);color:#000;border:none;border-radius:20px;padding:3px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font-ui)">Re-run</button></div>
       </div>
     </div>
+    <div id="s-deploy-card"></div>
     <button id="tour-replay-btn" onclick="openTour()" style="width:100%;background:var(--surface);color:var(--text);border:1px solid var(--accent);border-radius:12px;padding:13px 16px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font-ui);display:flex;align-items:center;justify-content:center;gap:8px"><span style="color:var(--accent)">▶</span>Watch the intro again</button>
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
       <div class="s-sec-hdr" onclick="toggleSSec('backend')">Backend<span class="s-chev">▾</span></div>
@@ -466,7 +467,6 @@
     <div id="fl-key-card"></div>
     <div id="fl-import-card"></div>
     <div id="ps-card"></div>
-    <div id="s-deploy-card"></div>
     <div id="s-tabs-card" style="margin-top:0"></div>
     <div id="s-appearance-card"></div>
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
@@ -577,7 +577,7 @@ const DAY_TEMPLATES={1:[{name:"Squat",sets:"5-5-5-5-5",kg:120},{name:"Romanian D
 const VERSION='1.262';
 // BUILD_NO counts staging builds and is never rewritten by Push to Prod (which resets VERSION to
 // prod's own counter). The What's new card is keyed to it, so its rows show in both apps (2026-11-01).
-const BUILD_NO='1.353';
+const BUILD_NO='1.360';
 const IS_STAGING=(window.location.pathname||'').startsWith('/workout-staging');
 // Backend data namespace, sent as X-App-Id on every call. Staging gets its own so
 // testing here cannot write over production data — before 2026-08-01 both sent no
@@ -4962,7 +4962,7 @@ async function psRemove(){if(!confirmGlobalDelete('your Polestar ID (the Log sto
 // age; research in claude-agent-backend docs/enhanced-bodybuilding/22-water-intake.md) unless
 // the user has typed their own (user setting "water-goal-ml"). Nothing here lives only on the device.
 var _wlRows=[],_wlTarget=null,_wlOwn=0,_wlBusy=false,_wlErr='',_wlTargetFail=false;
-var WL_STEPS=[250,500];
+var WL_STEPS=[100,250,500];// 100 ml added (Henrik, 2026-11-10); 250 stays the highlighted step
 function _wlProfile(){
   if(typeof _userProfile==='function'){var p=_userProfile();return{weight:p.weight_kg||0,sex:p.sex||'male',age:p.age||0};}
   var w=(typeof getData==='function'?getData('wkt-profile',{}):{})||{};
@@ -4987,7 +4987,7 @@ function _wlHtml(){
   h+='<div style="font-size:11px;color:var(--muted);margin-bottom:10px">'+(food?'Includes '+food+' ml from drinks in the food log. ':'')+(goal?'Target '+_wlL(goal)+', ':'')+basis+' · <span onclick="wlSetOwn()" style="text-decoration:underline;cursor:pointer">'+(_wlOwn>0?'Change':'Set my own')+'</span></div>';
   h+='<div style="display:flex;gap:8px;flex-wrap:wrap">'+
     (_wlBusy?'<div style="font-size:14px;color:var(--muted);padding:10px 0">Saving…</div>':
-      WL_STEPS.map(function(ml){return _flBtn('+ '+ml+' ml','wlAdd('+ml+')',ml===WL_STEPS[0]);}).join('')+
+      WL_STEPS.map(function(ml){return _flBtn('+ '+ml+' ml','wlAdd('+ml+')',ml===250);}).join('')+
       (_wlRows.length?_flBtn('Undo last','wlUndo()',false):''))+'</div>';
   if(_wlErr)h+='<div style="margin-top:8px;font-size:13px;color:var(--danger,#ff3b30)">'+_flEsc(_wlErr)+'</div>';
   return _flCard(h);

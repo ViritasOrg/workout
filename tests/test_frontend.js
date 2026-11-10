@@ -8998,11 +8998,14 @@ console.log('\n── Onboarding tour ──────────────
   // Henrik: "in settings/More add a button on top to re run the intro for users who want to see it again."
   // Then 2026-11-05: "app version should be on top": the App card (version) comes first, the intro button right under it.
   const _setTop = html.slice(html.indexOf('id="page-settings"'));
-  const _firstSec = _setTop.search(/<div class="s-sec-hdr"|<div id="(?:fl-|ps-|s-)/);
+  const _firstSec = _setTop.search(/<div class="s-sec-hdr"|<div id="(?:fl-|ps-|s-(?!deploy-card))/);
   check('Settings opens with the App card (version), then the "Watch the intro again" button, before the other sections',
     /id="page-settings"[^>]*>\s*<div[^>]*>\s*<div class="s-sec-hdr open"[^>]*>App<\/div>\s*<div class="s-sec-body" id="s-sec-app">[\s\S]*?id="s-version"/.test(html) &&
-    /^[^]*?<\/div>\s*<\/div>\s*<\/div>\s*<button id="tour-replay-btn" onclick="openTour\(\)"[^>]*>[^<]*<span[^>]*>▶<\/span>Watch the intro again<\/button>/.test(_setTop) &&
+    /^[^]*?<\/div>\s*<\/div>\s*<\/div>\s*<div id="s-deploy-card"><\/div>\s*<button id="tour-replay-btn" onclick="openTour\(\)"[^>]*>[^<]*<span[^>]*>▶<\/span>Watch the intro again<\/button>/.test(_setTop) &&
     _setTop.indexOf('tour-replay-btn') < _firstSec);
+  // Henrik, 2026-11-05: "move push to prod to spot 2 in Settings in both apps".
+  check('Settings: the Push to Prod card is second, right under the App card',
+    /<div class="s-sec-body" id="s-sec-app">[\s\S]*?<\/div>\s*<\/div>\s*<\/div>\s*<div id="s-deploy-card"><\/div>\s*<button id="tour-replay-btn"/.test(html));
   // Henrik, 2026-11-05: "a weird gap between two cards". An empty card slot (Push to Prod in prod) took a flex gap,
   // and some cards added a 14px margin on top of the gap.
   check('Settings: an empty card slot takes no gap, and no card adds its own top margin',
@@ -9123,6 +9126,7 @@ console.log('\n── Water ─────────────────�
   check('water: shows the day\'s total against the target', /0\.8 L<\/b> \/ 3\.1 L/.test(_h) && /width:24%/.test(_h));
   check('  …says where the target comes from', /Yamada 2022/.test(_h) && /Set my own/.test(_h));
   check('  …with one-tap amounts and an undo', /wlAdd\(250\)/.test(_h) && /wlAdd\(500\)/.test(_h) && /wlUndo\(\)/.test(_h));
+  check('  …including a 100 ml step, before 250 and 500', /wlAdd\(100\)[\s\S]*wlAdd\(250\)[\s\S]*wlAdd\(500\)/.test(_h));
   G._wlOwn = 3500;
   _h = G._wlHtml();
   check('  …and an own target replaces the research one', /\/ 3\.5 L/.test(_h) && /your own target/.test(_h) && !/Yamada/.test(_h));
