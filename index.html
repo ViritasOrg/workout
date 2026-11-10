@@ -577,7 +577,7 @@ const DAY_TEMPLATES={1:[{name:"Squat",sets:"5-5-5-5-5",kg:120},{name:"Romanian D
 const VERSION='1.263';
 // BUILD_NO counts staging builds and is never rewritten by Push to Prod (which resets VERSION to
 // prod's own counter). The What's new card is keyed to it, so its rows show in both apps (2026-11-01).
-const BUILD_NO='1.360';
+const BUILD_NO='1.362';
 const IS_STAGING=(window.location.pathname||'').startsWith('/workout-staging');
 // Backend data namespace, sent as X-App-Id on every call. Staging gets its own so
 // testing here cannot write over production data — before 2026-08-01 both sent no
@@ -620,7 +620,7 @@ const HOME_EQUIPMENT=[
   {id:'home-kb',label:'Home: kettlebell + bands',
    map:{'Squat':'Kettlebell Front Squat','Leg Press':'Kettlebell Goblet Squat','Hack Squat':'Kettlebell Goblet Squat','Lunges':'Kettlebell Reverse Lunge',
         'Deadlift':'Kettlebell Deadlift','Romanian Deadlift':'Kettlebell Romanian Deadlift','Leg Curl':'Band Leg Curl','Leg Extension':'Band Leg Extension',
-        'Hip Thrust':'Kettlebell Glute Bridge','Calf Raises':'Kettlebell Calf Raise',
+        'Hip Thrust':'Kettlebell Glute Bridge','Hip Abductor (outside hips)':'Single-leg Glute Bridge','Calf Raises':'Kettlebell Calf Raise',
         'Bench Press':'Kettlebell Floor Press','Incline Bench Press':'Band Incline Press','Incline DB Press':'Band Incline Press','Chest Machine Press':'Band Chest Press',
         'Cable Fly':'Band Chest Fly','Low-to-high Cable Fly':'Band Low-to-high Fly','Dips':'Push-ups',
         'Overhead Press':'Kettlebell Overhead Press','Arnold Press':'Band Shoulder Press','Landmine Press':'Kettlebell Half-kneeling Press',
@@ -632,7 +632,7 @@ const HOME_EQUIPMENT=[
   {id:'home-bw',label:'Home: bodyweight',
    map:{'Squat':'Bodyweight Squat','Leg Press':'Bulgarian Split Squat','Hack Squat':'Bulgarian Split Squat',
         'Deadlift':'Single-leg RDL','Romanian Deadlift':'Bodyweight Good Morning','Leg Curl':'Nordic Curl','Leg Extension':'Sissy Squat',
-        'Hip Thrust':'Single-leg Glute Bridge','Calf Raises':'Single-leg Calf Raise',
+        'Hip Thrust':'Single-leg Glute Bridge','Hip Abductor (outside hips)':'Single-leg Glute Bridge','Calf Raises':'Single-leg Calf Raise',
         'Bench Press':'Push-ups','Incline Bench Press':'Decline Push-ups','Incline DB Press':'Decline Push-ups','Chest Machine Press':'Wide Push-ups',
         'Cable Fly':'Archer Push-ups','Low-to-high Cable Fly':'Archer Push-ups','Dips':'Chair Dips',
         'Overhead Press':'Pike Push-ups','Arnold Press':'Pike Push-ups','Landmine Press':'Pike Push-ups',
@@ -679,7 +679,7 @@ var HOME_PREF={
   'Lunges':['Kettlebell Reverse Lunge','Bulgarian Split Squat'],
   'Deadlift':['Kettlebell Deadlift','Single-leg RDL'],'Romanian Deadlift':['Kettlebell Romanian Deadlift','Bodyweight Good Morning'],
   'Leg Curl':['Band Leg Curl','Nordic Curl'],'Leg Extension':['Band Leg Extension','Sissy Squat'],
-  'Hip Thrust':['Kettlebell Glute Bridge','Single-leg Glute Bridge'],'Calf Raises':['Kettlebell Calf Raise','Single-leg Calf Raise'],
+  'Hip Thrust':['Kettlebell Glute Bridge','Single-leg Glute Bridge'],'Hip Abductor (outside hips)':['Single-leg Glute Bridge'],'Calf Raises':['Kettlebell Calf Raise','Single-leg Calf Raise'],
   'Bench Press':['Incline DB Press','Kettlebell Floor Press','Push-ups'],'Incline Bench Press':['Incline DB Press','Band Incline Press','Decline Push-ups'],
   'Incline DB Press':['Band Incline Press','Decline Push-ups'],'Chest Machine Press':['Incline DB Press','Band Chest Press','Wide Push-ups'],
   'Cable Fly':['Band Chest Fly','Archer Push-ups'],'Low-to-high Cable Fly':['Band Low-to-high Fly','Archer Push-ups'],'Dips':['Chair Dips'],
@@ -2094,7 +2094,7 @@ function _renderProgWiz(title,body,footer){
     body.innerHTML=html;
   }else if(wiz.step===1){
     if(title)title.textContent='NEW PROGRAM';
-    var subs=wiz.goal==='strength'?[['pure','Pure Strength','Classic powerlifting — Squat, Bench, Deadlift focus'],['hybrid','Hybrid','Strength base + bodybuilding volume for size and power']]:wiz.goal==='hypertrophy'?[['balanced','Balanced','Equal attention across all muscle groups'],['upper','Upper Heavy','Extra volume on chest, back, arms and shoulders'],['lower','Lower Heavy','Extra volume on legs, glutes and hamstrings']]:wiz.goal==='aesthetic'?[['fullbody','Full Body','Glute-emphasis full body — compact & effective'],['upperlower','Upper/Lower','Upper/lower split + glute specialization']]:[['shoulder','Shoulder','Rotator cuff, stability, pain-free pressing'],['back','Lower Back','Hip hinge rehab, core stability, pain-free movement'],['knee','Knee','Quad & glute strength, low-impact progression']];
+    var subs=wiz.goal==='strength'?[['pure','Pure Strength','Classic powerlifting — Squat, Bench, Deadlift focus'],['hybrid','Hybrid','Strength base + bodybuilding volume for size and power']]:wiz.goal==='hypertrophy'?[['balanced','Balanced','Equal attention across all muscle groups'],['upper','Upper Heavy','Extra volume on chest, back, arms and shoulders'],['lower','Lower Heavy','Extra volume on legs, glutes and hamstrings']]:wiz.goal==='aesthetic'?[['fullbody','Full Body','Glute-emphasis full body — compact & effective'],['upperlower','Upper/Lower','Upper/lower split + glute specialization'],['bootylicious','Bootylicious','Legs, every glute muscle, core and back — arms on triceps and shoulders, no chest presses']]:[['shoulder','Shoulder','Rotator cuff, stability, pain-free pressing'],['back','Lower Back','Hip hinge rehab, core stability, pain-free movement'],['knee','Knee','Quad & glute strength, low-impact progression']];
     var goalNames={strength:'Strength',hypertrophy:'Hypertrophy',aesthetic:'Feminine Aesthetic',rehab:'Rehab'};
     var html='<div style="margin-bottom:20px;font-size:13px;color:var(--muted);line-height:1.6;">Pick your focus within <strong style="color:var(--text)">'+goalNames[wiz.goal]+'</strong>.</div>';
     subs.forEach(function(s){html+='<div class="wiz-sub-card" onclick="_progWiz.sub=\''+s[0]+'\';_progWiz.step=2;_progWiz.name=_progWizDefaultName();_renderProgOverlay()"><div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;">'+s[1]+'</div><div style="font-size:12px;color:var(--muted);">'+s[2]+'</div></div>';});
@@ -2127,7 +2127,7 @@ function _renderProgWiz(title,body,footer){
   }else if(wiz.step===3){
     if(title)title.textContent='NEW PROGRAM';
     var gn={strength:'Strength',hypertrophy:'Hypertrophy',rehab:'Rehab'}[wiz.goal]||wiz.goal;
-    var sn={pure:'Pure Strength',hybrid:'Hybrid',balanced:'Balanced',upper:'Upper Heavy',lower:'Lower Heavy',shoulder:'Shoulder Rehab',back:'Lower Back Rehab',knee:'Knee Rehab'}[wiz.sub]||wiz.sub;
+    var sn={pure:'Pure Strength',hybrid:'Hybrid',balanced:'Balanced',upper:'Upper Heavy',lower:'Lower Heavy',bootylicious:'Bootylicious',shoulder:'Shoulder Rehab',back:'Lower Back Rehab',knee:'Knee Rehab'}[wiz.sub]||wiz.sub;
     var html='<div style="margin-bottom:20px;"><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px;">Program Name</div>';
     html+='<input id="prog-wiz-name" type="text" value="'+_escP(wiz.name||_progWizDefaultName())+'" oninput="_progWiz.name=this.value" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-size:15px;font-weight:600;font-family:var(--font-ui);outline:none;box-sizing:border-box;"></div>';
     html+='<div style="margin-top:20px;padding:16px;background:rgba(232,255,60,0.05);border:1px solid rgba(232,255,60,0.15);border-radius:10px;"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent);margin-bottom:10px;">Summary</div>';
@@ -2162,7 +2162,7 @@ function _progWizToggleInjury(id){var a=_progWiz.injuries||(_progWiz.injuries=[]
 function _progWizDefaultName(){
   if(!_progWiz)return'New Program';
   var n={strength:'Strength',hypertrophy:'Hypertrophy',aesthetic:'Feminine Aesthetic',rehab:'Rehab'}[_progWiz.goal]||'';
-  var s={pure:'Pure',hybrid:'Hybrid',balanced:'Balanced',upper:'Upper',lower:'Lower',fullbody:'Full Body',upperlower:'Upper/Lower',shoulder:'Shoulder',back:'Back',knee:'Knee'}[_progWiz.sub]||'';
+  var s={pure:'Pure',hybrid:'Hybrid',balanced:'Balanced',upper:'Upper',lower:'Lower',fullbody:'Full Body',upperlower:'Upper/Lower',bootylicious:'Bootylicious',shoulder:'Shoulder',back:'Back',knee:'Knee'}[_progWiz.sub]||'';
   if(n&&s&&_progWiz.nDays)return _progWiz.nDays+'-Day '+n+' — '+s;
   if(n&&_progWiz.nDays)return _progWiz.nDays+'-Day '+n;
   if(n&&s)return n+' — '+s;
@@ -2558,6 +2558,15 @@ function _generateWorkoutProgram(goal,sub,nDays,name,setsPerMuscle,injuries,equi
     d('Day 6 — Upper B',true,[pw('Cable Row','4×12','volume','12-12-12-12',45),pw('Lat Pulldown','3×12','volume','12-12-12',45),pw('Lateral Raise','3×15','volume','15-15-15',8),pw('Barbell Curl','3×12','volume','12-12-12',20)])];}
   else if(key==='aesthetic-fullbody'){pool=[d('Day 1 — Quad & Glute',false,[pw('Hip Thrust','4×10-12','volume','10-10-10-10',50),pw('Squat','4×8-10','strength','8-8-8-8',40),pw('Bulgarian Split Squat','3×10-12','volume','10-10-10',20),pw('Bench Press','3×10-12','volume','10-10-10',35),pw('Barbell Row','3×10-12','volume','10-10-10',35),pw('Lateral Raise','3×12-15','volume','12-12-12',6),pw('Face Pulls','3×15','rehab','15-15-15',12),pw('Dead Bug','3×10 each side','rehab','10-10-10',0)]),d('Day 2 — Posterior & Upper',false,[pw('Deadlift','4×6-8','strength','6-6-6-6',55),pw('Lunges','3×10-12','volume','10-10-10',15),pw('Leg Curl','3×12-15','volume','12-12-12',22),pw('Incline DB Press','3×8-12','volume','8-8-8',20),pw('Cable Row','3×10-12','volume','10-10-10',32),pw('Arnold Press','3×12-15','volume','12-12-12',14),pw('Calf Raises','3×15-20','volume','15-15-15',40),pw('Plank','3×45 s hold','rehab','45-45-45',0),pw('Pallof Press','3×12 each side','rehab','12-12-12',8)]),d('Day 3 — Hamstring & Glute',false,[pw('Romanian Deadlift','4×10-12','volume','10-10-10-10',45),pw('Leg Press','3×12-15','volume','12-12-12',70),pw('Hip Thrust','3×12-15','volume','12-12-12',55),pw('Overhead Press','3×10-12','volume','10-10-10',22),pw('Lat Pulldown','3×10-12','volume','10-10-10',38),pw('Rear Delt Fly','3×12-15','rehab','12-12-12',7),pw('Tricep Pushdown','3×12-15','volume','12-12-12',18),pw('Bird Dog','3×10 each side','rehab','10-10-10',0)])];}
   else if(key==='aesthetic-upperlower'){pool=[d('Day 1 — Glute & Quad',false,[pw('Hip Thrust','4×10-12','volume','10-10-10-10',55),pw('Squat','4×8-10','strength','8-8-8-8',40),pw('Bulgarian Split Squat','3×10-12','volume','10-10-10',20),pw('Leg Extension','3×12-15','volume','12-12-12',28),pw('Leg Curl','3×12-15','volume','12-12-12',22),pw('Calf Raises','3×15','volume','15-15-15',40),pw('Dead Bug','3×10 each side','rehab','10-10-10',0)]),d('Day 2 — Upper Push/Pull',false,[pw('Bench Press','4×8-12','volume','8-8-8-8',35),pw('Overhead Press','3×10-12','volume','10-10-10',22),pw('Barbell Row','4×10-12','volume','10-10-10-10',35),pw('Lateral Raise','3×12-15','volume','12-12-12',6),pw('Tricep Pushdown','3×12-15','volume','12-12-12',18),pw('Barbell Curl','3×12-15','volume','12-12-12',20),pw('Face Pulls','3×15','rehab','15-15-15',12),pw('Pallof Press','3×12 each side','rehab','12-12-12',8)]),d('Day 3 — Glute & Hamstring',false,[pw('Romanian Deadlift','4×10-12','volume','10-10-10-10',45),pw('Hip Thrust','4×12-15','volume','12-12-12-12',55),pw('Leg Curl','3×12-15','volume','12-12-12',22),pw('Lunges','3×10-12','volume','10-10-10',15),pw('Leg Extension','3×12-15','volume','12-12-12',28),pw('Bird Dog','3×10 each side','rehab','10-10-10',0),pw('Plank','3×45 s hold','rehab','45-45-45',0)]),d('Day 4 — Back & Shoulders',false,[pw('Lat Pulldown','4×10-12','volume','10-10-10-10',38),pw('Incline DB Press','3×8-12','volume','8-8-8',20),pw('Cable Row','3×10-12','volume','10-10-10',32),pw('Arnold Press','3×12-15','volume','12-12-12',14),pw('Rear Delt Fly','3×12-15','rehab','12-12-12',7),pw('Overhead Tricep Cable','3×12-15','volume','12-12-12',22),pw('Hammer Curl','3×12-15','volume','12-12-12',10)]),d('Day 5 — Glute Specialization',false,[pw('Hip Thrust','5×10-15','strength','10-10-10-10-10',60),pw('Deadlift','3×8-10','strength','8-8-8',55),pw('Lunges','3×10-12','volume','10-10-10',20),pw('Leg Curl','3×12-15','volume','12-12-12',22),pw('Leg Extension','3×12-15','volume','12-12-12',28),pw('Calf Raises','4×15','volume','15-15-15-15',40)])];}
+  // Bootylicious (Henrik, 2026-11-10): legs, every glute muscle (max: hip thrust / hinge / lunge;
+  // med & min: hip abductor), core and back; arms work is triceps and shoulders only; no chest presses.
+  // keep:true stops drop-to-fit pruning the abductor (the only glute med/min work) and the triceps.
+  // 1-3 days a week every day is a booty day (Henrik, 2026-11-10: "no butt exercises will be a
+  // skipped day"): glute-led full-body sessions, Hip Thrust + Hip Abductor each day, the upper
+  // work (back, shoulders, triceps) added on; _K (keep) stops pruning of the glute work, which home
+  // swaps can turn into isolation (Kettlebell Glute Bridge). 4+ days use the split below.
+  else if(key==='aesthetic-bootylicious'&&nDays<=3){var _K=function(e){return Object.assign(e,{keep:true});};pool=[d('Booty Full Body A',false,[_K(pw('Hip Thrust','4×10-12','volume','10-10-10-10',55)),pw('Squat','3×8-10','volume','8-8-8',40),_K(pw('Hip Abductor (outside hips)','3×12','volume','12-12-12',40)),pw('Leg Curl','3×12','volume','12-12-12',22),_K(pw('Lat Pulldown','3×10-12','volume','10-10-10',38)),pw('Lateral Raise','3×12','volume','12-12-12',6),_K(pw('Overhead Tricep Cable','3×10-12','volume','10-10-10',18)),pw('Dead Bug','3×10 each side','rehab','10-10-10',0)]),d('Booty Full Body B',false,[_K(pw('Hip Thrust','4×10-12','volume','10-10-10-10',55)),pw('Romanian Deadlift','3×8-10','volume','8-8-8',45),pw('Bulgarian Split Squat','3×10-12','volume','10-10-10',20),_K(pw('Hip Abductor (outside hips)','3×12','volume','12-12-12',40)),_K(pw('Cable Row','3×10-12','volume','10-10-10',32)),pw('Overhead Press','3×8-10','volume','8-8-8',22),_K(pw('Tricep Pushdown','3×12','volume','12-12-12',18)),pw('Pallof Press','3×12 each side','rehab','12-12-12',8)]),d('Booty Full Body C',false,[_K(pw('Hip Thrust','4×8-12','volume','10-10-10-10',60)),pw('Lunges','3×10-12','volume','10-10-10',20),pw('Leg Curl','3×12','volume','12-12-12',22),_K(pw('Hip Abductor (outside hips)','3×12','volume','12-12-12',40)),_K(pw('Barbell Row','3×8-10','volume','8-8-8',35)),pw('Arnold Press','3×10-12','volume','10-10-10',14),_K(pw('Skull Crushers','3×10-12','volume','10-10-10',15)),pw('Plank','3×45 s hold','rehab','45-45-45',0)])];}
+  else if(key==='aesthetic-bootylicious'){pool=[d('Day 1 — Glute & Quad',false,[pw('Hip Thrust','4×10-12','volume','10-10-10-10',55),pw('Squat','4×8-10','strength','8-8-8-8',40),pw('Bulgarian Split Squat','3×10-12','volume','10-10-10',20),Object.assign(pw('Hip Abductor (outside hips)','3×12','volume','12-12-12',40),{keep:true}),pw('Leg Extension','3×12','volume','12-12-12',28),pw('Dead Bug','3×10 each side','rehab','10-10-10',0),pw('Plank','3×45 s hold','rehab','45-45-45',0)]),d('Day 2 — Back, Shoulders & Triceps',false,[pw('Lat Pulldown','4×10-12','volume','10-10-10-10',38),pw('Cable Row','3×10-12','volume','10-10-10',32),pw('Overhead Press','3×8-10','volume','8-8-8',22),pw('Lateral Raise','3×12','volume','12-12-12',6),Object.assign(pw('Overhead Tricep Cable','3×10-12','volume','10-10-10',18),{keep:true}),pw('Tricep Pushdown','3×12','volume','12-12-12',18),pw('Pallof Press','3×12 each side','rehab','12-12-12',8)]),d('Day 3 — Glute & Hamstring',false,[pw('Romanian Deadlift','4×8-10','volume','8-8-8-8',45),pw('Hip Thrust','3×12','volume','12-12-12',55),pw('Leg Curl','3×12','volume','12-12-12',22),pw('Lunges','3×10-12','volume','10-10-10',15),Object.assign(pw('Hip Abductor (outside hips)','3×12','volume','12-12-12',40),{keep:true}),pw('Bird Dog','3×10 each side','rehab','10-10-10',0),pw('Plank','3×45 s hold','rehab','45-45-45',0)]),d('Day 4 — Back & Shoulders',false,[pw('Barbell Row','4×8-10','volume','8-8-8-8',35),pw('Lat Pulldown','3×10-12','volume','10-10-10',38),pw('Face Pulls','3×12','volume','12-12-12',12),pw('Arnold Press','3×10-12','volume','10-10-10',14),pw('Rear Delt Fly','3×12','volume','12-12-12',7),Object.assign(pw('Skull Crushers','3×10-12','volume','10-10-10',15),{keep:true}),pw('Dead Bug','3×10 each side','rehab','10-10-10',0)]),d('Day 5 — Glute Specialization',false,[pw('Hip Thrust','5×8-12','volume','10-10-10-10-10',60),pw('Deadlift','3×6-8','strength','6-6-6',55),pw('Lunges','3×10-12','volume','10-10-10',20),Object.assign(pw('Hip Abductor (outside hips)','4×12','volume','12-12-12-12',40),{keep:true}),pw('Leg Curl','3×12','volume','12-12-12',22),pw('Pallof Press','3×12 each side','rehab','12-12-12',8)])];}
   else{pool=[_seedDefaultProgram().days[0]];}
   (function(){var _base=pool.length;function _mGroup(nm){var n=(nm||'').toLowerCase();if(/leg|lower|squat|hip|lunge|calf|glute|quad|ham|rdl|deadlift/.test(n))return 'legs';if(/pull|row|lat|back|bicep|chin/.test(n))return 'pull';if(/push|bench|chest|press|tricep/.test(n))return 'push';if(/arm|delt|shoulder|lateral/.test(n))return 'arms';return 'other';}while(pool.length>0&&pool.length<nDays){var _pg=_mGroup(pool[pool.length-1].name);var _fg=_mGroup(pool[0].name);var _best=null,_bs=Infinity;for(var _ci=0;_ci<_base;_ci++){var _cg=_mGroup(pool[_ci].name);var _sc=(_cg===_pg?2:0)+(_cg===_fg?1:0);if(_best===null||_sc<_bs){_bs=_sc;_best=pool[_ci];}}pool.push(JSON.parse(JSON.stringify(_best)));}})();
   var _isRehabGoal=key.startsWith('rehab-');
@@ -2633,6 +2642,9 @@ function _generateWorkoutProgram(goal,sub,nDays,name,setsPerMuscle,injuries,equi
   // land on the same home exercise; the de-dupe keeps one and the allocator redistributes.
   function _homeSwapDays(){days.forEach(function(day){(day.exercises||[]).forEach(function(ex){var nn=_equipSwap(ex.name,equip,injuries);if(nn!==ex.name){ex.name=nn;ex.kg=0;_swapped.push(ex);}});var _seen={};day.exercises=(day.exercises||[]).filter(function(ex){if(!ex.name||_seen[ex.name])return false;_seen[ex.name]=1;return true;});});}
   if(_home)_homeSwapDays();
+  // Bootylicious has no chest presses: whatever a home or injury swap turned into a chest-led
+  // movement (e.g. Tricep Pushdown → Diamond Push-ups on bodyweight) is taken out again.
+  if(key==='aesthetic-bootylicious')days.forEach(function(day){day.exercises=(day.exercises||[]).filter(function(ex){return (getExSplits(ex.name).chest||0)<0.5;});});
   // A "press day" = any day containing an actual pressing movement (bench/incline/OHP/dips/
   // chest-or-landmine press). Used both to place the shoulder cuff work and to keep Face Pulls
   // off press days (rules 2026-07-24).
@@ -2702,7 +2714,10 @@ function _generateWorkoutProgram(goal,sub,nDays,name,setsPerMuscle,injuries,equi
         // work, so the real pull days came out ~40% under target.
         GROUPS.forEach(function(g){if(dom[g])freq[g]++;});});
     }
-    function _sessTarget(g){return freq[g]?Math.min(setsPerMuscle/freq[g],SESSION_MUSCLE_CAP):0;}
+    // Bootylicious puts the volume on the booty (Henrik, 2026-11-10: "girls go to the gym to train
+    // the butt"): legs/glutes get twice the weekly sets-per-muscle, back, shoulders and arms three quarters.
+    var _gMul=key==='aesthetic-bootylicious'?{legs:2,back:0.75,shoulders:0.75,arms:0.75}:{};
+    function _sessTarget(g){return freq[g]?Math.min(setsPerMuscle*(_gMul[g]||1)/freq[g],SESSION_MUSCLE_CAP):0;}
     _recount();
     // Drop-to-fit (rule 2026-07-31): weekly sets-per-muscle must actually land on the user's
     // target. With a 2-set floor per exercise that is impossible by resizing alone — five leg
@@ -2725,7 +2740,7 @@ function _generateWorkoutProgram(goal,sub,nDays,name,setsPerMuscle,injuries,equi
         if(!worst||worstR<=OVER_TOL)break;
         // last (= most accessory) isolation exercise carrying the overshooting muscle
         var pick=-1,pickF=0;
-        for(var _pi=0;_pi<exs.length;_pi++){var _px=exs[_pi];if(_px.prehab||_px.fixed||isCompoundEx(_px.name))continue;var _pf=getExSplits(_px.name)[worst]||0;if(_pf&&_pf>=pickF){pickF=_pf;pick=_pi;}}
+        for(var _pi=0;_pi<exs.length;_pi++){var _px=exs[_pi];if(_px.prehab||_px.fixed||_px.keep||isCompoundEx(_px.name))continue;var _pf=getExSplits(_px.name)[worst]||0;if(_pf&&_pf>=pickF){pickF=_pf;pick=_pi;}}
         if(pick<0)break;
         exs.splice(pick,1);
       }
