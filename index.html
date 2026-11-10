@@ -577,7 +577,7 @@ const DAY_TEMPLATES={1:[{name:"Squat",sets:"5-5-5-5-5",kg:120},{name:"Romanian D
 const VERSION='1.264';
 // BUILD_NO counts staging builds and is never rewritten by Push to Prod (which resets VERSION to
 // prod's own counter). The What's new card is keyed to it, so its rows show in both apps (2026-11-01).
-const BUILD_NO='1.362';
+const BUILD_NO='1.366';
 const IS_STAGING=(window.location.pathname||'').startsWith('/workout-staging');
 // Backend data namespace, sent as X-App-Id on every call. Staging gets its own so
 // testing here cannot write over production data — before 2026-08-01 both sent no
@@ -608,9 +608,7 @@ const REHAB_CONDITIONS=[
 // bands only" (so no bench, no pull-up bar, no dumbbells).
 //
 // The generator builds the program exactly as for the gym, then each exercise is swapped for
-// its home equivalent — the same mechanism the injury layer uses, run right after it. The
-// leg-day rule asks _legdaySafeName which squat/deadlift a slot gets, and that now consults
-// this table too, so it never inserts a barbell lift into a home program.
+// its home equivalent — the same mechanism the injury layer uses, run right after it.
 // A value of null removes the exercise (curls with no equipment at all: rows cover the biceps).
 // `knees`/`shoulders` override the plain map when that injury is selected, because the injury
 // layer's own answers are gym machines (Leg Press, Landmine Press) and the plain map would turn
@@ -1058,51 +1056,6 @@ function selectDay(num,el){document.querySelectorAll('.day-card').forEach(c=>c.c
 // permitted above 12.
 var TAG_RANGES={strength:[2,6],volume:[8,12],rehab:[15,15]};
 var REPS_LEGAL=[2,3,4,5,6,8,9,10,11,12,15];
-// ── LEG-DAY RULE (Henrik, 2026-08-21) ────────────────────────────────────────
-// "every version of leg day MUST start with min 3 sets of squats in strenght rep range.
-//  And every leg day must end with 1-3 sets if strenght rep range deadlifts. No exceptions"
-//
-// SUPERSEDES the 2026-07-10 alternation, which made each leg day EITHER a squat day OR a
-// deadlift day on a systemic-load argument. Henrik has overruled that repeatedly. Gone.
-//
-// "min 3 sets" is a FLOOR, not a fixed count — the squat stays target-sized by the allocator
-// (rule 2026-07-31) and is only ever raised to 3, never pinned there. The deadlift is the
-// fixed prescription it already was, now clamped to the 1-3 window.
-//
-// Rep counts live inside TAG_RANGES.strength so applyTagFromReps confirms the tag rather than
-// flipping it. An entry already prescribing strength-range reps KEEPS them: a goal-specific
-// 5×5 or a 1×6 finisher already complies, and rewriting it would be churn.
-var LEGDAY_SQUAT_MIN_SETS=3;      // "min 3 sets of squats"
-var LEGDAY_DL_MIN_SETS=1;         // "1-3 sets ... deadlifts"
-var LEGDAY_DL_MAX_SETS=3;
-var LEGDAY_STRENGTH_REPS=5;       // used only when authoring fresh, or repairing illegal reps
-
-// The opening squat: any squat pattern EXCEPT the ones that are not the movement being asked
-// for. Split squats and Bulgarians are unilateral accessories; hack/Smith/pendulum are machines.
-// A day carrying only those still gets a real Squat inserted ahead of them.
-function _isMainSquat(name){
-  var n=String(name||'');
-  if(!/squat/i.test(n))return false;
-  return !/split|bulgarian|sissy|goblet|hack|smith|pendulum|belt/i.test(n);
-}
-// The closing deadlift: the conventional pull only. A Romanian/stiff-leg deadlift is a hamstring
-// accessory, not the strength lift being asked for, and counting it as one is how a leg day
-// could "end with a deadlift" while never programming the lift.
-function _isMainDeadlift(name){
-  var n=String(name||'');
-  if(!/deadlift/i.test(n))return false;
-  return !/romanian|\brdl\b|stiff|straight[- ]?leg|deficit|snatch|trap[- ]?bar|smith|single/i.test(n);
-}
-function _legdayRepsOk(sets){
-  var parts=String(sets||'').split('-').filter(Boolean);
-  if(!parts.length)return false;
-  return parts.every(function(r){
-    var n=parseInt(r,10);
-    return isFinite(n)&&n>=TAG_RANGES.strength[0]&&n<=TAG_RANGES.strength[1];
-  });
-}
-function _legdaySetCount(ex){return String((ex&&ex.sets)||'').split('-').filter(Boolean).length;}
-
 // IS THIS A LEG DAY? DECIDED BY CONTENT, NOT BY NAME.
 //
 // The previous rule tested /legs/i against the day NAME and therefore skipped "Lower Strength",
@@ -1151,142 +1104,6 @@ function _isLegDay(day){
   return /\blegs?\b|\blower\b|\bquad|\bglute|\bhamstring|\bcalf/i.test(nm);
 }
 
-// THE SLOT IS MANDATORY; THE MOVEMENT IN IT IS NOT.
-//
-// Injury substitution runs before the final re-assert, so a rule that re-injected a raw
-// 'Squat' afterwards would put squats back into a knees-injury program and deadlifts back into
-// a lower-back one — undoing the only safety layer the generator has. Both entry points route
-// the lift name through REHAB_CONDITIONS first, so a knees injury opens the day with Leg Press
-// and a lower-back injury closes it with Leg Press. Henrik's rule decides the SLOT and the set
-// count; the injury layer decides what is safe to put in it.
-function _legdaySafeName(name,injuries){
-  if(!injuries||!injuries.length)return name;
-  if(typeof REHAB_CONDITIONS==='undefined')return name;
-  var out=name;
-  injuries.forEach(function(cid){
-    var c=REHAB_CONDITIONS.find(function(x){return x.id===cid;});
-    if(c&&out&&c.detect(out))out=c.suggest(out);
-  });
-  // Training at home: the generator appends 'equip:<id>' to the list it hands the leg-day rule,
-  // so the slot gets the home lift (after the injury layer has had its say).
-  injuries.forEach(function(cid){if(/^equip:/.test(cid))out=_equipSwap(out,cid.slice(6),injuries)||out;});
-  return out;
-}
-
-// Place both lifts and author their prescriptions. Idempotent: running it twice leaves the same
-// single squat at the front and the same single deadlift at the back.
-//
-// REHAB PROGRAMS ARE EXCLUDED. A rehab program exists because something is injured, and the
-// pre-existing rule "no heavy deadlift forced into rehab days" is explicit about it. Forcing a
-// heavy squat and deadlift into a Knee Rehab or Hip Hinge Rehab session would work against the
-// only thing that session is for. Everything else — every goal, every split, every day name —
-// gets the rule with no exception.
-// A knees injury blocks the squat but not the deadlift: the day still has to END with one.
-function _legdayDeadliftOnly(day,exs,pw,injuries){
-  var dl=null;
-  for(var j=exs.length-1;j>=0;j--){ if(_isMainDeadlift(exs[j].name)){ dl=exs.splice(j,1)[0]; } }
-  if(!dl)dl=(pw?pw:function(n,s,t,r,k){return{name:n,scheme:s,tag:t,sets:r,kg:k};})(
-    _legdaySafeName('Deadlift',injuries),'','strength','',120);
-  var n=Math.min(LEGDAY_DL_MAX_SETS,Math.max(LEGDAY_DL_MIN_SETS,
-        String(dl.sets||'').split('-').filter(Boolean).length||2));
-  var r=_legdayRepsOk(dl.sets)?String(dl.sets).split('-')[0]:LEGDAY_STRENGTH_REPS;
-  var out=[];for(var i=0;i<n;i++)out.push(r);
-  dl.sets=out.join('-');dl.tag='strength';dl.fixed=true;dl.scheme=n+'×'+r;
-  if(!(parseFloat(dl.kg)>0))dl.kg=120;
-  exs.push(dl);
-  return day;
-}
-
-function _applyLegDayRule(day,pw,goal,injuries){
-  if(goal==='rehab')return day;
-  if(!_isLegDay(day))return day;
-  var exs=day.exercises||(day.exercises=[]);
-  function _mk(n,s,t,r,k){return pw?pw(n,s,t,r,k):{name:n,scheme:s,tag:t,sets:r,kg:k};}
-  function _reps(n){var out=[];for(var i=0;i<n;i++)out.push(LEGDAY_STRENGTH_REPS);return out.join('-');}
-
-  // ── Squat first, at least 3 sets ──────────────────────────────────────────
-  // Deliberately NOT `fixed`: "min 3 sets" is a floor. The allocator still sizes it to the
-  // weekly target (rule 2026-07-31) and _enforceLegDayFloor raises it afterwards if the
-  // allocation came in under 3.
-  // When an injury substitutes the squat away there is no squat to hoist and none to insert;
-  // the day keeps whatever the injury layer chose and this half of the rule stands down.
-  // Blocked = the slot's safe substitute is not that lift any more. Identical to the old
-  // "name changed" test for every injury (Leg Press / Leg Curl are never main lifts), and it
-  // lets a home program keep its slots: a Kettlebell Front Squat and a Kettlebell Deadlift are
-  // the real lifts, a Single-leg RDL is not (training at home, 2026-10-12).
-  var _sqBlocked=!_isMainSquat(_legdaySafeName('Squat',injuries));
-  var _dlBlocked=!_isMainDeadlift(_legdaySafeName('Deadlift',injuries));
-  var sq=null;
-  for(var i=exs.length-1;i>=0;i--){ if(_isMainSquat(exs[i].name)){ sq=exs.splice(i,1)[0]; } }
-  if(_sqBlocked&&!sq){ if(!_dlBlocked)_legdayDeadliftOnly(day,exs,pw,injuries); return day; }
-  if(!sq)sq=_mk(_legdaySafeName('Squat',injuries),'','strength',_reps(LEGDAY_SQUAT_MIN_SETS),100);
-  var sqSets=Math.max(LEGDAY_SQUAT_MIN_SETS,_legdaySetCount(sq));
-  if(!_legdayRepsOk(sq.sets))sq.sets=_reps(sqSets);
-  else if(_legdaySetCount(sq)<LEGDAY_SQUAT_MIN_SETS){
-    var _sp=String(sq.sets).split('-').filter(Boolean);
-    while(_sp.length<LEGDAY_SQUAT_MIN_SETS)_sp.push(_sp[_sp.length-1]);
-    sq.sets=_sp.join('-');
-  }
-  sq.tag='strength';
-  sq.scheme=_legdaySetCount(sq)+'×'+String(sq.sets).split('-')[0];
-  if(!(parseFloat(sq.kg)>0))sq.kg=100;
-  exs.unshift(sq);
-
-  // ── Deadlift last, 1-3 sets ───────────────────────────────────────────────
-  // `fixed:true` is load-bearing, not decoration: it is honoured by the volume allocator, the
-  // 25-set session ceiling trim, the balance guardrail and the setsPerMuscle scaling. Without
-  // it the finisher gets resized out of the 1-3 window Henrik specified.
-  if(_dlBlocked){ return day; }
-  var dl=null;
-  for(var j=exs.length-1;j>=0;j--){ if(_isMainDeadlift(exs[j].name)){ dl=exs.splice(j,1)[0]; } }
-  if(!dl)dl=_mk(_legdaySafeName('Deadlift',injuries),'','strength','',Math.round((parseFloat(sq.kg)||100)*1.2));
-  var dlSets=Math.min(LEGDAY_DL_MAX_SETS,Math.max(LEGDAY_DL_MIN_SETS,_legdaySetCount(dl)||2));
-  if(!_legdayRepsOk(dl.sets)||_legdaySetCount(dl)!==dlSets){
-    var _dr=_legdayRepsOk(dl.sets)?String(dl.sets).split('-')[0]:LEGDAY_STRENGTH_REPS;
-    var _out=[];for(var k=0;k<dlSets;k++)_out.push(_dr);
-    dl.sets=_out.join('-');
-  }
-  dl.tag='strength';
-  dl.fixed=true;
-  dl.scheme=dlSets+'×'+String(dl.sets).split('-')[0];
-  if(!(parseFloat(dl.kg)>0))dl.kg=Math.round((parseFloat(sq.kg)||100)*1.2);
-  exs.push(dl);
-
-  return day;
-}
-
-// Runs AFTER allocation, the ceiling trim, the balance guardrail, injury swaps and every other
-// structural pass — all of which can resize or reorder entries. Re-asserting here is what makes
-// the rule hold in the finished program rather than only at the moment it was applied.
-function _enforceLegDayFloor(day,goal,pw,injuries){
-  if(goal==='rehab')return day;
-  if(!_isLegDay(day))return day;
-  var exs=day.exercises||[];
-  // A day can CROSS the leg-dominance threshold during allocation — trim the upper work and
-  // what was an accessory day is suddenly leg-dominant. Re-running the rule (it is idempotent)
-  // is what stops a finished leg day from carrying neither lift.
-  var _hasSq=exs.some(function(e){return _isMainSquat(e.name);});
-  var _hasDl=exs.some(function(e){return _isMainDeadlift(e.name);});
-  if(!_hasSq||!_hasDl){_applyLegDayRule(day,pw,goal,injuries);exs=day.exercises||[];}
-  var si=-1,di=-1;
-  for(var i=0;i<exs.length;i++){
-    if(si<0&&_isMainSquat(exs[i].name))si=i;
-    if(_isMainDeadlift(exs[i].name))di=i;
-  }
-  if(si>=0){
-    var sq=exs[si];
-    var parts=String(sq.sets||'').split('-').filter(Boolean);
-    if(!_legdayRepsOk(sq.sets)){parts=[];for(var a=0;a<LEGDAY_SQUAT_MIN_SETS;a++)parts.push(LEGDAY_STRENGTH_REPS);}
-    while(parts.length<LEGDAY_SQUAT_MIN_SETS)parts.push(parts[parts.length-1]||LEGDAY_STRENGTH_REPS);
-    sq.sets=parts.join('-');
-    sq.tag='strength';
-    sq.scheme=parts.length+'×'+parts[0];
-    if(si>0)exs.unshift(exs.splice(si,1)[0]);
-  }
-  for(var j=0;j<exs.length;j++){if(_isMainDeadlift(exs[j].name)){di=j;break;}}
-  if(di>=0&&di!==exs.length-1)exs.push(exs.splice(di,1)[0]);
-  return day;
-}
 function tagForReps(r){
   var n=parseInt(r,10);
   if(!isFinite(n)||String(r).trim()==='')return null; // 'max' / AMRAP keeps whatever it had
@@ -1482,9 +1299,8 @@ function _ensurePrograms(){
   // load did two wrong things at once: it undid the derivation the moment the app restarted
   // (leaving 15-rep work labelled `volume`, the exact violation being fixed), and it mutated
   // stored programs, which they are never supposed to do. Stored tags are left exactly as saved.
-  // Leg-day rules are enforced ONLY on newly generated programs (in _generateWorkoutProgram).
-  // _ensurePrograms must NOT re-enforce them on STORED programs — doing so re-injected/reordered
-  // Squat & Deadlift on every load, silently reverting the user's own exercise edits (rule
+  // _ensurePrograms must NOT reorder or inject exercises in STORED programs — the old leg-day
+  // rule (removed 2026-11-10) did so and re-injected/reordered Squat & Deadlift on every load, silently reverting the user's own exercise edits (rule
   // 2026-07-24; honours "never mutate stored programs", 2026-07-15). Stored programs are the
   // user's own — leave their exercises exactly as saved.
   return changed;
@@ -1775,7 +1591,7 @@ function viewProgram(idx){_progReadOnly=true;_progEditIdx=idx;_progEditBuf=JSON.
 function _activateProg(i){if(i===_activeProgramIndex)return;_activeProgramIndex=i;_touchProgram(i);savePrograms();rebuildDayGrid();rebuildLogDaySelect();var _ls=document.getElementById('log-day');if(_ls&&_ls.value)prefillLog(_ls.value);buildProgramSettingsCard();}
 function createNewProgram(){
   if(_programs.length>=MAX_PROGRAMS){alert('Maximum '+MAX_PROGRAMS+' programs');return;}
-  _progWiz={step:0,goal:null,sub:null,nDays:4,setsPerMuscle:12,injuries:[],name:'',homeItems:(getData('wkt-home-equip',[])||[]).slice()};
+  _progWiz={step:0,goal:null,sub:null,muscles:[],nDays:4,setsPerMuscle:12,injuries:[],name:'',homeItems:(getData('wkt-home-equip',[])||[]).slice()};
   _openProgOverlay();
 }
 function _renderTemplateOverlay(title,body,footer){
@@ -1939,7 +1755,7 @@ function _renderHomeEquipEditor(){var p=_programs[_heq.idx];var b=document.getEl
   +'<button class="btn btn-primary" onclick="saveHomeEquip()">'+(p.gen?'SAVE AND REBUILD':'SAVE')+'</button>';}
 function saveHomeEquip(){var idx=_heq.idx,p=_programs[idx];if(!p)return;_saveHomeItems(_heq.items);
   if(p.gen){var g=p.gen;if(!confirm('Rebuild "'+p.name+'" for this equipment?\n\nIts exercises are generated again for what you have. Changes you made to this program by hand are replaced.'))return;
-    var np=_generateWorkoutProgram(g.goal,g.sub,g.nDays,p.name,g.setsPerMuscle,g.injuries,_homeEquipId(_heq.items));np.touchedAt=_nowStamp();
+    var np=_generateWorkoutProgram(g.goal,g.sub,g.nDays,p.name,g.setsPerMuscle,g.injuries,_homeEquipId(_heq.items),g.muscles);np.touchedAt=_nowStamp();
     _programs[idx]=np;savePrograms();buildProgramSettingsCard();if(idx===_activeProgramIndex&&typeof renderWorkout==='function')renderWorkout(_selectedProgramDay);}
   closeModal('homeEquipModal');_renderProgOverlay();}
 function _progViewHtml(prog,isActive,progIdx){
@@ -2087,11 +1903,25 @@ function _renderProgWiz(title,body,footer){
     if(title)title.textContent='NEW PROGRAM';
     var html='<div style="margin-bottom:20px;font-size:13px;color:var(--muted);line-height:1.6;">Choose your primary training goal to generate a tailored program.</div>';
     [['strength','⚡','Strength','Build max force with compound lifts'],['hypertrophy','💪','Hypertrophy','Build muscle size and definition'],['aesthetic','🌸','Feminine Aesthetic','Glutes, curves and upper body tone'],['rehab','🩹','Rehab','Recover from injury, move better']].forEach(function(g){
-      html+='<div class="wiz-goal-card" onclick="_progWiz.goal=\''+g[0]+'\';_progWiz.step=1;_renderProgOverlay()"><div style="font-size:28px;flex-shrink:0;">'+g[1]+'</div><div><div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:2px;">'+g[2]+'</div><div style="font-size:12px;color:var(--muted);">'+g[3]+'</div></div></div>';
+      html+='<div class="wiz-goal-card" onclick="_progWiz.goal=\''+g[0]+'\';_progWiz.muscles=[];_progWiz.step=_progWiz.goal===\'rehab\'?1:\'mode\';_renderProgOverlay()"><div style="font-size:28px;flex-shrink:0;">'+g[1]+'</div><div><div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:2px;">'+g[2]+'</div><div style="font-size:12px;color:var(--muted);">'+g[3]+'</div></div></div>';
     });
     html+='<div style="margin:14px 0 8px;text-align:center;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;">or</div>';
     html+='<div class="wiz-goal-card" onclick="_progBuildManual()"><div style="font-size:28px;flex-shrink:0;">✎</div><div><div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:2px;">Build manually</div><div style="font-size:12px;color:var(--muted);">Start blank and add your own days &amp; exercises</div></div></div>';
     body.innerHTML=html;
+  }else if(wiz.step==='mode'){
+    // Henrik, 2026-11-10: "the picker should not be a mandatory step, the wizard should give user
+    // a choice, automatic or pick muscles".
+    if(title)title.textContent='NEW PROGRAM';
+    var html='<div style="margin-bottom:20px;font-size:15px;color:var(--text);line-height:1.6;">How should the program be built?</div>';
+    [['auto','⚙️','Automatic','A ready-made program for your goal — you pick a focus next','_progWiz.muscles=[];_progWiz.step=1;'],['pick','🎯','Pick muscles','Tap the muscles you want to train on a body picture','_progWiz.step=\'muscles\';']].forEach(function(o){
+      html+='<div class="wiz-goal-card" data-wiz-mode="'+o[0]+'" onclick="'+o[4]+'_renderProgOverlay()"><div style="font-size:28px;flex-shrink:0;">'+o[1]+'</div><div><div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:2px;">'+o[2]+'</div><div style="font-size:15px;color:var(--text);">'+o[3]+'</div></div></div>';});
+    body.innerHTML=html;
+    footer.innerHTML='<button onclick="_progWiz.step=0;_renderProgOverlay()" style="width:100%;background:none;border:1px solid var(--border);color:var(--muted);border-radius:50px;padding:13px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-ui);">← Back</button>';
+  }else if(wiz.step==='muscles'){
+    if(title)title.textContent='NEW PROGRAM';
+    var _mk=wiz.muscles||[];
+    body.innerHTML='<div style="margin-bottom:14px;font-size:15px;color:var(--text);line-height:1.5;">Tap the muscles you want to train. Only the marked muscles go into the program.</div>'+_muscleFigureHtml(_muscleSex(wiz.goal),_mk);
+    footer.innerHTML='<button onclick="if((_progWiz.muscles||[]).length){_progWiz.sub=null;_progWiz.step=2;_progWiz.name=_progWizDefaultName();_renderProgOverlay();}"'+(_mk.length?'':' disabled')+' style="width:100%;background:var(--accent);border:none;color:#000;border-radius:50px;padding:16px 24px;font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font-ui);margin-bottom:8px;'+(_mk.length?'':'opacity:0.45;')+'">'+(_mk.length?'Next →':'Tap at least one muscle')+'</button><button onclick="_progWiz.muscles=[];_progWiz.step=1;_renderProgOverlay()" style="width:100%;background:none;border:1px solid var(--border);color:var(--text);border-radius:50px;padding:13px;font-size:15px;font-weight:600;cursor:pointer;font-family:var(--font-ui);margin-bottom:8px;">Use a ready-made focus instead</button><button onclick="_progWiz.step=\'mode\';_renderProgOverlay()" style="width:100%;background:none;border:1px solid var(--border);color:var(--muted);border-radius:50px;padding:13px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-ui);">← Back</button>';
   }else if(wiz.step===1){
     if(title)title.textContent='NEW PROGRAM';
     var subs=wiz.goal==='strength'?[['pure','Pure Strength','Classic powerlifting — Squat, Bench, Deadlift focus'],['hybrid','Hybrid','Strength base + bodybuilding volume for size and power']]:wiz.goal==='hypertrophy'?[['balanced','Balanced','Equal attention across all muscle groups'],['upper','Upper Heavy','Extra volume on chest, back, arms and shoulders'],['lower','Lower Heavy','Extra volume on legs, glutes and hamstrings']]:wiz.goal==='aesthetic'?[['fullbody','Full Body','Glute-emphasis full body — compact & effective'],['upperlower','Upper/Lower','Upper/lower split + glute specialization'],['bootylicious','Bootylicious','Legs, every glute muscle, core and back — arms on triceps and shoulders, no chest presses']]:[['shoulder','Shoulder','Rotator cuff, stability, pain-free pressing'],['back','Lower Back','Hip hinge rehab, core stability, pain-free movement'],['knee','Knee','Quad & glute strength, low-impact progression']];
@@ -2099,7 +1929,7 @@ function _renderProgWiz(title,body,footer){
     var html='<div style="margin-bottom:20px;font-size:13px;color:var(--muted);line-height:1.6;">Pick your focus within <strong style="color:var(--text)">'+goalNames[wiz.goal]+'</strong>.</div>';
     subs.forEach(function(s){html+='<div class="wiz-sub-card" onclick="_progWiz.sub=\''+s[0]+'\';_progWiz.step=2;_progWiz.name=_progWizDefaultName();_renderProgOverlay()"><div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;">'+s[1]+'</div><div style="font-size:12px;color:var(--muted);">'+s[2]+'</div></div>';});
     body.innerHTML=html;
-    footer.innerHTML='<button onclick="_progWiz.step=0;_renderProgOverlay()" style="width:100%;background:none;border:1px solid var(--border);color:var(--muted);border-radius:50px;padding:13px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-ui);">← Back</button>';
+    footer.innerHTML='<button onclick="_progWiz.step=_progWiz.goal===\'rehab\'?0:\'mode\';_renderProgOverlay()" style="width:100%;background:none;border:1px solid var(--border);color:var(--muted);border-radius:50px;padding:13px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-ui);">← Back</button>';
   }else if(wiz.step===2){
     if(title)title.textContent='NEW PROGRAM';
     var curD=wiz.nDays||4;var _sPresets=curD%2!==0?[9,15,21]:[10,16,20];var curS=wiz.setsPerMuscle||12;
@@ -2118,7 +1948,7 @@ function _renderProgWiz(title,body,footer){
     html+='</div></div>';
     html+=_progWizEquipHtml(wiz.equip);
     body.innerHTML=html;
-    footer.innerHTML='<button onclick="_progWiz.name=_progWizDefaultName();_progWiz.step=_progWiz.equip===\'home\'?\'equip\':3;_renderProgOverlay()" style="width:100%;background:var(--accent);border:none;color:#000;border-radius:50px;padding:16px 24px;font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font-ui);margin-bottom:8px;">Next →</button><button onclick="_progWiz.step=1;_renderProgOverlay()" style="width:100%;background:none;border:1px solid var(--border);color:var(--muted);border-radius:50px;padding:13px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-ui);">← Back</button>';
+    footer.innerHTML='<button onclick="_progWiz.name=_progWizDefaultName();_progWiz.step=_progWiz.equip===\'home\'?\'equip\':3;_renderProgOverlay()" style="width:100%;background:var(--accent);border:none;color:#000;border-radius:50px;padding:16px 24px;font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font-ui);margin-bottom:8px;">Next →</button><button onclick="_progWiz.step=(_progWiz.muscles||[]).length?\'muscles\':1;_renderProgOverlay()" style="width:100%;background:none;border:1px solid var(--border);color:var(--muted);border-radius:50px;padding:13px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-ui);">← Back</button>';
   }else if(wiz.step==='equip'){
     // Its own screen, so it cannot be scrolled past (Henrik, 2026-10-14: "make the equipment selection a next screen").
     if(title)title.textContent='NEW PROGRAM';
@@ -2131,8 +1961,8 @@ function _renderProgWiz(title,body,footer){
     var html='<div style="margin-bottom:20px;"><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px;">Program Name</div>';
     html+='<input id="prog-wiz-name" type="text" value="'+_escP(wiz.name||_progWizDefaultName())+'" oninput="_progWiz.name=this.value" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-size:15px;font-weight:600;font-family:var(--font-ui);outline:none;box-sizing:border-box;"></div>';
     html+='<div style="margin-top:20px;padding:16px;background:rgba(232,255,60,0.05);border:1px solid rgba(232,255,60,0.15);border-radius:10px;"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent);margin-bottom:10px;">Summary</div>';
-    html+='<div style="font-size:13px;color:var(--muted);line-height:2;">Goal: <span style="color:var(--text);font-weight:600;">'+gn+'</span><br>Focus: <span style="color:var(--text);font-weight:600;">'+sn+'</span><br>Days/week: <span style="color:var(--text);font-weight:600;">'+wiz.nDays+' day'+(wiz.nDays!==1?'s':'')+'</span><br>Sets/muscle/week: <span style="color:var(--text);font-weight:600;">'+(wiz.setsPerMuscle||12)+'</span>'+((wiz.injuries||[]).length?'<br>Injuries: <span style="color:var(--text);font-weight:600;">'+wiz.injuries.map(function(id){var c=REHAB_CONDITIONS.find(function(x){return x.id===id;});return c?c.label:id;}).join(', ')+'</span>':'')+'<br>Where: <span style="color:var(--text);font-weight:600;">'+_escP(_equipLabel(_progWizEquipId()))+'</span></div>';
-    var _pv=null;try{_pv=_generateWorkoutProgram(wiz.goal,wiz.sub,wiz.nDays,'preview',wiz.setsPerMuscle||12,wiz.injuries,_progWizEquipId());}catch(e){}
+    html+='<div style="font-size:13px;color:var(--muted);line-height:2;">Goal: <span style="color:var(--text);font-weight:600;">'+gn+'</span><br>'+((wiz.muscles||[]).length?'Muscles: <span style="color:var(--text);font-weight:600;">'+_escP(MUSCLES.filter(function(m){return wiz.muscles.indexOf(m.id)>=0;}).map(function(m){return m.label;}).join(', '))+'</span>':'Focus: <span style="color:var(--text);font-weight:600;">'+sn+'</span>')+'<br>Days/week: <span style="color:var(--text);font-weight:600;">'+wiz.nDays+' day'+(wiz.nDays!==1?'s':'')+'</span><br>Sets/muscle/week: <span style="color:var(--text);font-weight:600;">'+(wiz.setsPerMuscle||12)+'</span>'+((wiz.injuries||[]).length?'<br>Injuries: <span style="color:var(--text);font-weight:600;">'+wiz.injuries.map(function(id){var c=REHAB_CONDITIONS.find(function(x){return x.id===id;});return c?c.label:id;}).join(', ')+'</span>':'')+'<br>Where: <span style="color:var(--text);font-weight:600;">'+_escP(_equipLabel(_progWizEquipId()))+'</span></div>';
+    var _pv=null;try{_pv=_generateWorkoutProgram(wiz.goal,wiz.sub,wiz.nDays,'preview',wiz.setsPerMuscle||12,wiz.injuries,_progWizEquipId(),wiz.muscles);}catch(e){}
     if(_pv&&_pv.days&&_pv.days.length){var _tots=_pv.days.map(function(d){return(d.exercises||[]).reduce(function(s,e){return s+String(e.sets).split('-').length;},0);});var _avg=Math.round(_tots.reduce(function(a,b){return a+b;},0)/_tots.length);var _mx=Math.max.apply(null,_tots);html+='<div style="font-size:12px;color:var(--muted);margin-top:10px;line-height:1.6;">Resulting sessions: ≈'+_avg+' sets avg ('+_mx+' max) — roughly '+Math.round(_avg*3.5)+' min per session</div>';}
     html+='</div>';
     body.innerHTML=html;
@@ -2171,7 +2001,7 @@ function _progWizDefaultName(){
 function _progWizGenerate(){
   var wiz=_progWiz;var name=(wiz.name&&wiz.name.trim())||_progWizDefaultName();
   var _eq=_progWizEquipId();if(wiz.equip==='home')_saveHomeItems(wiz.homeItems);
-  var prog=_generateWorkoutProgram(wiz.goal,wiz.sub,wiz.nDays,name,wiz.setsPerMuscle||12,wiz.injuries,_eq);
+  var prog=_generateWorkoutProgram(wiz.goal,wiz.sub,wiz.nDays,name,wiz.setsPerMuscle||12,wiz.injuries,_eq,wiz.muscles);
   prog.touchedAt=_nowStamp();
   _programs.push(prog);buildProgramSettingsCard();
   _progWiz=null;_progReadOnly=false;_progEditIdx=_programs.length-1;_progEditBuf=JSON.parse(JSON.stringify(_programs[_progEditIdx]));_progIsNew=true;_renderProgOverlay();
@@ -2454,7 +2284,92 @@ function _progBuildManual(){
   _programs.push(prog);buildProgramSettingsCard();
   _progWiz=null;_progReadOnly=false;_progEditIdx=_programs.length-1;_progEditBuf=JSON.parse(JSON.stringify(_programs[_progEditIdx]));_progIsNew=true;_renderProgOverlay();
 }
-function _generateWorkoutProgram(goal,sub,nDays,name,setsPerMuscle,injuries,equip){
+// ── MUSCLE PLANNER (Henrik, 2026-11-10) ───────────────────────────────────────
+// "enable user to click and choose muscles to train after choosing goal
+// (hypertrophy/strenght/female). marked muscles should be shown in red." — on the Peptide
+// Tracker's body pictures (male/female, front/back, 20% body fat), without the injection sites.
+// Answers: 1 A — ONLY the marked muscles are trained, unmarked ones are left out; 2 B — the
+// individual muscles below are clickable. Regions: see MUSCLE_REGIONS.
+var MUSCLES=[{id:'chest',label:'Chest',group:'chest',cat:'push'},{id:'traps',label:'Traps',group:'back',cat:'pull'},{id:'frontdelts',label:'Front delts',group:'shoulders',cat:'push'},
+  {id:'sidedelts',label:'Side delts',group:'shoulders',cat:'push'},{id:'triceps',label:'Triceps',group:'arms',cat:'push'},
+  {id:'lats',label:'Lats',group:'back',cat:'pull'},{id:'upperback',label:'Upper back',group:'back',cat:'pull'},
+  {id:'reardelts',label:'Rear delts',group:'shoulders',cat:'pull'},{id:'biceps',label:'Biceps',group:'arms',cat:'pull'},
+  {id:'quads',label:'Quads',group:'legs',cat:'lower'},{id:'hamstrings',label:'Hamstrings',group:'legs',cat:'lower'},
+  {id:'glutes',label:'Glutes',group:'legs',cat:'lower'},{id:'calves',label:'Calves',group:'legs',cat:'lower'},
+  {id:'abs',label:'Abs',group:null,cat:'core'}];
+// Henrik 2026-11-10: "muscle choices are oval shapes not following the muscles at all nor in the
+// correct spot? and I can[t] choose traps at all" — each muscle is now its traced outline: polygons
+// on the 360×920 image for the figure's left side, mirrored to the right (traps and abs are one
+// central shape), drawn as smooth closed curves.
+var MUSCLE_REGIONS={"m":{"front":{"traps":[[[148,168],[152,192],[112,202],[96,204],[118,190]]],"frontdelts":[[[96,204],[102,216],[101,262],[97,288],[88,290],[83,258],[81,225],[87,209]]],"sidedelts":[[[87,209],[81,225],[83,258],[88,290],[73,282],[62,262],[60,235],[67,216],[78,207]]],"chest":[[[102,216],[140,206],[178,212],[178,282],[160,292],[128,292],[108,281],[101,262]]],"biceps":[[[88,292],[98,302],[95,332],[88,355],[70,360],[58,345],[56,315],[64,292]]],"abs":[[[150,292],[210,292],[215,330],[210,380],[195,412],[165,412],[150,380],[145,330]]],"quads":[[[92,496],[130,492],[172,500],[170,540],[160,590],[140,606],[115,606],[100,590],[88,550]]]},"back":{"traps":[[[165,165],[195,165],[255,200],[225,214],[196,250],[180,292],[164,250],[135,214],[105,200]]],"upperback":[[[110,214],[136,216],[160,248],[160,288],[134,284],[112,264],[104,236]]],"reardelts":[[[96,204],[102,240],[99,276],[80,282],[64,264],[62,232],[73,210]]],"lats":[[[102,262],[126,268],[160,300],[172,350],[166,396],[140,386],[116,346],[102,302]]],"triceps":[[[97,282],[99,302],[93,340],[80,358],[62,350],[54,320],[58,292],[78,282]]],"glutes":[[[100,420],[140,412],[176,420],[177,488],[140,496],[100,488],[92,455]]],"hamstrings":[[[92,502],[172,502],[166,560],[150,610],[125,622],[102,610],[92,560]]],"calves":[[[88,660],[125,650],[146,680],[142,740],[126,772],[102,772],[88,736],[84,690]]]}},"f":{"front":{"traps":[[[138,178],[142,192],[110,203],[98,205],[118,190]]],"frontdelts":[[[98,205],[104,220],[103,255],[98,272],[90,268],[88,235],[90,212]]],"sidedelts":[[[90,212],[88,235],[90,268],[80,262],[73,240],[76,218],[86,206]]],"chest":[[[108,225],[145,222],[178,228],[178,295],[150,300],[118,295],[105,270]]],"biceps":[[[98,278],[102,295],[98,325],[88,345],[72,345],[64,325],[66,295],[76,278]]],"abs":[[[150,305],[210,305],[215,340],[208,385],[195,405],[165,405],[152,385],[145,340]]],"quads":[[[92,495],[130,490],[172,495],[168,540],[158,590],[140,628],[115,628],[100,600],[88,550]]]},"back":{"traps":[[[162,170],[198,170],[250,198],[222,212],[196,245],[180,285],[164,245],[138,212],[110,198]]],"upperback":[[[108,212],[138,214],[160,245],[158,285],[132,285],[110,265],[102,238]]],"reardelts":[[[98,203],[104,225],[102,262],[88,270],[74,258],[72,228],[82,206]]],"lats":[[[104,262],[130,282],[160,305],[170,350],[162,385],[140,380],[118,345],[106,300]]],"triceps":[[[100,272],[102,290],[96,325],[86,345],[68,345],[60,320],[64,290],[78,272]]],"glutes":[[[100,445],[140,438],[177,445],[178,505],[150,512],[110,505],[92,480]]],"hamstrings":[[[92,515],[174,515],[165,570],[150,640],[122,650],[102,630],[92,570]]],"calves":[[[100,690],[150,685],[158,720],[150,770],[128,790],[105,780],[96,740]]]}}};
+// Exercises per muscle, first = the one a session leads with. Hip Thrust only for Feminine
+// Aesthetic (rule 2026-07-23), Bulgarian Split Squat never (banned in hypertrophy).
+var MUSCLE_LIB={quads:[['Squat',60],['Leg Press',100],['Leg Extension',35]],hamstrings:[['Romanian Deadlift',60],['Leg Curl',35]],
+  glutes:[['Lunges',20],['Hip Abductor (outside hips)',40]],glutesF:[['Hip Thrust',60],['Hip Abductor (outside hips)',40],['Lunges',20]],
+  calves:[['Calf Raises',50],['Seated Calf Raise',40]],chest:[['Bench Press',60],['Incline DB Press',22],['Cable Fly',15]],
+  frontdelts:[['Overhead Press',35],['Arnold Press',14],['Front Raise',8]],sidedelts:[['Lateral Raise',8],['Cable Lateral Raise',6]],
+  reardelts:[['Rear Delt Fly',7],['Face Pulls',15]],lats:[['Pull-ups',0],['Lat Pulldown',45]],traps:[['Shrug',60],['Upright Row',25]],upperback:[['Barbell Row',50],['Cable Row',45]],
+  biceps:[['Barbell Curl',25],['Hammer Curl',12]],triceps:[['Tricep Pushdown',20],['Overhead Tricep Cable',18],['Skull Crushers',20]],
+  abs:[['Dead Bug',0],['Plank',0],['Pallof Press',8]]};
+var MUSCLE_CENTER={traps:1,abs:1};
+// Every outline of one muscle on one picture: the traced polygon and its mirror (x → 360-x).
+function _muscleShapes(sex,view,id){var out=[];((MUSCLE_REGIONS[sex]||{})[view]||{})[id]&&MUSCLE_REGIONS[sex][view][id].forEach(function(p){out.push(p);
+  var cx=p.reduce(function(a,q){return a+q[0];},0)/p.length;if(!(MUSCLE_CENTER[id]&&Math.abs(cx-180)<15))out.push(p.map(function(q){return[360-q[0],q[1]];}).reverse());});return out;}
+// A closed Catmull-Rom curve through the points, as an SVG path (soft muscle outlines, not corners).
+function _smoothPath(p){var n=p.length,d='M'+p[0][0]+','+p[0][1];for(var i=0;i<n;i++){var p0=p[(i-1+n)%n],p1=p[i],p2=p[(i+1)%n],p3=p[(i+2)%n];
+  var c1x=p1[0]+(p2[0]-p0[0])/6,c1y=p1[1]+(p2[1]-p0[1])/6,c2x=p2[0]-(p3[0]-p1[0])/6,c2y=p2[1]-(p3[1]-p1[1])/6;
+  d+='C'+c1x.toFixed(1)+','+c1y.toFixed(1)+' '+c2x.toFixed(1)+','+c2y.toFixed(1)+' '+p2[0]+','+p2[1];}return d+'Z';}
+function _muscleLib(id,goal){return (id==='glutes'&&goal==='aesthetic')?MUSCLE_LIB.glutesF:MUSCLE_LIB[id];}
+// Which figure: Feminine Aesthetic shows the female body, otherwise the profile's sex.
+function _muscleSex(goal){if(goal==='aesthetic')return'f';var pr=getData('wkt-profile',{})||{};return pr.gender==='female'?'f':'m';}
+// Pure: the two pictures (front, back) with a tappable ellipse per muscle side; marked = red.
+function _muscleFigureHtml(sex,marked,toggleFn){marked=marked||[];toggleFn=toggleFn||'_progWizToggleMuscle';
+  var lab={};MUSCLES.forEach(function(m){lab[m.id]=m.label;});
+  var h='<div style="display:flex;gap:8px;justify-content:center;">';
+  ['front','back'].forEach(function(v){
+    h+='<div style="flex:1;max-width:180px;position:relative;"><div style="text-align:center;font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px;">'+(v==='front'?'Front':'Back')+'</div><div style="position:relative;"><img src="muscles-'+sex+'-'+v+'.webp" alt="'+(sex==='f'?'Female':'Male')+' body, '+v+'" style="width:100%;display:block;border-radius:8px;">'
+      +'<svg viewBox="0 0 360 920" style="position:absolute;inset:0;width:100%;height:100%;">';
+    Object.keys(MUSCLE_REGIONS[sex][v]).forEach(function(id){var on=marked.indexOf(id)>=0;
+      _muscleShapes(sex,v,id).forEach(function(pt){h+='<path data-muscle="'+id+'" d="'+_smoothPath(pt)+'" onclick="'+toggleFn+'(\''+id+'\')" style="cursor:pointer;" fill="'+(on?'rgba(255,30,30,0.55)':'rgba(255,255,255,0.01)')+'" stroke="'+(on?'#ff1e1e':'rgba(80,80,80,0.55)')+'" stroke-width="'+(on?3:2)+'"'+(on?'':' stroke-dasharray="6 5"')+'><title>'+lab[id]+'</title></path>';});});
+    h+='</svg></div></div>';});
+  h+='</div><div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;">';
+  MUSCLES.forEach(function(m){var on=marked.indexOf(m.id)>=0;
+    h+='<div data-muscle-chip="'+m.id+'" onclick="'+toggleFn+'(\''+m.id+'\')" style="padding:9px 12px;border-radius:50px;cursor:pointer;font-size:15px;font-weight:600;background:'+(on?'#ff1e1e':'var(--surface2)')+';color:'+(on?'#fff':'var(--text)')+';border:1px solid '+(on?'#ff1e1e':'var(--border)')+';">'+m.label+'</div>';});
+  return h+'</div>';}
+function _progWizToggleMuscle(id){var a=_progWiz.muscles||(_progWiz.muscles=[]);var i=a.indexOf(id);if(i>=0)a.splice(i,1);else a.push(id);_renderProgOverlay();}
+// Pure: the days for a muscle plan. Lower / Push / Pull days for the marked muscles when there
+// are enough days to give each its own; fewer days than that → full-body days with everything.
+// Abs ride along on every day. Each marked muscle's first exercise per day is keep:true so
+// drop-to-fit can never take a muscle the user marked out of a session.
+function _musclePlanPool(goal,muscles,nDays,pw,d){
+  var strong=goal==='strength';
+  function mk(id,k){var L=_muscleLib(id,goal);var e=L[k%L.length];var nm=e[0];var ex;
+    if(nm==='Pull-ups')ex=pw(nm,'3×max','strength','max-max-max',0);
+    else if(id==='abs'){var c={'Dead Bug':['3×10 each side','10-10-10'],'Plank':['3×45 s hold','45-45-45'],'Pallof Press':['3×12 each side','12-12-12']}[nm];ex=pw(nm,c[0],'rehab',c[1],e[1]);}
+    else if(isCompoundEx(nm))ex=strong?pw(nm,'5×5','strength','5-5-5-5-5',e[1]):pw(nm,'4×8-12','volume','8-8-8-8',e[1]);
+    else ex=pw(nm,'3×10-12','volume','10-10-10',e[1]);
+    return ex;}
+  var cats=['lower','push','pull'].filter(function(c){return MUSCLES.some(function(m){return m.cat===c&&muscles.indexOf(m.id)>=0;});});
+  var abs=muscles.indexOf('abs')>=0;var nm={lower:'Lower',push:'Push',pull:'Pull'};var L='ABCDEFG';
+  function inCat(c){return MUSCLES.filter(function(m){return m.cat===c&&muscles.indexOf(m.id)>=0;}).map(function(m){return m.id;});}
+  var pool=[];var n=Math.max(1,nDays);
+  for(var i=0;i<n;i++){
+    var exs=[],name,dayCats;
+    if(!cats.length){dayCats=[];name='Core '+L[i];}
+    else if(cats.length===1||n>=cats.length){var c=cats[i%cats.length];var v=Math.floor(i/cats.length);dayCats=[c];name=nm[c]+' '+L[v];}
+    else{dayCats=cats;name='Full Body '+L[i];}
+    var v2=(cats.length&&n>=cats.length)?Math.floor(i/cats.length):i;
+    dayCats.forEach(function(c){inCat(c).forEach(function(id){exs.push(Object.assign(mk(id,v2),{keep:true}));});});
+    // A split day with few marked muscles gets each muscle's next exercise too.
+    if(dayCats.length===1){var ids=inCat(dayCats[0]),k=1;while(exs.length<4&&k<3){ids.forEach(function(id){if(exs.length<4&&_muscleLib(id,goal).length>k)exs.push(mk(id,v2+k));});k++;}}
+    if(abs)exs.push(mk('abs',i));
+    if(!cats.length){exs.push(mk('abs',i+1));exs.push(mk('abs',i+2));}
+    var seen={};exs=exs.filter(function(e){if(seen[e.name])return false;seen[e.name]=1;return true;});
+    pool.push(d(name,dayCats.indexOf('lower')<0||dayCats.length>1,exs));
+  }
+  return pool;}
+function _generateWorkoutProgram(goal,sub,nDays,name,setsPerMuscle,injuries,equip,muscles){
+  var _mp=(muscles&&muscles.length&&goal!=='rehab')?muscles.slice():null;
   var _home=_isHomeEquip(equip);var _custom=_home&&equip.indexOf('home:')===0;var _swapped=[];
   var _lsubs=_home?(injuries||[]).concat(['equip:'+equip]):injuries;
   if(!setsPerMuscle)setsPerMuscle=12;
@@ -2507,8 +2422,9 @@ function _generateWorkoutProgram(goal,sub,nDays,name,setsPerMuscle,injuries,equi
     }
     return out;
   }
-  var _fb=(nDays<=4&&(goal==='hypertrophy'||goal==='strength'));
-  if(_fb){pool=_fullBodyPool(goal,sub);}
+  var _fb=!_mp&&(nDays<=4&&(goal==='hypertrophy'||goal==='strength'));
+  if(_mp){key=goal+'-muscles';pool=_musclePlanPool(goal,_mp,nDays,pw,d);}
+  else if(_fb){pool=_fullBodyPool(goal,sub);}
   else if(key==='strength-pure'){
     if(poolN===3){pool=[d('Day 1 — Squat',true,[pw('Squat','5×5 — progressive overload','strength','5-5-5-5-5',100),pw('Romanian Deadlift','3×8','volume','8-8-8',70),pw('Leg Press','3×10','volume','10-10-10',100),pw('Calf Raises','3×15','volume','15-15-15',60)]),d('Day 2 — Bench',true,[pw('Bench Press','5×5 — progressive overload','strength','5-5-5-5-5',80),pw('Incline Bench Press','3×8','strength','8-8-8',60),pw('Overhead Press','3×10','strength','10-10-10',40),pw('Tricep Pushdown','3×12','volume','12-12-12',30)]),d('Day 3 — Deadlift',true,[pw('Deadlift','5×3 — heavy','strength','3-3-3-3-3',120),pw('Barbell Row','4×8','strength','8-8-8-8',80),pw('Pull-ups','3×max','strength','max-max-max',0),pw('Barbell Curl','3×12','volume','12-12-12',25)])];}
     else if(poolN===4){pool=[d('Day 1 — Lower Push',true,[pw('Squat','5×5 — progressive overload','strength','5-5-5-5-5',100),pw('Leg Press','4×8','volume','8-8-8-8',100),pw('Romanian Deadlift','3×10','volume','10-10-10',70),pw('Calf Raises','4×15','volume','15-15-15-15',60)]),d('Day 2 — Upper Push',true,[pw('Bench Press','5×5','strength','5-5-5-5-5',80),pw('Incline Bench Press','3×8','strength','8-8-8',60),pw('Overhead Press','3×10','strength','10-10-10',40),pw('Tricep Pushdown','3×12','volume','12-12-12',30)]),d('Day 3 — Lower Pull',true,[pw('Deadlift','5×3 — heavy','strength','3-3-3-3-3',120),pw('Romanian Deadlift','3×8','volume','8-8-8',70),pw('Leg Curl','3×12','volume','12-12-12',40),pw('Hip Thrust','3×10','volume','10-10-10',80)]),d('Day 4 — Upper Pull',true,[pw('Barbell Row','5×5','strength','5-5-5-5-5',80),pw('Pull-ups','4×max','strength','max-max-max-max',0),pw('Face Pulls','3×15','rehab','15-15-15',20),pw('Barbell Curl','3×12','volume','12-12-12',25)])];}
@@ -2576,7 +2492,7 @@ function _generateWorkoutProgram(goal,sub,nDays,name,setsPerMuscle,injuries,equi
   // day 1's set counts behind the balance guardrail that had already run on it.
   pool.forEach(function(day){day.exercises=(day.exercises||[]).map(function(ex){return Object.assign({},ex);});});
   // Tags are derived from the prescribed reps (rule 2026-07-31) — see the final pass at the end
-  // of this function, which runs after every structural edit (leg-day rules, injury swaps,
+  // of this function, which runs after every structural edit (injury swaps,
   // prehab injection) so nothing can re-author a scheme behind the derivation's back. This
   // REPLACES the old "non-rehab programs must not carry a rehab tag" rewrite, which produced
   // the very violation it was meant to avoid: it relabelled 15-rep isolation as `volume` and
@@ -2598,41 +2514,8 @@ function _generateWorkoutProgram(goal,sub,nDays,name,setsPerMuscle,injuries,equi
       var _seen={};day.exercises=(day.exercises||[]).filter(function(ex){if(_seen[ex.name])return false;_seen[ex.name]=1;return true;});
     });
   }
-  // ── LEG-DAY RULE (Henrik, 2026-08-21) — SUPERSEDES THE 2026-07-10 ALTERNATION ─────
-  // "every version of leg day MUST start with min 3 sets of squats in strenght rep range.
-  //  And every leg day must end with 1-3 sets if strenght rep range deadlifts. No exceptions"
-  //
-  // EVERY leg day now gets BOTH. The old rule made each Legs* day EITHER a squat day OR a
-  // deadlift day, alternating, on a systemic-load argument. That is the rule Henrik has
-  // overruled repeatedly; it is gone, not softened.
-  //
-  // Three separate reasons the old rule kept failing to deliver what he asked for, all fixed
-  // here — the alternation was only the most visible one:
-  //
-  //  1. IT ONLY MATCHED /legs/i. The generator authors leg days under many names: "Lower
-  //     Strength", "Lower Volume", "Lower A/B", "Lower Push", "Lower Pull", "Heavy Squat",
-  //     "Squat Volume", "Deadlift", "Quad & Glute", "Glute & Hamstring", "Glute
-  //     Specialization", "Knee Rehab", "Hip Hinge Rehab". NONE of those contain "legs", so the
-  //     rule skipped them silently and most generated programs never had it applied at all.
-  //     _isLegDay now decides by CONTENT — what the day actually trains — with the name only
-  //     as a tiebreak, so a new day name can never opt out of the rule again.
-  //  2. THE SQUAT WAS NOT FIXED. Even when injected it was left resizable, so the volume
-  //     allocator, the 25-set ceiling trim and the balance guardrail could all cut it back
-  //     below 3 sets. Both lifts are `fixed:true` now — that flag is honoured by every one of
-  //     those passes plus the setsPerMuscle scaling.
-  //  3. THE REPS WERE WRONG. The injected squat was authored '8-8-8-8' — tagged `strength`
-  //     while prescribing the VOLUME range. Both lifts are now written at LEGDAY_STRENGTH_REPS,
-  //     inside TAG_RANGES.strength, so applyTagFromReps confirms the tag instead of flipping it.
-  //
-  // Full-body days are NOT leg days: they deliberately rotate ONE main lower lift per session
-  // (rule 2026-07-24), and forcing squat+deadlift into all of them would make every session a
-  // leg session. If Henrik wants that too it is a one-line change to _isLegDay.
-  //
-  // Injury substitution runs AFTER this and still applies: a knees injury turns the opening
-  // Squat into Leg Press, a lower-back injury turns the closing Deadlift into Leg Press. That
-  // is the existing, deliberate safety layer — this rule sets the slot, the injury layer
-  // decides what is safe to put in it.
-  pool.forEach(function(day){ _applyLegDayRule(day, pw, goal, _lsubs); });
+  // The leg-day rule (Squat first, Deadlift last on every leg day, 2026-08-21) is removed:
+  // Henrik, 2026-11-10: "find and remove the squat and deadlift rule i made for myself".
   var days=pool.slice(0,nDays).map(function(day,i){return Object.assign({},day,{name:'Day '+(i+1)+' — '+day.name.replace(/^Day \d+ — /,'')});});
   // Injuries (2026-07-10): substitutions are baked into the program permanently — the
   // aggravating exercise is replaced before allocation so volume redistributes correctly
@@ -2717,7 +2600,11 @@ function _generateWorkoutProgram(goal,sub,nDays,name,setsPerMuscle,injuries,equi
     // Bootylicious puts the volume on the booty (Henrik, 2026-11-10: "girls go to the gym to train
     // the butt"): legs/glutes get twice the weekly sets-per-muscle, back, shoulders and arms three quarters.
     var _gMul=key==='aesthetic-bootylicious'?{legs:2,back:0.75,shoulders:0.75,arms:0.75}:{};
-    function _sessTarget(g){return freq[g]?Math.min(setsPerMuscle*(_gMul[g]||1)/freq[g],SESSION_MUSCLE_CAP):0;}
+    // A muscle plan: the weekly sets-per-muscle is per MARKED muscle, so a group gets it once per
+    // muscle marked in it (biceps + triceps → arms twice).
+    // Groups with nothing marked get 0: no volume is aimed at them (Pallof Press counts as a press).
+    if(_mp){_gMul={};GROUPS.forEach(function(g){_gMul[g]=0;});MUSCLES.forEach(function(m){if(m.group&&_mp.indexOf(m.id)>=0)_gMul[m.group]++;});}
+    function _sessTarget(g){var mu=Object.prototype.hasOwnProperty.call(_gMul,g)?_gMul[g]:1;return freq[g]?Math.min(setsPerMuscle*mu/freq[g],SESSION_MUSCLE_CAP):0;}
     _recount();
     // Drop-to-fit (rule 2026-07-31): weekly sets-per-muscle must actually land on the user's
     // target. With a 2-set floor per exercise that is impossible by resizing alone — five leg
@@ -2802,8 +2689,7 @@ function _generateWorkoutProgram(goal,sub,nDays,name,setsPerMuscle,injuries,equi
   // which is exactly what this prevents. `_isPullDay` is deliberately narrow, by day NAME:
   //  - `/pull/` and not `/push/` — a mixed "Vertical Push/Pull" day is not a pull program, and
   //    hoisting there would reorder someone's pressing work uninvited.
-  //  - not `/legs|lower/` — "Lower Pull" is a leg day whose first and last slots belong to the
-  //    leg-day rule (Squat first / Deadlift last, 2026-07-10), which this must not override.
+  //  - not `/legs|lower/` — "Lower Pull" is a leg day, not a pull program.
   //  - full-body days ('Full Body B' carries Pull-ups next to a heavy Deadlift) are untouched:
   //    they are not pull days, and the main lower lift keeps the opening slot.
   // Runs after every structural edit — injury swaps, prehab injection, Face Pull relocation and
@@ -2814,16 +2700,9 @@ function _generateWorkoutProgram(goal,sub,nDays,name,setsPerMuscle,injuries,equi
     var _pi=-1;for(var _i=0;_i<exs.length;_i++){if(isPullUpEx(exs[_i].name)){_pi=_i;break;}}
     if(_pi>0)exs.unshift(exs.splice(_pi,1)[0]);
   });
-  // LEG-DAY RULE, RE-ASSERTED (2026-08-21). Applying it once before allocation was not enough:
-  // the allocator, the 25-set ceiling trim, the balance guardrail, injury swaps, the Face Pull
-  // relocation and the pull-up hoist all resize or reorder entries afterwards, any of which
-  // could drop the squat under 3 sets or move a lift out of its slot. This pass runs last, so
-  // "squat first, min 3 sets / deadlift last, 1-3 sets" describes the program the user is
-  // actually handed rather than an intermediate state.
-  days.forEach(function(day){ _enforceLegDayFloor(day,goal,pw,_lsubs); });
   // Automatic tagging, last word: snap every prescription onto a rep count some range defines,
   // then label it from that count. Runs after allocation so the scheme's set prefix is already
-  // final, and after the leg-day rule, which re-authors the heavy Deadlift's scheme.
+  // final.
   // Home, second pass: the prehab injection and Face Pull relocation run after the first swap and
   // can add a cable exercise back. A home program carries no gym loads at all — kg:0 is "no
   // weight set yet" (rule 2026-10-08), filled from the user's own history.
@@ -2839,8 +2718,9 @@ function _generateWorkoutProgram(goal,sub,nDays,name,setsPerMuscle,injuries,equi
   // hand them 4-minute rests.
   if(_home&&(equip==='home-bw'||_custom))days.forEach(function(day){(day.exercises||[]).forEach(function(ex){if(ex.tag==='rehab')return;if(_custom&&!(_swapped.indexOf(ex)>=0&&isBWExName(ex.name)))return;var n=_nSets(ex);var a=[];for(var i=0;i<n;i++)a.push('max');ex.sets=a.join('-');ex.tag='volume';ex.scheme=n+'×max — stop 1–2 reps short of failure';});});
   var _out={name:name,days:days,goal:goal,setsPerMuscle:setsPerMuscle,injuries:injuries||[]};
+  if(_mp)_out.muscles=_mp.slice();
   // A home program keeps what built it, so the program view can rebuild it for new equipment.
-  if(_home){_out.equipment=equip;_out.gen={goal:goal,sub:sub,nDays:nDays,setsPerMuscle:setsPerMuscle,injuries:(injuries||[]).slice()};}
+  if(_home){_out.equipment=equip;_out.gen={goal:goal,sub:sub,nDays:nDays,setsPerMuscle:setsPerMuscle,injuries:(injuries||[]).slice()};if(_mp)_out.gen.muscles=_mp.slice();}
   return _out;
 }
 
