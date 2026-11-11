@@ -577,7 +577,7 @@ const DAY_TEMPLATES={1:[{name:"Squat",sets:"5-5-5-5-5",kg:120},{name:"Romanian D
 const VERSION='1.265';
 // BUILD_NO counts staging builds and is never rewritten by Push to Prod (which resets VERSION to
 // prod's own counter). The What's new card is keyed to it, so its rows show in both apps (2026-11-01).
-const BUILD_NO='1.369';
+const BUILD_NO='1.370';
 const IS_STAGING=(window.location.pathname||'').startsWith('/workout-staging');
 // Backend data namespace, sent as X-App-Id on every call. Staging gets its own so
 // testing here cannot write over production data — before 2026-08-01 both sent no
@@ -1920,7 +1920,7 @@ function _renderProgWiz(title,body,footer){
   }else if(wiz.step==='muscles'){
     if(title)title.textContent='NEW PROGRAM';
     var _mk=wiz.muscles||[];
-    body.innerHTML='<div style="margin-bottom:14px;font-size:15px;color:var(--text);line-height:1.5;">Tap the muscles you want to train. Only the marked muscles go into the program.</div>'+_muscleFigureHtml(_muscleSex(wiz.goal),_mk);
+    body.innerHTML='<div style="margin-bottom:14px;font-size:15px;color:var(--text);line-height:1.5;">Tap the muscles you want to train. Only the marked muscles go into the program.</div>'+_muscleFigureHtml(_muscleSex(),_mk);
     footer.innerHTML='<button onclick="if((_progWiz.muscles||[]).length){_progWiz.sub=null;_progWiz.step=2;_progWiz.name=_progWizDefaultName();_renderProgOverlay();}"'+(_mk.length?'':' disabled')+' style="width:100%;background:var(--accent);border:none;color:#000;border-radius:50px;padding:16px 24px;font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font-ui);margin-bottom:8px;'+(_mk.length?'':'opacity:0.45;')+'">'+(_mk.length?'Next →':'Tap at least one muscle')+'</button><button onclick="_progWiz.muscles=[];_progWiz.step=1;_renderProgOverlay()" style="width:100%;background:none;border:1px solid var(--border);color:var(--text);border-radius:50px;padding:13px;font-size:15px;font-weight:600;cursor:pointer;font-family:var(--font-ui);margin-bottom:8px;">Use a ready-made focus instead</button><button onclick="_progWiz.step=\'mode\';_renderProgOverlay()" style="width:100%;background:none;border:1px solid var(--border);color:var(--muted);border-radius:50px;padding:13px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-ui);">← Back</button>';
   }else if(wiz.step===1){
     if(title)title.textContent='NEW PROGRAM';
@@ -2323,10 +2323,24 @@ function _smoothPath(p){var n=p.length,d='M'+p[0][0]+','+p[0][1];for(var i=0;i<n
   d+='C'+c1x.toFixed(1)+','+c1y.toFixed(1)+' '+c2x.toFixed(1)+','+c2y.toFixed(1)+' '+p2[0]+','+p2[1];}return d+'Z';}
 function _muscleLib(id,goal){return (id==='glutes'&&goal==='aesthetic')?MUSCLE_LIB.glutesF:MUSCLE_LIB[id];}
 // Which figure: Feminine Aesthetic shows the female body, otherwise the profile's sex.
-function _muscleSex(goal){if(goal==='aesthetic')return'f';var pr=getData('wkt-profile',{})||{};return pr.gender==='female'?'f':'m';}
+// Henrik, 2026-11-11: "a female user gets the female images everywhere and a male the male
+// pictures. Right now my wife get male models." The body follows the PROFILE's sex only, for every
+// goal (Feminine Aesthetic no longer forces the female body). Unknown (setup skipped) is null, never
+// a silent "male": the picture spot asks once and saves the answer to the profile.
+function _muscleSex(){var pr=getData('wkt-profile',{})||{};return pr.gender==='female'?'f':pr.gender==='male'?'m':null;}
+function _muscleSexAskHtml(){return '<div data-sex-ask="1" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center"><div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:10px">Which body should the pictures show?</div><div style="display:flex;gap:8px;justify-content:center">'
+  +'<button onclick="_setProfileSex(\'female\')" style="flex:1;max-width:160px;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font-ui)">♀ Female</button>'
+  +'<button onclick="_setProfileSex(\'male\')" style="flex:1;max-width:160px;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font-ui)">♂ Male</button></div>'
+  +'<div style="font-size:15px;color:var(--text);margin-top:8px">Saved to your profile (Settings → Profile).</div></div>';}
+function _setProfileSex(g){var p=getData('wkt-profile',{})||{};p.gender=g;setData('wkt-profile',p);
+  if(typeof pushSettingsToAgent==='function')pushSettingsToAgent({'wkt-profile':p,'user_sex':g});
+  if(typeof buildProfileCard==='function')buildProfileCard();
+  if(_progWiz&&typeof _renderProgOverlay==='function')_renderProgOverlay();
+  var m=document.getElementById('exSketchModal');if(m&&m.classList&&m.classList.contains('open')&&typeof _openExSketch==='function')_openExSketch(_exSketchName);}
 // Pure: the two pictures (front, back) with a tappable ellipse per muscle side; marked = red.
 // toggleFn===false: display only (the exercise ? popup) — no taps, no chips, only the marked muscles drawn.
 function _muscleFigureHtml(sex,marked,toggleFn){marked=marked||[];var ro=toggleFn===false;toggleFn=toggleFn||'_progWizToggleMuscle';
+  if(sex!=='f'&&sex!=='m'){if(ro)return _muscleSexAskHtml();var hh=_muscleSexAskHtml()+'<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;">';MUSCLES.forEach(function(m){var on=marked.indexOf(m.id)>=0;hh+='<div data-muscle-chip="'+m.id+'" onclick="'+toggleFn+'(\''+m.id+'\')" style="padding:9px 12px;border-radius:50px;cursor:pointer;font-size:15px;font-weight:600;background:'+(on?'#ff1e1e':'var(--surface2)')+';color:'+(on?'#fff':'var(--text)')+';border:1px solid '+(on?'#ff1e1e':'var(--border)')+';">'+m.label+'</div>';});return hh+'</div>';}
   var lab={};MUSCLES.forEach(function(m){lab[m.id]=m.label;});
   var h='<div style="display:flex;gap:8px;justify-content:center;">';
   ['front','back'].forEach(function(v){
@@ -2372,6 +2386,40 @@ function _musclePlanPool(goal,muscles,nDays,pw,d){
     pool.push(d(name,dayCats.indexOf('lower')<0||dayCats.length>1,exs));
   }
   return pool;}
+// ── Per-muscle volume ─────────────────────────────────────────────────────────
+// Weekly sets each target muscle should get: a muscle plan → every marked muscle (not abs) gets
+// setsPerMuscle; Bootylicious → glutes 2×, quads and hamstrings 1×. Other programs: none.
+function _muscleTargets(key,mp,spm){spm=spm||12;
+  if(mp&&mp.length){var t={};mp.forEach(function(m){if(m!=='abs')t[m]=spm;});return Object.keys(t).length?t:null;}
+  if(key==='aesthetic-bootylicious')return {glutes:2*spm,quads:spm,hamstrings:spm};
+  return null;}
+// Effective weekly sets for a muscle: main muscle counts 1, supporting 0.5 (prehab excluded).
+function _muscleVolume(days,m){var v=0;days.forEach(function(d){(d.exercises||[]).forEach(function(ex){if(ex.prehab)return;var ms=exMuscles(ex.name),i=ms.indexOf(m);if(i<0)return;v+=String(ex.sets).split('-').length*(i===0?1:0.5);});});return v;}
+var MUSCLE_SET_MIN=2,MUSCLE_SET_MAX=5,MUSCLE_SESSION_CAP=25;
+function _applyMuscleTargets(days,targets,nSets,resize){
+  var owned=[];
+  // Two passes: a muscle's supporting sets come from exercises another target sizes (bench → triceps),
+  // so the second pass sizes every muscle against the others' settled counts.
+  for(var _pass=0;_pass<2;_pass++)Object.keys(targets).forEach(function(m){
+    var mains=[],sec=0;
+    days.forEach(function(d){(d.exercises||[]).forEach(function(ex){if(ex.prehab)return;var ms=exMuscles(ex.name),i=ms.indexOf(m);
+      if(i===0&&!ex.fixed)mains.push(ex);else if(i>0)sec+=nSets(ex)*0.5;});});
+    if(!mains.length)return;
+    var rem=Math.max(0,targets[m]-sec),n=mains.length,base=Math.floor(rem/n),extra=Math.round(rem-base*n);
+    mains.forEach(function(ex,i){var k=Math.max(MUSCLE_SET_MIN,Math.min(MUSCLE_SET_MAX,base+(i<extra?1:0)));if(k!==nSets(ex))resize(ex,k);if(owned.indexOf(ex)<0)owned.push(ex);});
+  });
+  // Session ceiling: trim what no target owns first, then the largest owned exercise.
+  days.forEach(function(d){var g=60;while(g-->0){var exs=(d.exercises||[]).filter(function(e){return !e.prehab&&!e.fixed;});
+    var tot=(d.exercises||[]).reduce(function(s,e){return s+nSets(e);},0);if(tot<=MUSCLE_SESSION_CAP)break;
+    var c=exs.filter(function(e){return owned.indexOf(e)<0&&nSets(e)>MUSCLE_SET_MIN;});
+    var big;
+    if(c.length)big=c.reduce(function(a,b){return nSets(b)>nSets(a)?b:a;});
+    else{ // every trimmable set belongs to a target: take it from the muscle furthest over its own target
+      c=exs.filter(function(e){return nSets(e)>MUSCLE_SET_MIN;});if(!c.length)break;
+      var over=function(e){var m=exMuscles(e.name)[0];return targets[m]?_muscleVolume(days,m)/targets[m]:9;};
+      big=c.reduce(function(a,b){return over(b)>over(a)?b:a;});}
+    resize(big,nSets(big)-1);}});
+}
 function _generateWorkoutProgram(goal,sub,nDays,name,setsPerMuscle,injuries,equip,muscles){
   var _mp=(muscles&&muscles.length&&goal!=='rehab')?muscles.slice():null;
   var _home=_isHomeEquip(equip);var _custom=_home&&equip.indexOf('home:')===0;var _swapped=[];
@@ -2687,6 +2735,13 @@ function _generateWorkoutProgram(goal,sub,nDays,name,setsPerMuscle,injuries,equi
   }else{
     days.forEach(function(day){(day.exercises||[]).forEach(function(ex){if(ex.prehab||ex.fixed)return;ex.sets=scaleSets(ex.sets);});});
   }
+  // ── Per-muscle volume (Henrik, 2026-11-11: "Yes" to "every marked muscle gets the weekly
+  // sets-per-muscle you chose; Bootylicious glutes at 2× the setting"). The group allocator above
+  // sees legs/back/chest/shoulders/arms only, so glutes shared "legs" with quads and could come
+  // out at 3 sets while quads got 15. Here each target muscle is sized on its own: an exercise
+  // counts fully for its main muscle (exMuscles()[0]) and half for a supporting one.
+  var _mt=_muscleTargets(key,_mp,setsPerMuscle);
+  if(_mt)_applyMuscleTargets(days,_mt,_nSets,_resizeEx);
   // Pull-ups lead every pull day (rule 2026-08-08). Henrik: "In no Pull program should any
   // exercise be before Pull-ups." A pull-up/chin-up variant is the most demanding movement a
   // pull session carries, so it is done fresh — the seeded Pull A had Barbell Row ahead of it,
@@ -3842,7 +3897,7 @@ function exMuscles(name){var n=String(name||'').toLowerCase();for(var i=0;i<EX_M
 function _exMusclesHtml(name,sex){var ids=exMuscles(name);if(!ids.length)return '';
   var lab={adductors:'Adductors (inner thigh)'};MUSCLES.forEach(function(m){lab[m.id]=m.label;});
   return {line:'<div data-ex-muscles="1" style="margin-top:10px;font-size:15px;font-weight:700;color:#ff8080;line-height:1.5">Trains: '+ids.map(function(i){return _escP(lab[i]);}).join(' · ')+'</div>',
-    body:'<div data-ex-body="1" style="margin-top:12px">'+_muscleFigureHtml(sex||_muscleSex(null),ids,false)+'</div>'};}
+    body:'<div data-ex-body="1" style="margin-top:12px">'+_muscleFigureHtml(sex||_muscleSex(),ids,false)+'</div>'};}
 function _exSketchHtml(name){var s=_exSketchSpec(name);var _mu=_exMusclesHtml(name)||{line:'',body:''};if(!s)return '<div data-sk-none="1" style="color:var(--muted);font-size:13px">No sketch for '+_escP(name||'this exercise')+' yet.</div>'+_mu.line+_mu.body;
   var V={side:'Side',front:'Front',top:'From above'},W=150,H=170;
   function fig(svg,l){return '<figure style="margin:0;flex:1;min-width:0;display:flex;flex-direction:column;align-items:center">'+svg+'<figcaption style="font-size:10px;color:#8d8d93;letter-spacing:.08em;text-transform:uppercase">'+_escP(l)+'</figcaption></figure>';}
@@ -3853,7 +3908,8 @@ function _exSketchHtml(name){var s=_exSketchSpec(name);var _mu=_exMusclesHtml(na
   if(s.grips){var g=s.grips,G=skPanels({views:[g.view],start:g.items[0],end:g.items[1],floor:g.floor},W,H)[g.view];
     out+=tile('Grip · '+V[g.view],G[0],G[1],g.labels[0],g.labels[1],'<span style="font-size:11px;color:#8d8d93;padding:0 4px">or</span>','<div data-sk-grip="1" style="font-size:11.5px;line-height:1.45;color:#c4c4c9;margin:4px">'+_escP(g.note)+'</div>');}
   return out+_mu.body;}
-function _openExSketch(n){document.getElementById('exSketchTitle').textContent=(n||'Exercise').toUpperCase();document.getElementById('exSketchContent').innerHTML=_exSketchHtml(n);openModal('exSketchModal');}
+var _exSketchName='';
+function _openExSketch(n){_exSketchName=n;document.getElementById('exSketchTitle').textContent=(n||'Exercise').toUpperCase();document.getElementById('exSketchContent').innerHTML=_exSketchHtml(n);openModal('exSketchModal');}
 function showExSketch(btn){_openExSketch(_exCardName(btn.closest('.ex-card')));}
 // The same blue ? on the Program day view and in the program editor (Henrik, 2026-10-12). onclick is JS, so it is attribute-escaped.
 function _exSketchBtnHtml(onclick){return '<button onclick="'+_escP(onclick)+'" title="How to do it" style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:8px;cursor:pointer;font-family:var(--font-ui);line-height:1;padding:0;background:rgba(77,163,255,0.12);border:1px solid #4da3ff;color:#4da3ff;font-size:19px;font-weight:700;flex-shrink:0">?</button>';}
