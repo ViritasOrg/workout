@@ -7967,6 +7967,107 @@ check('…regular, wide, diamond and archer push-ups keep 64%',
   check('the equipment editor opens above the program view', /id="homeEquipModal" style="z-index:500"/.test(html));
 }
 
+// ── Plan → Gym and Home equipment tabs ──────────────────────────────────────
+// Henrik, 2026-11-11: "add gym and home equipment tabs to Plan. In gym list most common machines as
+// checked and the rest as unchecked. For home list the home equipments as unchecked unless the user
+// chose some when creating a Home program"; the list changes the programs and rebuilds existing ones.
+{
+  console.log('\n── Gym and Home equipment tabs ───────');
+  const _ls = G.localStorage, saved = { gym: _ls.getItem('wkt-gym-equip'), home: _ls.getItem('wkt-home-equip') };
+  const pushed = [], _push = G.pushSettingsToAgent; G.pushSettingsToAgent = (kv) => pushed.push(kv);
+  _ls.removeItem('wkt-gym-equip'); _ls.removeItem('wkt-home-equip');
+  const def = G._gymItems();
+  check('gym list: the common machines are ticked until the user changes it',
+    ['barbell', 'bench', 'dumbbells', 'cable', 'latpulldown', 'cablerow', 'pullup', 'dipbars', 'legpress', 'legcurl', 'legext', 'chestpress', 'pecdeck', 'shoulderpress', 'smith'].every(i => def.includes(i)), def.join(','));
+  check('…and the rest are not', ['hacksquat', 'hipthrust', 'tbar', 'assisted', 'curlmachine', 'tricepmachine', 'latraisemachine', 'kettlebell', 'bands'].every(i => !def.includes(i)));
+  const GO = [['strength', 'pure'], ['strength', 'hybrid'], ['hypertrophy', 'balanced'], ['hypertrophy', 'upper'], ['hypertrophy', 'lower'], ['aesthetic', 'fullbody'], ['aesthetic', 'bootylicious'], ['rehab', 'knee'], ['rehab', 'shoulder']];
+  const same = [];
+  for (const [g, sub] of GO) for (const d of [2, 3, 4, 6]) for (const inj of [[], ['knees'], ['shoulders']]) {
+    const a = JSON.stringify(G._generateWorkoutProgram(g, sub, d, 'T', 12, inj, 'gym').days), b = JSON.stringify(G._generateWorkoutProgram(g, sub, d, 'T', 12, inj, G._gymEquipId(def)).days);
+    if (a !== b) same.push(`${g}/${sub} ${d}d ${inj}`); }
+  check('with the common machines ticked a program is exactly what it was before the list', same.length === 0, same.slice(0, 4).join(' | '));
+  // Every program can be done with what is ticked, however little that is.
+  const lists = [def.filter(i => i !== 'legpress'), def.filter(i => !['cable', 'latpulldown', 'cablerow'].includes(i)), ['barbell', 'bench', 'dumbbells', 'pullup', 'dipbars'],
+    ['dumbbells'], [], def.filter(i => !['legcurl', 'legext', 'chestpress', 'hipab'].includes(i)), G.GYM_ITEMS.map(g => g.id)];
+  const bad = [], empty = [];
+  for (const items of lists) for (const [g, sub] of GO) for (const d of [2, 3, 4, 5, 6]) for (const inj of [[], ['knees'], ['shoulders']]) {
+    const p = G._generateWorkoutProgram(g, sub, d, 'T', 12, inj, G._gymEquipId(items));
+    p.days.forEach(day => { if (!day.exercises.length) empty.push(`${items} ${g}/${sub} ${d}d`);
+      day.exercises.forEach(e => { if (!G._canDoAtGym(e.name, items)) bad.push(`[${items}] ${g}/${sub} ${d}d ${inj}: ${e.name}`); }); }); }
+  check('every exercise in every gym program needs only what is ticked (7 lists × goals × 2–6 days × injuries)', bad.length === 0, bad.slice(0, 4).join(' | '));
+  check('…no day ends up empty', empty.length === 0, empty.slice(0, 3).join(' | '));
+  const R = (n, items, inj) => G._gymResolve(n, items, inj || []);
+  check('no leg press: Leg Press → Hack Squat when ticked, else Smith machine, else Squat',
+    R('Leg Press', ['hacksquat']) === 'Hack Squat' && R('Leg Press', ['smith']) === 'Smith Machine Squat' && R('Leg Press', ['barbell']) === 'Squat');
+  check('a pulldown or row works on its own machine or on a cable station', R('Lat Pulldown', ['latpulldown']) === 'Lat Pulldown' && R('Lat Pulldown', ['cable']) === 'Lat Pulldown' && R('Cable Row', ['cable']) === 'Cable Row' && R('Lat Pulldown', ['pullup']) === 'Pull-ups');
+  check('knees: no leg press never turns into a squat', R('Leg Press', ['legcurl', 'barbell'], ['knees']) === 'Leg Curl');
+  const nc = G._generateWorkoutProgram('hypertrophy', 'balanced', 4, 'T', 12, [], G._gymEquipId(['barbell', 'bench', 'dumbbells']));
+  check('swapped-in loaded work keeps real reps; only bodyweight work goes AMRAP',
+    nc.days.every(d => d.exercises.every(e => G.isBWExName(e.name) || e.tag === 'rehab' || !/max/.test(String(e.sets)))));
+  check('a gym program remembers its list and how it was built, so it can be rebuilt',
+    nc.equipment === 'gym:barbell,bench,dumbbells' && nc.gen && nc.gen.goal === 'hypertrophy' && nc.gen.nDays === 4);
+  G._progWiz = { equip: 'gym' };
+  check('the wizard builds a gym program for the saved list', G._progWizEquipId() === G._gymEquipId(def));
+  G._progWiz = null;
+
+  // The tabs.
+  check('Plan has Gym and Home equipment tabs, after Plan', JSON.stringify(G.PRIMARY_GROUPS.plan) === JSON.stringify(['plan', 'gym', 'homeequip']) &&
+    G.PAGE_LABELS.gym === 'Gym' && G.PAGE_LABELS.homeequip === 'Home equipment' && html.includes('id="tab-btn-gym"') && html.includes('id="page-homeequip"'));
+  check('…and the intro tour names them', ['GYM', 'HOME EQUIPMENT'].every(n => G.TOUR_TABS.some(t => t.name === n)));
+  const gt = G._equipTabHtml('gym');
+  check('Gym tab: one tick box per item, common machines ticked, the rest not',
+    G.GYM_ITEMS.every(it => gt.includes('data-equip="' + it.id + '"')) &&
+    G.GYM_ITEMS.every(it => new RegExp('data-equip="' + it.id + '"[^>]*>' + '<input type="checkbox"' + (it.on ? ' checked' : '') + ' onchange').test(gt)), gt.slice(0, 400));
+  check('…in the order of the agreed layout: ticked first, two columns', gt.indexOf('data-equip="hipab"') < gt.indexOf('data-equip="hacksquat"') && gt.includes('grid-template-columns:minmax(0,1fr) minmax(0,1fr)'));
+  const ht = G._equipTabHtml('home');
+  check('Home tab: nothing ticked when no Home program chose any', G.HOME_ITEMS.every(it => ht.includes('data-equip="' + it.id + '"')) && !ht.includes(' checked'));
+  G.setData('wkt-home-equip', ['dumbbells', 'pullup']);
+  const ht2 = G._equipTabHtml('home');
+  check('…and what the user chose for a Home program is ticked', /data-equip="dumbbells"[^>]*><input type="checkbox" checked/.test(ht2) && /data-equip="pullup"[^>]*><input type="checkbox" checked/.test(ht2) && !/data-equip="bench"[^>]*><input type="checkbox" checked/.test(ht2));
+  check('readable: text on the tabs is 15px or larger and never greyed', !/font-size:1[0-4]px/.test(gt + ht2) && !/var\(--muted\)/.test(gt + ht2));
+  pushed.length = 0;
+  G.equipTabToggle('gym', 'legpress');
+  check('ticking saves the list on the device and on the backend', !G._gymItems().includes('legpress') && pushed.length === 1 && Array.isArray(pushed[0]['wkt-gym-equip']) && !pushed[0]['wkt-gym-equip'].includes('legpress'));
+  G.equipTabToggle('gym', 'legpress');
+  check('…and ticking again puts it back', G._gymItems().includes('legpress'));
+  check('the lists come back from the backend after a cache wipe', String(G.syncSettingsFromAgent).includes("setData('wkt-gym-equip',s['wkt-gym-equip'])"));
+
+  // Rebuilding programs generated with an older list.
+  const _p = G._programs, _c = G.confirm, _sp = G.savePrograms;
+  let saves = 0; G.savePrograms = () => { saves++; };
+  const old = G._generateWorkoutProgram('hypertrophy', 'balanced', 4, 'Gym A', 12, [], G._gymEquipId(def)); old.days[0].exercises[0].name = 'Hand edit';
+  const home = G._generateWorkoutProgram('hypertrophy', 'balanced', 3, 'Home A', 12, [], G._homeEquipId(['dumbbells']));
+  const plain = { name: 'Old', days: [{ name: 'Day 1', exercises: [{ name: 'Leg Press', sets: '10-10', scheme: '2×10', tag: 'volume', kg: 0 }] }] };
+  G._programs = [old, home, plain];
+  G.setData('wkt-gym-equip', def.filter(i => i !== 'legpress'));
+  const gt2 = G._equipTabHtml('gym');
+  check('a changed list offers to rebuild the programs generated with the old one', gt2.includes('data-equip-rebuild="1"') && gt2.includes('Rebuild 1 gym program for this list'));
+  check('…and says how many programs were not generated with a list', /1 of your programs was not generated with this list/.test(gt2));
+  G.confirm = () => false; G.rebuildEquipPrograms('gym');
+  check('cancelling the confirm changes nothing', G._programs[0] === old && saves === 0);
+  G.confirm = () => true; G.rebuildEquipPrograms('gym');
+  const rb = G._programs[0];
+  check('confirming rebuilds it for the new list, in the same slot, and saves',
+    rb !== old && rb.name === 'Gym A' && rb.equipment === G._gymEquipId(G._gymItems()) && saves === 1 &&
+    rb.days.every(d => d.exercises.every(e => e.name !== 'Leg Press' && e.name !== 'Hand edit')));
+  check('…leaving the home program and the plain one untouched', G._programs[1] === home && G._programs[2] === plain);
+  check('…and the button is gone', !G._equipTabHtml('gym').includes('data-equip-rebuild'));
+  G.setData('wkt-home-equip', ['dumbbells', 'bench']);
+  check('the Home tab rebuilds the Home programs the same way', G._equipTabHtml('home').includes('Rebuild 1 home program'));
+  G.rebuildEquipPrograms('home');
+  check('…for the new home list', G._programs[1].equipment === 'home:bench,dumbbells' && G._programs[1].name === 'Home A' && G._programs[0] === rb);
+
+  // Ask AI is only offered what the program's equipment allows.
+  const gc = G._exCatalogueFor(rb), hc = G._exCatalogueFor(G._programs[1]);
+  check('Ask AI gets no exercise an unticked machine needs', !gc.includes('Leg Press') && !gc.includes('Hack Squat') && gc.includes('Squat') && gc.includes('Lat Pulldown'));
+  check('…and a home program only what its home equipment allows', !hc.includes('Leg Press') && !hc.includes('Lat Pulldown') && hc.includes('Incline DB Press'));
+  check('progAiAsk sends that catalogue', String(G.progAiAsk).includes('cat=_exCatalogueFor(prog)'));
+
+  G._programs = _p; G.confirm = _c; G.savePrograms = _sp; G.pushSettingsToAgent = _push;
+  if (saved.gym === null) _ls.removeItem('wkt-gym-equip'); else _ls.setItem('wkt-gym-equip', saved.gym);
+  if (saved.home === null) _ls.removeItem('wkt-home-equip'); else _ls.setItem('wkt-home-equip', saved.home);
+}
+
 // ── Section 101: Edit opens the session that was logged ─────────────────────
 // Henrik 2026-10-15: "when I open todays training in history it is empty when I click
 // edit?????" — his 2026-10-15 log (id 1792084147681, day 1) is a push session: Chest
@@ -9385,6 +9486,42 @@ setTimeout(() => { check('every async check finished within 30 s', false); _summ
   const before = JSON.stringify(prog);
   const op = (o) => Object.assign({days: [], exercise: '', with: '', exercises: [], title: ''}, o);
 
+  // Henrik 2026-11-11: "I want the AI to be able to change a saved program. Like for the next x weeks
+  // no presses due to my shoulder but still train chest and triceps". A change for N weeks carries
+  // its own undo and end date; once the date has come everything it touched is put back.
+  {
+    const today = new Date().toISOString().split('T')[0];
+    const ops = [op({op: 'replace', days: [1], exercise: 'Bench Press', with: 'Cable Fly'}),
+                 op({op: 'replace', days: [3], exercise: 'Overhead Press', with: 'Lateral Raise'}),
+                 op({op: 'add', days: [1], exercises: [{name: 'Tricep Pushdown', sets: 3, reps: '12'}]}),
+                 op({op: 'remove', days: [3], exercise: 'Cable External Rotation'})];
+    const t = G._applyAiOps(prog, ops, 1, cat, 1, 4);
+    check('AI for N weeks: the change applies now and says when it changes back',
+      t.prog && t.temp && t.temp.weeks === 4 && t.temp.until === G._isoPlusDays(today, 28)
+      && t.prog.days[0].exercises.some(x => x.name === 'Cable Fly') && !t.prog.days[0].exercises.some(x => x.name === 'Bench Press')
+      && t.lines.some(l => /For 4 weeks: on .* it changes back by itself/.test(l)), JSON.stringify(t.lines));
+    check('AI with no time limit: no end date, nothing to change back', !G._applyAiOps(prog, ops, 1, cat, 1, 0).temp && !G._applyAiOps(prog, ops, 1, cat, 1).temp);
+    const saved = Object.assign(JSON.parse(JSON.stringify(t.prog)), {tempChanges: [t.temp]});
+    check('AI for N weeks: nothing changes back before the end date', G._endTempChanges(saved, G._isoPlusDays(today, 27)).ended.length === 0);
+    const back = G._endTempChanges(saved, t.temp.until);
+    const strip = (pp) => JSON.stringify(pp.days);
+    check('AI for N weeks: on the end date the program is exactly as before (sets, weights, order)', back.ended.length === 1 && strip(back.prog) === strip(prog), strip(back.prog));
+    check('…the change is no longer pending and shows as ended', back.prog.tempChanges.length === 0 && back.prog.tempEnded.length === 1
+      && /Changed back on/.test(G._tempChangesHtml(back.prog)) && /Until .*then it changes back by itself/.test(G._tempChangesHtml(saved)));
+    // An exercise the user edited away in the meantime is left alone, never forced back over it.
+    const edited = JSON.parse(JSON.stringify(saved)); edited.days[0].exercises = edited.days[0].exercises.filter(x => x.name !== 'Cable Fly');
+    const back2 = G._endTempChanges(edited, t.temp.until);
+    check('…a step whose exercise the user has since removed is skipped, the rest still changes back',
+      !back2.prog.days[0].exercises.some(x => x.name === 'Bench Press') && back2.prog.days[2].exercises.some(x => x.name === 'Overhead Press')
+      && !back2.prog.days[0].exercises.some(x => x.name === 'Tricep Pushdown'));
+    vm.runInContext('var __progSaved=_programs;', sandbox);
+    sandbox.__tp = [Object.assign(JSON.parse(JSON.stringify(saved)), {tempChanges: [Object.assign({}, t.temp, {until: G._isoPlusDays(today, -1)})]})];
+    const any = vm.runInContext('_programs=__tp;_endDueTempChanges()', sandbox);
+    const after = vm.runInContext('_programs', sandbox);
+    check('…when the programs load, a change past its end date is undone and reported for saving', any === true && after[0].days[0].exercises.some(x => x.name === 'Bench Press') && after[0].tempChanges.length === 0);
+    vm.runInContext('_programs=__progSaved;', sandbox);
+    check('…and both load paths run it', /_endDueTempChanges\(\)/.test(String(G.initPrograms)) && /_endDueTempChanges\(\)/.test(String(G.syncProgramsFromAgent)));
+  }
   let p = G._applyAiOps(prog, [op({op: 'remove', days: [1, 3], exercise: 'cable external rotation'})], 1, cat);
   check('AI remove: gone from every day named', p.prog && p.prog.days.every(d => d.exercises.every(x => x.name !== 'Cable External Rotation')));
   check('AI remove: everything else is exactly as it was',
