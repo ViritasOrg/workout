@@ -9611,9 +9611,10 @@ globalThis.__aiReply = (async function(){
   check('AI reply: the first ask sends no conversation', sent[0].history.length === 0 && sent[0].request === 'Swap the row');
   check('AI reply: the request stays on screen and the box is free for a reply',
     G._pai.last === 'Swap the row' && G._pai.text === '' && G._pai.plan && /T-Bar Row/.test(G._pai.plan.lines.join(' ')));
-  check('AI reply: the card offers Reply next to Apply', /progAiReply\(\)/.test(G._progAiHtml()) && /progAiApply\(\)/.test(G._progAiHtml()));
+  check('AI chat: the proposed change is the AI\'s last message, with Apply under it',
+    /data-pai="ai">[^<]*T-Bar Row[^<]*<div[^>]*><button onclick="progAiApply\(\)"/.test(G._paiMsgsHtml()), G._paiMsgsHtml());
   G._pai.text = 'My gym has no T-bar row';
-  await ask(() => G.progAiReply());
+  await ask(() => G.progAiSend());   // the Send button: after the first message every one is a reply
   check('AI reply: the reply carries the first turn and what was proposed',
     sent[1].request === 'My gym has no T-bar row' && sent[1].history.length === 1 &&
     sent[1].history[0].request === 'Swap the row' && /T-Bar Row/.test(sent[1].history[0].answer), JSON.stringify(sent[1].history));
@@ -9621,8 +9622,11 @@ globalThis.__aiReply = (async function(){
   await ask(() => G.progAiReply());
   check('AI reply: the whole conversation goes with every reply', sent[2] && sent[2].history.length === 2 &&
     sent[2].history[1].request === 'My gym has no T-bar row' && /Cable Row/.test(sent[2].history[1].answer), JSON.stringify(sent[2]) + ' ' + JSON.stringify(G._pai));
-  const html = G._progAiHtml();
-  check('AI reply: the card shows the conversation', /Swap the row/.test(html) && /My gym has no T-bar row/.test(html) && /No cables either/.test(html));
+  const html = G._paiMsgsHtml();
+  check('AI chat: the whole conversation, oldest first, yours on the right and the AI\'s on the left',
+    html.indexOf('Swap the row') < html.indexOf('My gym has no T-bar row') && html.indexOf('My gym has no T-bar row') < html.indexOf('No cables either') &&
+    (html.match(/class="pai-msg pai-me"/g) || []).length === 3 && (html.match(/class="pai-msg pai-ai"/g) || []).length === 4, html);
+  check('AI chat: what the AI said earlier is its own message', /data-pai="ai">[^<]*T-Bar Row/.test(html) && /data-pai="ai">[^<]*Cable Row/.test(html));
   check('AI reply: the plan on screen is the latest', /Lat Pulldown/.test(G._pai.plan.lines.join(' ')));
   // a request that never reached the AI is not a turn
   const cur = G.fetch; G.fetch = async () => { throw new Error('offline'); };
@@ -9631,10 +9635,13 @@ globalThis.__aiReply = (async function(){
   check('AI reply: …and adds nothing to the conversation', G._pai.hist.length === 2, JSON.stringify(G._pai.hist));
   G.progAiCancel();
   check('AI reply: Cancel starts a fresh conversation', G._pai.hist.length === 0 && G._pai.last === '' && !G._pai.plan);
+  check('AI chat: a fresh chat has only the AI\'s greeting', (G._paiMsgsHtml().match(/class="pai-msg/g) || []).length === 1 && /Nothing changes until you tap Apply/.test(G._paiMsgsHtml()));
+  { let calls = 0; const cur2 = G.fetch; G.fetch = async () => { calls++; return answers.shift(); }; G._pai.text = '   '; await G.progAiSend(); G.fetch = cur2;
+    check('AI chat: Send with nothing typed sends nothing and says nothing', calls === 0 && !G._pai.err && !G._pai.last); }
   G._programs = []; G._activeProgramIndex = 0;
 })().catch(e => check('AI reply checks ran', false, String(e && e.stack || e)));
 
-Promise.resolve(globalThis.__aiReply).then(async function(){
+globalThis.__aiCannot = Promise.resolve(globalThis.__aiReply).then(async function(){
   const prog = {name: 'T', days: [{name: 'Day 1', exercises: [{name: 'Squat', sets: '3', kg: 0}]}]};
   G._programs = [prog]; G._activeProgramIndex = 0; G._pai = G._paiFresh(); G._pai.text = 'Make it easier on my shoulders';
   const cur = G.fetch; G.fetch = async () => ({ok: true, status: 200, json: async () => ({ops: [{op: 'cannot', days: [], exercise: '',
@@ -9717,12 +9724,15 @@ console.log('\n── Polestar climate ─────────────�
       check('  …the weather is read at the phone\'s location', t.calls.some(c => /latitude=60\.170&longitude=24\.938&current=temperature_2m/.test(c.url)));
       const p = t.C.psYes(); await tick();
       check('  …Turn on shows a waiting message while the car answers', /Starting climate…/.test(t.els['ps-modal-body'].innerHTML) && /Waiting for the car/.test(t.els['ps-modal-body'].innerHTML));
-      t.C.psClose(); check('  …and the card cannot be closed while waiting', t.open.has('psModal'));
+      // Henrik, 2026-11-11: "Pressing X here doesnt do anything you have to wait for the response from the car! Rather have it close".
+      t.C.psClose(); check('  …X closes the card at once while the car answers', !t.open.has('psModal'));
       t.release(); await p;
+      check('  …the start still finishes after closing: the header car turns red', /#e53935/.test(t.els['hdr-car'].innerHTML) && !/ps-warn/.test(t.els['hdr-car'].innerHTML));
+      t.C.psOpenStatus();
       check('  …then says climate is on, for 30 minutes', /Climate is on/.test(t.els['ps-modal-body'].innerHTML) && /warming up for 30 minutes/.test(t.els['ps-modal-body'].innerHTML));
       check('  …the start went to the backend', t.calls.some(c => c.url === 'https://agent/polestar/climate' && c.method === 'POST'));
       check('  …the red car with the heat symbol shows in the header', t.els['hdr-car'].hidden === false && /#e53935/.test(t.els['hdr-car'].innerHTML) && /ps-car-heat/.test(t.els['hdr-car'].innerHTML));
-      check('  …and the car is re-checked in 3 minutes', t.timers.length === 1 && t.timers[0].ms === 180000);
+      check('  …and the car is re-checked in 3 minutes', t.timers.filter(x => x.ms !== 90000).length === 1 && t.timers[t.timers.length - 1].ms === 180000);
       t.C.psClose(); check('  …OK closes the card', !t.open.has('psModal'));
       await t.C._psCheck(r[1]);
       check('  …asked once per workout, not on every keystroke', t.calls.filter(c => /open-meteo/.test(c.url)).length === 1);
@@ -9736,14 +9746,14 @@ console.log('\n── Polestar climate ─────────────�
     {
       const { r, cards } = threeSets(); const t = ctx({ cards, temp: 2, status: { active: false, starting: false, status: 'IDLE', action: 'UNDEFINED' } });
       r[1].value = '8'; await t.C._psCheck(r[1]); await t.C.psYes();
-      await t.timers[0].f();
+      await t.timers.find(x => x.ms !== 90000).f();   // the car's re-check, not the 90 s answer timer
       check('polestar: the header car turns grey when the car says climate stopped', t.els['hdr-car'].hidden === false && /ps-car-off/.test(t.els['hdr-car'].innerHTML) && !/#e53935/.test(t.els['hdr-car'].innerHTML));
     }
     {
       const { r, cards } = threeSets(); const t = ctx({ cards, temp: 2, status: { active: false, starting: true, status: 'START_ATTEMPT', action: 'COOLING' } });
       r[1].value = '8'; await t.C._psCheck(r[1]); await t.C.psYes();
-      await t.timers[0].f();
-      check('polestar: still starting keeps the car and follows the car\'s heat/cool action', t.els['hdr-car'].hidden === false && /ps-car-cool/.test(t.els['hdr-car'].innerHTML) && t.timers.length === 2);
+      await t.timers.find(x => x.ms !== 90000).f();   // the car's re-check, not the 90 s answer timer
+      check('polestar: still starting keeps the car and follows the car\'s heat/cool action', t.els['hdr-car'].hidden === false && /ps-car-cool/.test(t.els['hdr-car'].innerHTML) && t.timers.filter(x => x.ms !== 90000).length === 2);
       for (let i = 1; i < 9; i++) await t.timers[t.timers.length - 1].f();
       check('  …still there after 27 minutes of checks', t.els['hdr-car'].hidden === false);
       await t.timers[t.timers.length - 1].f();
@@ -9797,9 +9807,52 @@ console.log('\n── Polestar climate ─────────────�
       check('  …and from then on it is asked every 3 minutes', t.timers[t.timers.length - 1].ms === 180000);
       const p = t.C.psTurnOff(); 
       check('  …Turn off shows a waiting message', /Stopping climate…/.test(t.els['ps-modal-body'].innerHTML));
-      t.C.psClose(); check('  …which cannot be closed while waiting', t.open.has('psModal'));
-      await p;
+      t.C.psClose(); check('  …X closes it at once while the car answers', !t.open.has('psModal'));
+      await p; t.C.psOpenStatus();
       check('  …stops climate on the backend and turns the car grey', t.calls.some(c => c.url === 'https://agent/polestar/climate/stop' && c.method === 'POST') && /ps-car-off/.test(t.els['hdr-car'].innerHTML) && /Climate is off/.test(t.els['ps-modal-body'].innerHTML));
+    }
+
+    // Henrik, 2026-11-11: "if car doesn't respond show a warning triangle over the car symbol".
+    {
+      const t = ctx({ cards: [], answer: { ok: false, status: 'CAR_OFFLINE', message: '' } });
+      await t.C.syncPolestarCar(); t.C.psOpenStatus();
+      const p = t.C.psTurnOn(); t.C.psClose(); await p;
+      const car = t.els['hdr-car'].innerHTML;
+      check('polestar: a refused start puts a warning triangle over the header car', /class="ps-warn"/.test(car) && /ps-car-off/.test(car));
+      t.C.psOpenStatus(); const card = t.els['ps-modal-body'].innerHTML;
+      check('  …tapping the car shows what happened, with Try again and a link to why', t.open.has('psModal') && /Climate did not start/.test(card) && /The car answered CAR_OFFLINE/.test(card) &&
+        /psTurnOn\(\)/.test(card) && /href="help\.html#polestar-no-answer"/.test(card));
+      t.C.psDismiss();
+      check('  …OK closes it and the triangle goes', !t.open.has('psModal') && !/ps-warn/.test(t.els['hdr-car'].innerHTML) && /ps-car-off/.test(t.els['hdr-car'].innerHTML));
+    }
+    {
+      const t = ctx({ cards: [], hold: true });
+      await t.C.syncPolestarCar(); t.C.psOpenStatus();
+      const p = t.C.psTurnOn(); await tick(); t.C.psClose();
+      const wait = t.timers.find(x => x.ms === 90000);
+      check('polestar: the car gets 90 seconds to answer', !!wait && !/ps-warn/.test(t.els['hdr-car'].innerHTML));
+      wait.f();
+      check('  …no answer by then puts the triangle on the car', /class="ps-warn"/.test(t.els['hdr-car'].innerHTML));
+      t.C.psOpenStatus();
+      check('  …and the car says it did not answer', /did not answer within 90 seconds/.test(t.els['ps-modal-body'].innerHTML) && /help\.html#polestar-no-answer/.test(t.els['ps-modal-body'].innerHTML));
+      t.release(); await p;
+      check('  …a late answer that worked clears it and turns the car red', !/ps-warn/.test(t.els['hdr-car'].innerHTML) && /#e53935/.test(t.els['hdr-car'].innerHTML) && /Climate is on/.test(t.els['ps-modal-body'].innerHTML));
+    }
+    {
+      const t = ctx({ cards: [] });
+      await t.C.syncPolestarCar(); await t.C.psTurnOn();
+      const _f = t.C.fetch; t.C.fetch = async (url, o) => url.endsWith('/climate/stop') ? { ok: true, json: async () => ({ ok: false, status: 'CAR_OFFLINE' }) } : _f(url, o);
+      await t.C.psTurnOff();
+      check('polestar: a refused stop also shows the triangle, on the red car', /class="ps-warn"/.test(t.els['hdr-car'].innerHTML) && /#e53935/.test(t.els['hdr-car'].innerHTML));
+      t.C.psOpenStatus();
+      check('  …and its card offers to try the stop again', /Climate did not stop/.test(t.els['ps-modal-body'].innerHTML) && /psTurnOff\(\)/.test(t.els['ps-modal-body'].innerHTML));
+    }
+    {
+      const help = fs.readFileSync(path.join(__dirname, '..', 'help.html'), 'utf8');
+      check('help page: the Polestar warning has its section, saying what it means, what happens and how to fix it',
+        /id="polestar-no-answer"/.test(help) && /What it means/.test(help) && /What happens if you ignore it/.test(help) && /How to fix it/.test(help));
+      check('help page: it carries the app icon and manifest', /rel="icon"[^>]*training-icon\.png/.test(help) && /rel="apple-touch-icon"/.test(help) && /rel="manifest"/.test(help));
+      check('help page: readable, no text under 15px and no grey', !/font-size:\s*1[0-4]px/.test(help) && !/#[89a-c][0-9a-f]{5}\b/i.test(help.replace(/#7fd0ff/i, '')));
     }
     {
       const t = ctx({ cards: [], creds: { set: false, email: '' } });
@@ -9951,3 +10004,31 @@ globalThis.__promoteResumeRun = (async function(){
   await t.C.resumePromote(); await settle();
   check('with the Deploy card hidden (prod) nothing is asked', t.calls.length === 0);
 })().catch(e => { check('promote resume checks ran', false, String(e && e.stack || e)); process.exitCode = 1; });
+
+// ── Ask AI is a chat over the app (Henrik, 2026-11-11: "The AI dialog to update program needs to open as an overlay,
+// and the UI needs to be a traditional message chatt not this weird page we have today") ──
+// (after the async AI reply and AI cannot checks, which share G._pai and G._programs)
+Promise.resolve(globalThis.__aiCannot).then(() => {
+  console.log('\n── Ask AI chat overlay ───────');
+  const ov = html.slice(html.indexOf('id="progAiModal"'), html.indexOf('id="psModal"'));
+  check('AI chat: an overlay over the whole app, with a message list, a message box and Send',
+    /class="pai-overlay" id="progAiModal"/.test(html) && /\.pai-overlay\{[^}]*position:fixed;inset:0/.test(html) &&
+    ov.includes('id="pai-msgs"') && ov.includes('id="prog-ai-text"') && /onclick="progAiSend\(\)"/.test(ov) && /onclick="closeProgAi\(\)"/.test(ov) && /onclick="progAiCancel\(\)"/.test(ov));
+  check('AI chat: Enter sends, shift-Enter is a new line', /if\(event\.key==='Enter'&&!event\.shiftKey\)\{event\.preventDefault\(\);progAiSend\(\);\}/.test(ov));
+  check('AI chat: readable: messages 16px, nothing greyed', /\.pai-msg\{[^}]*font-size:16px/.test(html) && !/var\(--muted\)/.test(ov) && !/var\(--muted\)/.test(G._paiMsgsHtml()));
+  G._programs = [{name: 'T', days: [{name: 'Day 1', exercises: [{name: 'Squat', sets: '3', kg: 0}]}]}]; G._activeProgramIndex = 0; G._pai = G._paiFresh();
+  check('AI chat: the Plan card is a button that opens it', /onclick="openProgAi\(\)"[^>]*>Ask AI</.test(G._progAiHtml()) && !/<textarea/.test(G._progAiHtml()));
+  G._pai.last = 'x';
+  check('AI chat: …"Open the chat" while a conversation is going', />Open the chat</.test(G._progAiHtml()));
+  const els = {}, mk = (id) => (els[id] = { id, innerHTML: '', value: '', scrollTop: 0, scrollHeight: 999, disabled: false, cls: new Set(), classList: { add(c) { els[id].cls.add(c); }, remove(c) { els[id].cls.delete(c); }, contains(c) { return els[id].cls.has(c); } }, focus() {} });
+  ['progAiModal', 'pai-msgs', 'prog-ai-text', 'pai-send', 'prog-ai-card'].forEach(mk);
+  const doc = G.document; G.document = Object.assign(Object.create(doc), { getElementById: (id) => els[id] || doc.getElementById(id) });
+  G._pai = G._paiFresh(); G.openProgAi();
+  check('AI chat: opening shows the overlay with its messages', els.progAiModal.cls.has('open') && /pai-msg pai-ai/.test(els['pai-msgs'].innerHTML) && els['pai-msgs'].scrollTop === 999);
+  G._pai.busy = true; G._pai.last = 'Swap the row'; G._renderProgAi();
+  check('AI chat: while the AI thinks, its bubble says so and Send waits', /Thinking…/.test(els['pai-msgs'].innerHTML) && els['pai-send'].disabled === true);
+  G._pai = G._paiFresh(); G.closeProgAi();
+  check('AI chat: X closes it', !els.progAiModal.cls.has('open'));
+  check('AI chat: Apply closes it too', /_pai=_paiFresh\(\);closeProgAi\(\);/.test(String(G.progAiApply)));
+  G.document = doc; G._programs = []; G._pai = G._paiFresh();
+}).catch(e => check('AI chat overlay checks ran', false, String(e && e.stack || e)));

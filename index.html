@@ -82,6 +82,15 @@
   .log-weight{font-family:var(--font-display);font-size:28px;color:var(--accent);}
   .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;padding:20px;padding-top:calc(20px + env(safe-area-inset-top,0px));overflow-y:auto;}
   .modal-overlay.open{display:flex;align-items:flex-start;justify-content:center;}
+  /* Ask AI: a chat over the whole app (Henrik, 2026-11-11: "needs to open as an overlay, and the UI needs to be a traditional message chatt") */
+  .pai-overlay{display:none;position:fixed;inset:0;z-index:300;background:var(--bg);flex-direction:column;}
+  .pai-overlay.open{display:flex;}
+  .pai-head{display:flex;align-items:center;gap:10px;padding:12px 16px;padding-top:calc(12px + env(safe-area-inset-top,0px));border-bottom:1px solid var(--border);background:var(--surface);}
+  .pai-msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;}
+  .pai-msg{max-width:85%;padding:10px 14px;border-radius:18px;font-size:16px;line-height:1.45;white-space:pre-line;overflow-wrap:anywhere;}
+  .pai-me{align-self:flex-end;background:var(--accent);color:#000;border-bottom-right-radius:6px;}
+  .pai-ai{align-self:flex-start;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-bottom-left-radius:6px;}
+  .pai-bar{display:flex;gap:8px;align-items:flex-end;padding:10px 12px;padding-bottom:calc(10px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--border);background:var(--surface);}
   #exSketchContent svg{max-width:100%;height:auto;display:block}
   .modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:480px;margin-top:20px;overflow:hidden;}
   .modal-header{background:var(--surface2);padding:16px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);}
@@ -524,6 +533,11 @@
   <div class="prog-body" id="prog-body"></div>
   <div class="prog-footer" id="prog-footer"></div>
 </div>
+<div class="pai-overlay" id="progAiModal" role="dialog" aria-label="Ask AI to change your program">
+  <div class="pai-head"><div style="flex:1;font-size:17px;font-weight:700;color:var(--text)">Ask AI</div><button onclick="progAiCancel()" style="background:none;border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 12px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">New chat</button><button class="modal-close" onclick="closeProgAi()" aria-label="Close" style="color:var(--text);font-size:28px;padding:0 4px">×</button></div>
+  <div class="pai-msgs" id="pai-msgs"></div>
+  <div class="pai-bar"><textarea id="prog-ai-text" rows="1" placeholder="Message" oninput="_pai.text=this.value" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();progAiSend();}" style="flex:1;resize:none;max-height:120px;padding:10px 14px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:16px;font-family:inherit"></textarea><button id="pai-send" onclick="progAiSend()" aria-label="Send" style="background:var(--accent);color:#000;border:none;border-radius:20px;padding:10px 16px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit">Send</button></div>
+</div>
 <div class="modal-overlay" id="psModal" style="z-index:500">
   <div class="modal">
     <div class="modal-header"><div class="modal-title">POLESTAR</div><button class="modal-close" onclick="psClose()">×</button></div>
@@ -581,7 +595,7 @@ const DAY_TEMPLATES={1:[{name:"Squat",sets:"5-5-5-5-5",kg:120},{name:"Romanian D
 const VERSION='1.268';
 // BUILD_NO counts staging builds and is never rewritten by Push to Prod (which resets VERSION to
 // prod's own counter). The What's new card is keyed to it, so its rows show in both apps (2026-11-01).
-const BUILD_NO='1.373';
+const BUILD_NO='1.376';
 const IS_STAGING=(window.location.pathname||'').startsWith('/workout-staging');
 // Backend data namespace, sent as X-App-Id on every call. Staging gets its own so
 // testing here cannot write over production data — before 2026-08-01 both sent no
@@ -1519,39 +1533,46 @@ function _endTempChanges(prog,today){
 // Runs where the programs load: ends every temporary change that is due, on every program.
 function _endDueTempChanges(){var today=new Date().toISOString().split('T')[0],any=false;
   _programs=_programs.map(function(p){var r=_endTempChanges(p,today);if(r.ended.length)any=true;return r.prog;});return any;}
+// The Plan card: the temporary changes running, and the button that opens the chat.
 function _progAiHtml(){
-  var b=_tempChangesHtml(getActiveProgram())+'<div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:8px">Tell the AI what to change in your active program, or ask for a different session today only. It runs on your own API key (Settings, Food log · API key). Nothing changes until you tap Apply.</div>'+
-    _paiConvoHtml()+
-    '<textarea id="prog-ai-text" rows="2" placeholder="'+(_pai.last?'Reply, e.g. My gym has no leg press':'e.g. Replace Barbell Row with Cable Row on all pull days')+'" oninput="_pai.text=this.value" style="width:100%;box-sizing:border-box;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:16px;font-family:inherit">'+_escP(_pai.text)+'</textarea>';
-  if(_pai.busy)b+='<div style="font-size:14px;color:var(--muted);padding:10px 0">Asking the AI…</div>';
-  else if(_pai.plan){
-    b+='<div style="margin-top:10px;font-size:13px;color:var(--text);line-height:1.6">'+_pai.plan.lines.map(function(l){return'<div>'+_escP(l)+'</div>';}).join('')+'</div>'+
-      '<div style="display:flex;gap:8px;margin-top:10px">'+_flBtn('Apply','progAiApply()',true)+_flBtn('Reply','progAiReply()',false)+_flBtn('Cancel','progAiCancel()',false)+'</div>';}
-  else if(_pai.last)b+='<div style="display:flex;gap:8px;margin-top:10px">'+_flBtn('Reply','progAiReply()',true)+_flBtn('Cancel','progAiCancel()',false)+'</div>';
-  else b+='<div style="margin-top:10px">'+_flBtn('Ask AI','progAiAsk()',true)+'</div>';
-  if(_pai.err)b+='<div style="margin-top:10px;font-size:13px;color:var(--danger,#ff3b30)">'+_escP(_pai.err)+'</div>'+
-    (/API key/i.test(_pai.err)?'<div style="margin-top:8px">'+_flBtn('API key settings','flOpenKeySettings()',false)+'</div>':'');
-  return'<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px"><div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px">Ask AI to change your program</div>'+b+'</div>';
+  var going=!!(_pai.last||_pai.hist.length);
+  return'<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px"><div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:8px">Ask AI to change your program</div>'+
+    _tempChangesHtml(getActiveProgram())+_flBtn(going?'Open the chat':'Ask AI','openProgAi()',true)+'</div>';
 }
+// The chat (Henrik, 2026-11-11: "a traditional message chatt"): your messages on the right, the AI's on the
+// left, oldest first; the change it proposes is its last message, with Apply under it.
+function _paiMsgsHtml(){
+  var me=function(t){return'<div class="pai-msg pai-me" data-pai="me">'+_escP(t)+'</div>';};
+  var ai=function(t,extra){return'<div class="pai-msg pai-ai" data-pai="ai">'+_escP(t)+(extra||'')+'</div>';};
+  var h=ai('Tell me what to change in your active program, or ask for a different session today. I run on your own API key (Settings, Food log · API key). Nothing changes until you tap Apply.');
+  _pai.hist.forEach(function(t){h+=me(t.request)+(t.answer?ai(t.answer):'');});
+  if(_pai.last){
+    h+=me(_pai.last);
+    if(_pai.busy)h+=ai('Thinking…');
+    else if(_pai.plan)h+=ai(_pai.plan.lines.join('\n'),'<div style="display:flex;gap:8px;margin-top:10px;white-space:normal">'+_flBtn('Apply','progAiApply()',true)+'</div>');
+  }
+  if(_pai.err&&!_pai.busy)h+=ai(_pai.err,/API key/i.test(_pai.err)?'<div style="margin-top:10px;white-space:normal">'+_flBtn('API key settings','closeProgAi();flOpenKeySettings()',false)+'</div>':'');
+  return h;
+}
+function openProgAi(){var o=document.getElementById('progAiModal');if(o&&o.classList)o.classList.add('open');_renderProgAi();
+  var t=document.getElementById('prog-ai-text');if(t&&t.focus)try{t.focus();}catch(e){}}
+function closeProgAi(){var o=document.getElementById('progAiModal');if(o&&o.classList)o.classList.remove('open');_renderProgAi();}
+// Send: the first message asks, every one after it replies with the whole conversation.
+function progAiSend(){if(_pai.busy||!(_pai.text||'').trim())return;return _pai.last?progAiReply():progAiAsk();}
 // Pure: the temporary changes on a program, and those that ended in the last 7 days.
 function _tempChangesHtml(prog){if(!prog)return'';var today=new Date().toISOString().split('T')[0],wk=_isoPlusDays(today,-7),h='';
   (prog.tempChanges||[]).forEach(function(c){h+='<div data-temp-change="1" style="margin-bottom:8px;padding:10px;border-radius:10px;border:1px solid var(--accent);font-size:15px;color:var(--text);line-height:1.5"><b>Until '+_escP(_tcDate(c.until))+'</b> (then it changes back by itself):'+(c.lines||[]).map(function(l){return'<div>'+_escP(l)+'</div>';}).join('')+'</div>';});
   (prog.tempEnded||[]).filter(function(c){return c.until>=wk;}).forEach(function(c){h+='<div data-temp-ended="1" style="margin-bottom:8px;font-size:15px;color:var(--text);line-height:1.5"><b>Changed back on '+_escP(_tcDate(c.until))+':</b> '+(c.lines||[]).map(function(l){return _escP(l);}).join('; ')+'</div>';});
   return h;}
-// The conversation on screen: every earlier turn, then the request the current answer is for.
-function _paiConvoHtml(){
-  var turns=_pai.hist.concat(_pai.last?[{request:_pai.last,answer:''}]:[]);
-  if(!turns.length)return'';
-  return'<div style="margin-bottom:10px;font-size:13px;line-height:1.5">'+turns.map(function(t){
-    return'<div style="color:var(--text);margin-top:6px"><b>You:</b> '+_escP(t.request)+'</div>'+
-      (t.answer?'<div style="color:var(--muted);white-space:pre-line"><b>AI:</b> '+_escP(t.answer)+'</div>':'');}).join('')+'</div>';
-}
 // A reply: what the AI said to the request on screen joins the conversation, and the reply is asked with all of it.
 function progAiReply(){
   if(!(_pai.text||'').trim()){_pai.err='Type your reply.';_renderProgAi();return;}
   return progAiAsk(_pai.last?{request:_pai.last,answer:_pai.plan?_pai.plan.lines.join('\n'):(_pai.err||'')}:null);
 }
-function _renderProgAi(){var el=document.getElementById('prog-ai-card');if(el)el.innerHTML=_progAiHtml();}
+function _renderProgAi(){var el=document.getElementById('prog-ai-card');if(el)el.innerHTML=_progAiHtml();
+  var m=document.getElementById('pai-msgs');if(m){m.innerHTML=_paiMsgsHtml();m.scrollTop=m.scrollHeight;}
+  var t=document.getElementById('prog-ai-text');if(t&&t.value!==_pai.text)t.value=_pai.text;
+  var b=document.getElementById('pai-send');if(b)b.disabled=!!_pai.busy;}
 // The day an extra session is filed under: the one trained last (or the last day before any
 // session), so _nextTrainingDay gives the same answer after it is saved as before.
 function _extraDay(){var p=getActiveProgram();var n=p&&p.days?p.days.length:1;var l=logs&&logs[0]&&parseInt(logs[0].day);return(l>=1&&l<=n)?l:n;}
@@ -1589,7 +1610,7 @@ function progAiApply(){
   if(plan.oneOff&&ls)ls.value=plan.oneOff.day;
   if(!hasReps&&ls&&ls.value)prefillLog(ls.value);
   var pt=document.getElementById('page-today');if(pt&&pt.classList&&pt.classList.contains('active'))renderWorkout(_selectedProgramDay);
-  _pai=_paiFresh();buildProgramSettingsCard();
+  _pai=_paiFresh();closeProgAi();buildProgramSettingsCard();
   alert('Done.'+(hasReps?'\nYour workout in progress on the Log page is kept as it is.':'')+(plan.oneOff?'\nToday\'s session is on the Log page.':''));
 }
 // The one-off session for today. It counts for its own date, and after that only while an
@@ -4511,6 +4532,7 @@ function obSkip(){if(_obTourOnly){_obCloseTour();return;}obFinish();}
 // onboarded account means the card never existed for it yet: it gets the whole list.
 // Add a row here when a feature ships that a user would not find on their own.
 var WHATS_NEW=[
+  {v:'1.376',title:'Ask AI is a chat',text:'On Plan, Ask AI now opens a chat over the app: type a message, the AI answers in the chat, and Apply sits under the change it proposes. New chat starts over.'},
   {v:'1.373',title:'Gym and Home equipment',text:'Plan has two new tabs, Gym and Home equipment. Tick what you have: new programs only use exercises it allows, and a button rebuilds programs generated with an older list.'},
   {v:'1.372',title:'Program changes for a few weeks',text:'On Plan, tell Ask AI how long a change should last, for example "for the next 4 weeks no presses due to my shoulder, still train chest and triceps". After Apply the change runs until its end date, shown on the Ask AI card, and then your program changes back by itself.'},
   {v:'1.349',title:'Polestar climate',text:'Settings → Polestar: sign in with your Polestar ID. On a cold or hot day the app asks on the last exercise whether to start the car\'s climate, and the car in the header turns it on or off.'},
@@ -4970,6 +4992,11 @@ var _ps=null,_psErr='',_psChanging=false,_psAsked='';
 // Polestar runs climate for 30 minutes (Henrik, 2026-11-04), so the car is re-checked every 3 min for at most 30 min.
 var PS_RUN_MIN=30,PS_POLL_MS=180000,PS_ASK_MS=30000;
 var _psStep='',_psTemp=null,_psMsg='',_psCar=null,_psRun=0,_psTimer=null;
+// Henrik, 2026-11-11: "Pressing X here doesnt do anything you have to wait for the response from the car! Rather have it
+// close and if car doesn't respond show a warning triangle over the car symbol". The card closes at any time; the request
+// carries on. A car that refuses, or gives no answer within PS_ANSWER_MS, puts a warning triangle on the header car
+// (_psWarn) until a later answer succeeds or the user taps OK on the card the car opens.
+var PS_ANSWER_MS=90000,_psWarn=null,PS_HELP='help.html#polestar-no-answer';
 function _psNeedsClimate(t){return typeof t==='number'&&isFinite(t)&&(t<PS_COLD_C||t>PS_HOT_C);}
 // The reps input of the second-to-last set of the day's last exercise card, once it holds a number.
 function _psIsTrigger(inp){
@@ -5010,16 +5037,25 @@ function _psModalHtml(){var t=_psTemp==null?'':Math.round(_psTemp)+' °C';var co
   if(_psStep==='off')return row(_psCarSvg('off',40),'Climate is off','Turn it on and the car heats or cools to 21 °C for '+PS_RUN_MIN+' minutes.')
     +two(pri('Turn on','psTurnOn()'),sec('Close','psClose()'));
   if(_psStep==='stopping')return row(_psCarSvg(_psCar||'on',40),'Stopping climate…','Waiting for the car to answer. This can take up to a minute.');
-  if(_psStep==='stopfailed')return '<div style="font-size:15px;color:var(--text);line-height:1.5"><b>Climate did not stop</b><br><span style="color:var(--muted);font-size:13px">'+_escP(_psMsg)+'</span></div>'+two(sec('OK','psClose()'),'');
-  return '<div style="font-size:15px;color:var(--text);line-height:1.5"><b>Climate did not start</b><br><span style="color:var(--muted);font-size:13px">'+_escP(_psMsg)+'</span></div>'+two(sec('OK','psClose()'),'');}
+  var help='<div style="font-size:15px;margin-top:10px"><a href="'+PS_HELP+'" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700">What this means and how to fix it</a></div>';
+  if(_psStep==='stopfailed')return '<div style="font-size:15px;color:var(--text);line-height:1.5"><b>Climate did not stop</b><br><span style="color:var(--muted);font-size:13px">'+_escP(_psMsg)+'</span></div>'+help+two(pri('Try again','psTurnOff()'),sec('OK','psDismiss()'));
+  return '<div style="font-size:15px;color:var(--text);line-height:1.5"><b>Climate did not start</b><br><span style="color:var(--muted);font-size:13px">'+_escP(_psMsg)+'</span></div>'+help+two(pri('Try again','psTurnOn()'),sec('OK','psDismiss()'));}
 function _psRenderModal(){var b=document.getElementById('ps-modal-body');if(b)b.innerHTML=_psModalHtml();}
-function psClose(){if(_psStep!=='starting'&&_psStep!=='stopping')closeModal('psModal');}
+function psClose(){closeModal('psModal');}
+// OK on a failure card: the user has seen it, so the triangle goes.
+function psDismiss(){_psWarn=null;_psRenderCar();closeModal('psModal');}
+// Sets the warning if the car has not answered in PS_ANSWER_MS; the card shows it too if it is still open.
+function _psAwait(kind,run){var done=false;
+  setTimeout(function(){if(done)return;_psWarn={kind:kind,msg:'The car did not answer within '+Math.round(PS_ANSWER_MS/1000)+' seconds.'};
+    _psStep=kind==='stop'?'stopfailed':'failed';_psMsg=_psWarn.msg;_psRenderCar();_psRenderModal();},PS_ANSWER_MS);
+  return run().then(function(res){done=true;return res;});}
 // From the Log's question the outside temperature says heat or cool; from the header car it is not known until the car says.
 async function psYes(){var mode=_psTemp==null?'on':_psTemp<PS_COLD_C?'heat':'cool';_psStep='starting';_psRenderModal();
-  var res=await _psStart();_psStep=res.ok?'on':'failed';_psMsg=res.msg;if(res.ok)_psShowCar(mode);_psRenderModal();}
+  var res=await _psAwait('start',function(){return _psStart();});_psStep=res.ok?'on':'failed';_psMsg=res.msg;
+  _psWarn=res.ok?null:{kind:'start',msg:res.msg};if(res.ok)_psShowCar(mode);else _psRenderCar();_psRenderModal();}
 function psTurnOn(){_psTemp=null;return psYes();}
-async function psTurnOff(){_psStep='stopping';_psRenderModal();var res=await _psStart('/stop');
-  if(res.ok){_psHideCar();_psStep='off';}else{_psStep='stopfailed';_psMsg=res.msg;}_psRenderModal();}
+async function psTurnOff(){_psStep='stopping';_psRenderModal();var res=await _psAwait('stop',function(){return _psStart('/stop');});
+  if(res.ok){_psWarn=null;_psHideCar();_psStep='off';}else{_psStep='stopfailed';_psMsg=res.msg;_psWarn={kind:'stop',msg:res.msg};_psRenderCar();}_psRenderModal();}
 async function _psStart(path){
   try{var r=await fetch(AGENT_URL+'/polestar/climate'+(path||''),{method:'POST',headers:authHeaders()});var j=await r.json().catch(function(){return{};});
     if(r.ok&&j.ok)return {ok:true,msg:''};
@@ -5038,7 +5074,11 @@ function _psCarSvg(mode,w){var sym=mode==='cool'
 function _psRenderCar(){var el=document.getElementById('hdr-car');if(!el)return;
   var mode=_psCar||(_ps&&_ps.set?'off':'');
   if(!mode){el.hidden=true;el.innerHTML='';return;}
-  el.innerHTML=_psCarSvg(mode,42);el.hidden=false;}
+  // The warning triangle sits over the car while the last start or stop got no answer or was refused.
+  el.innerHTML=_psWarn?'<span style="position:relative;display:inline-flex">'+_psCarSvg(mode,42)+_psWarnSvg()+'</span>':_psCarSvg(mode,42);el.hidden=false;
+  if(el.setAttribute)el.setAttribute('aria-label',_psWarn?'Polestar: the car did not answer. Tap for details':'Polestar climate');}
+function _psWarnSvg(){return '<svg class="ps-warn" width="20" viewBox="0 0 24 22" aria-hidden="true" style="position:absolute;top:0;right:-4px">'
+  +'<path d="M12 1 23 21H1z" fill="#ffc400" stroke="#000" stroke-width="1.5" stroke-linejoin="round"/><path d="M12 8v6" stroke="#000" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="17.5" r="1.4" fill="#000"/></svg>';}
 function syncPolestarCar(){return _psLoad().then(_psRenderCar);}
 // While the car has not said whether it heats or cools it is asked every 30 s, after that every 3 minutes
 // (Henrik, 2026-11-05: "Stage car symbol has lost the heating symbol?": it was asked once at 30 s, then not for 3 minutes).
@@ -5056,7 +5096,7 @@ async function _psPoll(){_psTimer=null;if(!_psCar)return;
   if(_psRun>=PS_RUN_MIN*60000)return _psHideCar();
   _psSchedule();}
 function _psShowCarMode(mode){if(mode===_psCar)return;_psCar=mode;_psRenderCar();}
-function psOpenStatus(){if(_psCar)_psStep='on';else if(_ps&&_ps.set)_psStep='off';else return;_psRenderModal();openModal('psModal');}
+function psOpenStatus(){if(_psWarn){_psStep=_psWarn.kind==='stop'?'stopfailed':'failed';_psMsg=_psWarn.msg;}else if(_psCar)_psStep='on';else if(_ps&&_ps.set)_psStep='off';else return;_psRenderModal();openModal('psModal');}
 // Settings card, collapsed by default like the others.
 function _psInputs(){var st='width:100%;box-sizing:border-box;margin:6px 0;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:16px';
   return '<input id="ps-email" type="email" autocomplete="username" placeholder="Polestar ID email" value="'+_escP(_ps&&_ps.email||'')+'" style="'+st+'">'
