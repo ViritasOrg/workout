@@ -577,7 +577,7 @@ const DAY_TEMPLATES={1:[{name:"Squat",sets:"5-5-5-5-5",kg:120},{name:"Romanian D
 const VERSION='1.266';
 // BUILD_NO counts staging builds and is never rewritten by Push to Prod (which resets VERSION to
 // prod's own counter). The What's new card is keyed to it, so its rows show in both apps (2026-11-01).
-const BUILD_NO='1.370';
+const BUILD_NO='1.371';
 const IS_STAGING=(window.location.pathname||'').startsWith('/workout-staging');
 // Backend data namespace, sent as X-App-Id on every call. Staging gets its own so
 // testing here cannot write over production data — before 2026-08-01 both sent no
@@ -2652,6 +2652,11 @@ function _generateWorkoutProgram(goal,sub,nDays,name,setsPerMuscle,injuries,equi
     // Bootylicious puts the volume on the booty (Henrik, 2026-11-10: "girls go to the gym to train
     // the butt"): legs/glutes get twice the weekly sets-per-muscle, back, shoulders and arms three quarters.
     var _gMul=key==='aesthetic-bootylicious'?{legs:2,back:0.75,shoulders:0.75,arms:0.75}:{};
+    // Upper/Lower Heavy carry real weight (Henrik, 2026-11-11: "Hypert Upper heavy has as much legs as
+    // lower heavy, makes no sense"): up to 4 days both are the same full-body template, so the focus
+    // only meant something if it set the volume. Favoured half 1.5×, the other 0.75×.
+    if(key==='hypertrophy-upper')_gMul={legs:0.75,back:1.5,chest:1.5,shoulders:1.5,arms:1.5};
+    if(key==='hypertrophy-lower')_gMul={legs:1.5,back:0.75,chest:0.75,shoulders:0.75,arms:0.75};
     // A muscle plan: the weekly sets-per-muscle is per MARKED muscle, so a group gets it once per
     // muscle marked in it (biceps + triceps → arms twice).
     // Groups with nothing marked get 0: no volume is aimed at them (Pallof Press counts as a press).
