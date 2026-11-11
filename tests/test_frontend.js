@@ -3066,6 +3066,20 @@ check('"Tricep Pushdown" → false',       !G.isBWExName('Tricep Pushdown'));
 check('"Bench Press" → false',           !G.isBWExName('Bench Press'));
 check('syncWeightsFromAgent refreshes BW prefill', rawScript.includes('_refreshBWPrefill();}catch(e){}'));
 
+// ── Upper Heavy vs Lower Heavy (Henrik, 2026-11-11) ──────────────────────────
+// "Hypert Upper heavy has as much legs as lower heavy, makes no sense". Up to 4 days both are the same
+// full-body template, so the focus has to set the volume: favoured half 1.5×, the other 0.75×.
+console.log('\n── Upper Heavy vs Lower Heavy ─────────────');
+{
+  const legShare = (sub, n) => { const p = G._generateWorkoutProgram('hypertrophy', sub, n, 'T', 12, [], 'gym'); let legs = 0, all = 0;
+    p.days.forEach(d => d.exercises.forEach(e => { if (e.prehab) return; const sp = G.getExSplits(e.name), k = String(e.sets).split('-').length;
+      ['legs','back','chest','shoulders','arms'].forEach(g => { if (sp[g]) { all += sp[g] * k; if (g === 'legs') legs += sp[g] * k; } }); })); return legs / all; };
+  const bad = [];
+  [3,4,5,6,7].forEach(n => { const u = legShare('upper', n), b = legShare('balanced', n), l = legShare('lower', n);
+    if (!(u < b && b < l && l - u >= 0.12)) bad.push(`${n}d: upper ${(u*100).toFixed(0)}% balanced ${(b*100).toFixed(0)}% lower ${(l*100).toFixed(0)}%`); });
+  check('Upper Heavy has clearly less leg volume than Balanced, and Lower Heavy clearly more (3–7 days)', bad.length === 0, bad.join(' | '));
+}
+
 // ── The leg-day rule is removed (Henrik, 2026-11-10) ─────────────────────────
 // "find and remove the squat and deadlift rule i made for myself" — the 2026-08-21 rule put a
 // Squat (≥3 strength sets) first and a Deadlift (1-3 sets) last on EVERY leg day. Leg days now
@@ -3170,8 +3184,10 @@ console.log('\n── Frequency-aware volume allocation ────────
   const hi=allocStats('hypertrophy','upper',7,21);
   check('hyp-upper 7d @21: every session ≤ 25 sets', hi.tots.every(t=>t<=25), JSON.stringify(hi.tots));
   check('hyp-upper 7d @21: sessions not gutted (≥ 8 sets each)', hi.tots.every(t=>t>=8), JSON.stringify(hi.tots));
+  // Upper Heavy aims the upper groups at 1.5× (Henrik 2026-11-11); never below 0.6× the plain
+  // setting, never above 1.35× its own target.
   check('hyp-upper 7d @21: push/pull muscles near weekly target (0.6–1.35×)',
-    ['chest','shoulders','arms','back'].every(g=>hi.weekly[g]>=21*0.6&&hi.weekly[g]<=21*1.35),
+    ['chest','shoulders','arms','back'].every(g=>hi.weekly[g]>=21*0.6&&hi.weekly[g]<=21*1.5*1.35),
     JSON.stringify(hi.weekly));
   check('per-session per-muscle load bounded (≤14 fractional sets)', hi.perSessionMax<=14, String(hi.perSessionMax));
   // Volume responds monotonically to the setting
@@ -4662,6 +4678,9 @@ if (typeof G._generateWorkoutProgram === 'function') {
   // leg days cannot physically be met (3 exercises x 2 sets x 3 days = 18). Anywhere above that
   // floor, 1.6x is a bug.
   const _runaway = [];
+  // Each goal's own weekly target: Upper/Lower Heavy weight the favoured half 1.5× and the rest 0.75×
+  // (Henrik 2026-11-11), so "the target" is spm × that weight, not spm.
+  const _mul = (g, s, m) => g !== 'hypertrophy' ? 1 : s === 'upper' ? (m === 'legs' ? 0.75 : 1.5) : s === 'lower' ? (m === 'legs' ? 1.5 : 0.75) : 1;
   [['hypertrophy','upper'],['hypertrophy','lower'],['hypertrophy','balanced'],
    ['aesthetic','ppl'],['aesthetic','upperlower'],['strength','pure'],['strength','hybrid']]
     .forEach(([g,s]) => [4,5,6,7].forEach(nd => [9,12,16,20,25].forEach(spm => {
@@ -4671,7 +4690,7 @@ if (typeof G._generateWorkoutProgram === 'function') {
         // EPSILON, because these are sums of fractions. aesthetic/upperlower 7d spm9 lands on
         // back = 14.400000000000002 against a limit of 14.4 — over by 1.8e-15, which is
         // floating-point noise, not a programming defect.
-        if (w[m] <= spm * 1.6 + 1e-9) return;
+        if (w[m] <= spm * _mul(g, s, m) * 1.6 + 1e-9) return;
         // THE SMALLEST THIS PROGRAM CAN BE. Since 2026-08-21 every leg day carries a mandatory
         // squat (>=3 sets) and deadlift (1-3, fixed), so a low weekly leg target can be
         // physically unreachable however hard the allocator trims — hypertrophy/lower 6d at
@@ -4698,7 +4717,7 @@ if (typeof G._generateWorkoutProgram === 'function') {
           // is the full-body day's squat, which the leg-day rule does not touch — one set of
           // allocator discretion, not a runaway. A genuine balloon (say 40 sets on the same
           // floor) leaves 18 discretionary against an allowance of 7.2 and is still caught.
-          if (w[m] - floorVol <= spm * 0.6 + 1e-9) return;
+          if (w[m] - floorVol <= spm * _mul(g, s, m) * 0.6 + 1e-9) return;
         }
         // every session training this muscle must be at the floor for the overshoot to be legal
         const _floorOf = () => 2;
