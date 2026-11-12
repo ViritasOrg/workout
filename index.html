@@ -327,6 +327,7 @@
   <div class="page" id="page-plan">
     <div id="prog-ai-card" style="margin-top:14px"></div>
     <div id="s-programs-card" style="margin-top:14px"></div>
+    <div id="plan-log" style="margin-top:14px"></div>
   </div>
   <div class="page" id="page-gym"><div id="gym-equip-card" style="margin-top:14px"></div></div>
   <div class="page" id="page-homeequip"><div id="home-equip-card" style="margin-top:14px"></div></div>
@@ -526,7 +527,7 @@
 </nav>
 <div class="prog-overlay" id="prog-overlay">
   <div class="prog-header">
-    <button class="wiz-back" onclick="closeProgramOverlay()">&#8249;</button>
+    <button class="wiz-back" onclick="progOverlayBack()" aria-label="Back">&#8249;</button>
     <div class="prog-title" id="prog-title">PROGRAM</div>
     <button class="wiz-cancel" onclick="closeProgramOverlay()">Cancel</button>
   </div>
@@ -595,7 +596,7 @@ const DAY_TEMPLATES={1:[{name:"Squat",sets:"5-5-5-5-5",kg:120},{name:"Romanian D
 const VERSION='1.269';
 // BUILD_NO counts staging builds and is never rewritten by Push to Prod (which resets VERSION to
 // prod's own counter). The What's new card is keyed to it, so its rows show in both apps (2026-11-01).
-const BUILD_NO='1.376';
+const BUILD_NO='1.380';
 const IS_STAGING=(window.location.pathname||'').startsWith('/workout-staging');
 // Backend data namespace, sent as X-App-Id on every call. Staging gets its own so
 // testing here cannot write over production data — before 2026-08-01 both sent no
@@ -1441,8 +1442,40 @@ function rebuildLogDaySelect(){
 function _progActivateToggle(i,isActive,marginBottom){
   return '<div onclick="event.stopPropagation();_activateProg('+i+')" style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;margin-bottom:'+(marginBottom||'0')+';"><div style="width:34px;height:18px;border-radius:9px;background:'+(isActive?'var(--accent)':'rgba(255,255,255,0.15)')+';position:relative;flex-shrink:0;"><div style="position:absolute;width:14px;height:14px;border-radius:50%;background:#fff;top:2px;left:'+(isActive?'18px':'2px')+';box-shadow:0 1px 3px rgba(0,0,0,0.35);"></div></div><span style="font-size:10px;font-weight:600;color:'+(isActive?'var(--accent)':'var(--muted)')+';letter-spacing:0.3px;">'+(isActive?'Active':'Inactive')+'</span></div>';
 }
+// ── Log (staging only; Henrik, 2026-11-11: "In stage add a log button in the plan pages so I can click it and get the
+// program and other info from generator on clipboard"): the program, what the generator was given, the equipment, the
+// profile answers it reads, every day's exercises with their muscles, and the weekly sets per muscle, as text.
+function _planLogBtnHtml(idx){if(!IS_STAGING)return'';var a=idx==null?'':String(idx);
+  return'<div style="margin-bottom:16px"><button data-plan-log="1" onclick="planLogCopy('+(a===''?'':a)+')" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit">Log: copy program + generator info</button></div>';}
+function _planLogText(prog){
+  var L=[],now=new Date();if(!prog)return'No program.';
+  var prof=getData('wkt-profile',{})||{};
+  L.push('Workout staging v'+VERSION+' — program log '+now.toISOString());
+  L.push('Program: '+(prog.name||'')+(prog===getActiveProgram()?' (active)':''));
+  L.push('Generator: '+(prog.gen?JSON.stringify(prog.gen):'(no generator record: made before lists, by hand or seeded)')+' goal='+(prog.goal||'')+' setsPerMuscle='+(prog.setsPerMuscle||'')+' injuries='+JSON.stringify(prog.injuries||[])+' muscles='+JSON.stringify(prog.muscles||[])+(prog.noPullUps?' noPullUps':''));
+  L.push('Equipment: '+_equipLabel(prog.equipment||'gym')+' ['+(prog.equipment||'gym')+']');
+  L.push('Gym list: '+_gymItems().join(', '));
+  L.push('Home list: '+((getData('wkt-home-equip',[])||[]).join(', ')||'(none)'));
+  L.push('Profile: sex='+(prof.gender||'?')+' pull-ups answer='+(_pullUpsAnswer()||'not asked')+' pull-ups logged='+(_hasLoggedPullUps()?'yes':'no'));
+  if((prog.tempChanges||[]).length)L.push('Temporary changes: '+JSON.stringify(prog.tempChanges));
+  var vol={};
+  (prog.days||[]).forEach(function(d,i){var n=0;L.push('');L.push('Day '+(i+1)+': '+(d.name||''));
+    (d.exercises||[]).forEach(function(e){var sets=String(e.sets||'').split('-').filter(Boolean).length;n+=sets;var ms=exMuscles(e.name);
+      ms.forEach(function(m,k){vol[m]=(vol[m]||0)+sets*(k?0.5:1);});
+      L.push('  '+e.name+' | '+(e.scheme||'')+' | sets '+(e.sets||'')+' | '+(e.tag||'')+' | '+(e.kg||0)+' kg | '+(ms.join(', ')||'-')+(e.keep?' | keep':''));});
+    L.push('  = '+n+' sets');});
+  L.push('');L.push('Weekly sets per muscle (main 1, supporting 0.5): '+Object.keys(vol).sort(function(a,b){return vol[b]-vol[a];}).map(function(m){return m+' '+vol[m];}).join(', '));
+  L.push('');L.push('Program JSON:');L.push(JSON.stringify(prog));
+  return L.join('\n');}
+async function planLogCopy(idx){var prog=(idx!=null&&_programs[idx])?_programs[idx]:getActiveProgram();var t=_planLogText(prog);
+  var ok=false;try{if(navigator.clipboard&&navigator.clipboard.writeText){await navigator.clipboard.writeText(t);ok=true;}}catch(e){}
+  if(!ok){try{var ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();ok=document.execCommand('copy');document.body.removeChild(ta);}catch(e){}}
+  document.querySelectorAll('[data-plan-log]').forEach(function(b){b.textContent=ok?'Copied ✓':'Copy failed: long-press the program and copy by hand';});
+  setTimeout(function(){document.querySelectorAll('[data-plan-log]').forEach(function(b){b.textContent='Log: copy program + generator info';});},2500);
+  return ok;}
 function buildProgramSettingsCard(){
   var card=document.getElementById('s-programs-card');if(!card)return;
+  var _pl=document.getElementById('plan-log');if(_pl)_pl.innerHTML=_planLogBtnHtml(null);
   card.innerHTML=_programLibraryHtml()+_templateLibraryHtml();
   _renderProgAi();
 }
@@ -1708,7 +1741,7 @@ function viewProgram(idx){_progReadOnly=true;_progEditIdx=idx;_progEditBuf=JSON.
 function _activateProg(i){if(i===_activeProgramIndex)return;_activeProgramIndex=i;_touchProgram(i);savePrograms();rebuildDayGrid();rebuildLogDaySelect();var _ls=document.getElementById('log-day');if(_ls&&_ls.value)prefillLog(_ls.value);buildProgramSettingsCard();}
 function createNewProgram(){
   if(_programs.length>=MAX_PROGRAMS){alert('Maximum '+MAX_PROGRAMS+' programs');return;}
-  _progWiz={step:0,goal:null,sub:null,muscles:[],nDays:4,setsPerMuscle:12,injuries:[],name:'',homeItems:(getData('wkt-home-equip',[])||[]).slice()};
+  _progWiz={step:0,goal:null,sub:null,muscles:[],nDays:4,setsPerMuscle:12,injuries:[],name:'',homeItems:(getData('wkt-home-equip',[])||[]).slice(),pullups:_pullUpsAnswer()};
   _openProgOverlay();
 }
 function _renderTemplateOverlay(title,body,footer){
@@ -1776,7 +1809,7 @@ function _renderTplPick(title,body,footer){
   footer.innerHTML='<button onclick="_tplCancelPick()" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:12px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Back</button>';
 }
 function _openProgOverlay(){var ov=document.getElementById('prog-overlay');ov.classList.add('open');document.body.classList.add('locked');_renderProgOverlay();}
-function closeProgramOverlay(){if(_progTemplateId!==null){_progTemplateId=null;_progTplPick=false;_progReadOnly=false;var _tov=document.getElementById('prog-overlay');if(_tov)_tov.classList.remove('open');document.body.classList.remove('locked');return;}
+function closeProgramOverlay(){_progWizLast=null;if(_progTemplateId!==null){_progTemplateId=null;_progTplPick=false;_progReadOnly=false;var _tov=document.getElementById('prog-overlay');if(_tov)_tov.classList.remove('open');document.body.classList.remove('locked');return;}
   if(_progIsNew){(function(){var _p=_programs[_progEditIdx];if(_p&&_p.name==='6-Day Hypertrophy — Upper'){try{localStorage.setItem('wkt-hyp-deleted','1');}catch(e){}}})();_programs.splice(_progEditIdx,1);if(_activeProgramIndex>=_programs.length)_activeProgramIndex=Math.max(0,_programs.length-1);savePrograms();buildProgramSettingsCard();}_progIsNew=false;var ov=document.getElementById('prog-overlay');ov.classList.remove('open');document.body.classList.remove('locked');_progWiz=null;}
 function _exOpts(di,ei,cur){
   var groups={'Legs':['Squat','Romanian Deadlift','Deadlift','Leg Press','45° Leg Press','Bilateral Leg Press','Smith Machine Squat','Leg Curl','Leg Extension','Calf Raises','Lunges','Bulgarian Split Squat','Hip Thrust','Hip Adductor (inside hips)','Hip Abductor (outside hips)','Hack Squat','Seated Calf Raise','Kettlebell Goblet Squat','Kettlebell Front Squat','Kettlebell Reverse Lunge','Kettlebell Deadlift','Kettlebell Romanian Deadlift','Band Leg Curl','Band Leg Extension','Kettlebell Glute Bridge','Kettlebell Calf Raise','Bodyweight Squat','Single-leg RDL','Bodyweight Good Morning','Nordic Curl','Sissy Squat','Single-leg Glute Bridge','Single-leg Calf Raise'],'Back':['Pull-ups','Weighted Pull-ups','Chin-ups','Barbell Row','Barbell Row (heavy)','Cable Row','Lat Pulldown','Drape Pulldowns','Straight-Arm Lat Pushdown','T-Bar Row','Face Pulls','Rear Delt Fly','Rear Delt Cable Fly','Shrug','Chest-Supported Row','Assisted Pull-up Machine','Muscle Up','Assisted Muscle Up','Clapping Pull-ups','Band Lat Pull','Band Straight-arm Pull','Kettlebell Row','Band Seated Row','Inverted Row','Underhand Inverted Row','Band Face Pull','Band Rear Delt Fly','Prone T-Raise'],'Chest':['Chest Machine Press','Bench Press','Incline Bench Press','Incline DB Press','Cable Fly','Low-to-high Cable Fly','Push-ups','Push-ups (weighted/elevated)','Dips','Pec Deck (chest fly machine)','Assisted Dip Machine','Plyo Push-ups','Kettlebell Floor Press','Band Incline Press','Band Chest Press','Band Chest Fly','Band Low-to-high Fly','Decline Push-ups','Wide Push-ups','Archer Push-ups','Chair Dips'],'Shoulders':['Landmine Press','Overhead Press','Arnold Press','Lateral Raise','Cable Lateral Raise','Y-Raise','Front Raise','Upright Row','Shoulder Press Machine','Machine Lateral Raise','Behind the Neck Press','Kettlebell Overhead Press','Band Shoulder Press','Kettlebell Half-kneeling Press','Band Lateral Raise','Band Y-Raise','Band External Rotation','Pike Push-ups','Prone Y-Raise','Prone External Rotation'],'Arms':['Barbell Curl','Hammer Curl','EZ Bar Curl','Preacher Curl','Overhead Tricep Cable','Tricep Pushdown','Skull Crushers','Close Grip Press','Curl variation','Bicep Curl Machine','Tricep Extension Machine','Cable Bicep Curl','Band Curl','Kettlebell Hammer Curl','Band Tricep Extension','Band Overhead Tricep Extension','Diamond Push-ups']};
@@ -1872,13 +1905,14 @@ function _renderHomeEquipEditor(){var p=_programs[_heq.idx];var b=document.getEl
   +'<button class="btn btn-primary" onclick="saveHomeEquip()">'+(p.gen?'SAVE AND REBUILD':'SAVE')+'</button>';}
 function saveHomeEquip(){var idx=_heq.idx,p=_programs[idx];if(!p)return;_saveHomeItems(_heq.items);
   if(p.gen){var g=p.gen;if(!confirm('Rebuild "'+p.name+'" for this equipment?\n\nIts exercises are generated again for what you have. Changes you made to this program by hand are replaced.'))return;
-    var np=_generateWorkoutProgram(g.goal,g.sub,g.nDays,p.name,g.setsPerMuscle,g.injuries,_homeEquipId(_heq.items),g.muscles);np.touchedAt=_nowStamp();
+    var np=_generateWorkoutProgram(g.goal,g.sub,g.nDays,p.name,g.setsPerMuscle,g.injuries,_homeEquipId(_heq.items),g.muscles,{noPullUps:!!g.noPullUps});np.touchedAt=_nowStamp();
     _programs[idx]=np;savePrograms();buildProgramSettingsCard();if(idx===_activeProgramIndex&&typeof renderWorkout==='function')renderWorkout(_selectedProgramDay);}
   closeModal('homeEquipModal');_renderProgOverlay();}
 function _progViewHtml(prog,isActive,progIdx){
   var html='';
   if(isActive)html+='<div style="margin-bottom:14px;"><span style="background:var(--accent);color:#000;padding:3px 12px;border-radius:4px;font-size:11px;font-weight:700;text-transform:uppercase;">ACTIVE</span></div>';
   html+='<div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:20px;">'+_escP(prog.name)+'</div>';
+  html+=_planLogBtnHtml(progIdx);
   var _ext=_progExtension(prog);
   // The banner is where the extension is announced, so it is where the way out belongs — one
   // control, next to the thing it undoes, rather than a button at the far bottom of the list.
@@ -2000,7 +2034,7 @@ function _refreshActiveProgramViews(){
   var sel=document.getElementById('log-day');
   if(sel&&sel.value)prefillLog(sel.value);
 }
-function _saveProgEdit(){_progIsNew=false;_progEditBuf.touchedAt=_nowStamp();_programs[_progEditIdx]=_progEditBuf;savePrograms();if(_progEditIdx===_activeProgramIndex){rebuildDayGrid();rebuildLogDaySelect();_refreshActiveProgramViews();}buildProgramSettingsCard();closeProgramOverlay();}
+function _saveProgEdit(){_progIsNew=false;_progWizLast=null;_progEditBuf.touchedAt=_nowStamp();_programs[_progEditIdx]=_progEditBuf;savePrograms();if(_progEditIdx===_activeProgramIndex){rebuildDayGrid();rebuildLogDaySelect();_refreshActiveProgramViews();}buildProgramSettingsCard();closeProgramOverlay();}
 function _applyRehabSubs(exercises,prog){var subs=(prog||{}).rehabSubs||{};if(!Object.keys(subs).length)return exercises;return exercises.map(function(ex){var eff=subs[ex.name];return eff?Object.assign({},ex,{name:eff,_rehabOrig:ex.name}):ex;});}
 function _rehabSetSub(orig,val){if(!_progEditBuf.rehabSubs)_progEditBuf.rehabSubs={};_progEditBuf.rehabSubs[orig]=val;}
 function _rehabRemoveSub(orig){if(_progEditBuf.rehabSubs)delete _progEditBuf.rehabSubs[orig];_renderProgOverlay();}
@@ -2020,7 +2054,7 @@ function _renderProgWiz(title,body,footer){
     if(title)title.textContent='NEW PROGRAM';
     var html='<div style="margin-bottom:20px;font-size:13px;color:var(--muted);line-height:1.6;">Choose your primary training goal to generate a tailored program.</div>';
     [['strength','⚡','Strength','Build max force with compound lifts'],['hypertrophy','💪','Hypertrophy','Build muscle size and definition'],['aesthetic','🌸','Feminine Aesthetic','Glutes, curves and upper body tone'],['rehab','🩹','Rehab','Recover from injury, move better']].forEach(function(g){
-      html+='<div class="wiz-goal-card" onclick="_progWiz.goal=\''+g[0]+'\';_progWiz.muscles=[];_progWiz.step=_progWiz.goal===\'rehab\'?1:\'mode\';_renderProgOverlay()"><div style="font-size:28px;flex-shrink:0;">'+g[1]+'</div><div><div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:2px;">'+g[2]+'</div><div style="font-size:12px;color:var(--muted);">'+g[3]+'</div></div></div>';
+      html+='<div class="wiz-goal-card" onclick="_progWizGoal(\''+g[0]+'\')"><div style="font-size:28px;flex-shrink:0;">'+g[1]+'</div><div><div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:2px;">'+g[2]+'</div><div style="font-size:12px;color:var(--muted);">'+g[3]+'</div></div></div>';
     });
     html+='<div style="margin:14px 0 8px;text-align:center;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;">or</div>';
     html+='<div class="wiz-goal-card" onclick="_progBuildManual()"><div style="font-size:28px;flex-shrink:0;">✎</div><div><div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:2px;">Build manually</div><div style="font-size:12px;color:var(--muted);">Start blank and add your own days &amp; exercises</div></div></div>';
@@ -2030,7 +2064,7 @@ function _renderProgWiz(title,body,footer){
     // a choice, automatic or pick muscles".
     if(title)title.textContent='NEW PROGRAM';
     var html='<div style="margin-bottom:20px;font-size:15px;color:var(--text);line-height:1.6;">How should the program be built?</div>';
-    [['auto','⚙️','Automatic','A ready-made program for your goal — you pick a focus next','_progWiz.muscles=[];_progWiz.step=1;'],['pick','🎯','Pick muscles','Tap the muscles you want to train on a body picture','_progWiz.step=\'muscles\';']].forEach(function(o){
+    [['auto','⚙️','Automatic','A ready-made program for your goal — you pick a focus next','_progWizStash();_progWiz.step=1;'],['pick','🎯','Pick muscles','Tap the muscles you want to train on a body picture','_progWizUnstash();_progWiz.step=\'muscles\';']].forEach(function(o){
       html+='<div class="wiz-goal-card" data-wiz-mode="'+o[0]+'" onclick="'+o[4]+'_renderProgOverlay()"><div style="font-size:28px;flex-shrink:0;">'+o[1]+'</div><div><div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:2px;">'+o[2]+'</div><div style="font-size:15px;color:var(--text);">'+o[3]+'</div></div></div>';});
     body.innerHTML=html;
     footer.innerHTML='<button onclick="_progWiz.step=0;_renderProgOverlay()" style="width:100%;background:none;border:1px solid var(--border);color:var(--muted);border-radius:50px;padding:13px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-ui);">← Back</button>';
@@ -2038,13 +2072,13 @@ function _renderProgWiz(title,body,footer){
     if(title)title.textContent='NEW PROGRAM';
     var _mk=wiz.muscles||[];
     body.innerHTML='<div style="margin-bottom:14px;font-size:15px;color:var(--text);line-height:1.5;">Tap the muscles you want to train. Only the marked muscles go into the program.</div>'+_muscleFigureHtml(_muscleSex(),_mk);
-    footer.innerHTML='<button onclick="if((_progWiz.muscles||[]).length){_progWiz.sub=null;_progWiz.step=2;_progWiz.name=_progWizDefaultName();_renderProgOverlay();}"'+(_mk.length?'':' disabled')+' style="width:100%;background:var(--accent);border:none;color:#000;border-radius:50px;padding:16px 24px;font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font-ui);margin-bottom:8px;'+(_mk.length?'':'opacity:0.45;')+'">'+(_mk.length?'Next →':'Tap at least one muscle')+'</button><button onclick="_progWiz.muscles=[];_progWiz.step=1;_renderProgOverlay()" style="width:100%;background:none;border:1px solid var(--border);color:var(--text);border-radius:50px;padding:13px;font-size:15px;font-weight:600;cursor:pointer;font-family:var(--font-ui);margin-bottom:8px;">Use a ready-made focus instead</button><button onclick="_progWiz.step=\'mode\';_renderProgOverlay()" style="width:100%;background:none;border:1px solid var(--border);color:var(--muted);border-radius:50px;padding:13px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-ui);">← Back</button>';
+    footer.innerHTML='<button onclick="if((_progWiz.muscles||[]).length){_progWiz.sub=null;_progWiz.step=2;_progWizAutoName();_renderProgOverlay();}"'+(_mk.length?'':' disabled')+' style="width:100%;background:var(--accent);border:none;color:#000;border-radius:50px;padding:16px 24px;font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font-ui);margin-bottom:8px;'+(_mk.length?'':'opacity:0.45;')+'">'+(_mk.length?'Next →':'Tap at least one muscle')+'</button><button onclick="_progWizStash();_progWiz.step=1;_renderProgOverlay()" style="width:100%;background:none;border:1px solid var(--border);color:var(--text);border-radius:50px;padding:13px;font-size:15px;font-weight:600;cursor:pointer;font-family:var(--font-ui);margin-bottom:8px;">Use a ready-made focus instead</button><button onclick="_progWiz.step=\'mode\';_renderProgOverlay()" style="width:100%;background:none;border:1px solid var(--border);color:var(--muted);border-radius:50px;padding:13px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-ui);">← Back</button>';
   }else if(wiz.step===1){
     if(title)title.textContent='NEW PROGRAM';
     var subs=wiz.goal==='strength'?[['pure','Pure Strength','Classic powerlifting — Squat, Bench, Deadlift focus'],['hybrid','Hybrid','Strength base + bodybuilding volume for size and power']]:wiz.goal==='hypertrophy'?[['balanced','Balanced','Equal attention across all muscle groups'],['upper','Upper Heavy','Extra volume on chest, back, arms and shoulders'],['lower','Lower Heavy','Extra volume on legs, glutes and hamstrings']]:wiz.goal==='aesthetic'?[['fullbody','Full Body','Glute-emphasis full body — compact & effective'],['upperlower','Upper/Lower','Upper/lower split + glute specialization'],['bootylicious','Bootylicious','Legs, every glute muscle, core and back — arms on triceps and shoulders, no chest presses']]:[['shoulder','Shoulder','Rotator cuff, stability, pain-free pressing'],['back','Lower Back','Hip hinge rehab, core stability, pain-free movement'],['knee','Knee','Quad & glute strength, low-impact progression']];
     var goalNames={strength:'Strength',hypertrophy:'Hypertrophy',aesthetic:'Feminine Aesthetic',rehab:'Rehab'};
     var html='<div style="margin-bottom:20px;font-size:13px;color:var(--muted);line-height:1.6;">Pick your focus within <strong style="color:var(--text)">'+goalNames[wiz.goal]+'</strong>.</div>';
-    subs.forEach(function(s){html+='<div class="wiz-sub-card" onclick="_progWiz.sub=\''+s[0]+'\';_progWiz.step=2;_progWiz.name=_progWizDefaultName();_renderProgOverlay()"><div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;">'+s[1]+'</div><div style="font-size:12px;color:var(--muted);">'+s[2]+'</div></div>';});
+    subs.forEach(function(s){html+='<div class="wiz-sub-card" onclick="_progWiz.sub=\''+s[0]+'\';_progWiz.step=2;_progWizAutoName();_renderProgOverlay()"><div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;">'+s[1]+'</div><div style="font-size:12px;color:var(--muted);">'+s[2]+'</div></div>';});
     body.innerHTML=html;
     footer.innerHTML='<button onclick="_progWiz.step=_progWiz.goal===\'rehab\'?0:\'mode\';_renderProgOverlay()" style="width:100%;background:none;border:1px solid var(--border);color:var(--muted);border-radius:50px;padding:13px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-ui);">← Back</button>';
   }else if(wiz.step===2){
@@ -2065,7 +2099,7 @@ function _renderProgWiz(title,body,footer){
     html+='</div></div>';
     html+=_progWizEquipHtml(wiz.equip);
     body.innerHTML=html;
-    footer.innerHTML='<button onclick="_progWiz.name=_progWizDefaultName();_progWiz.step=_progWiz.equip===\'home\'?\'equip\':3;_renderProgOverlay()" style="width:100%;background:var(--accent);border:none;color:#000;border-radius:50px;padding:16px 24px;font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font-ui);margin-bottom:8px;">Next →</button><button onclick="_progWiz.step=(_progWiz.muscles||[]).length?\'muscles\':1;_renderProgOverlay()" style="width:100%;background:none;border:1px solid var(--border);color:var(--muted);border-radius:50px;padding:13px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-ui);">← Back</button>';
+    footer.innerHTML='<button onclick="_progWizAutoName();_progWiz.step=_progWiz.equip===\'home\'?\'equip\':3;_renderProgOverlay()" style="width:100%;background:var(--accent);border:none;color:#000;border-radius:50px;padding:16px 24px;font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font-ui);margin-bottom:8px;">Next →</button><button onclick="_progWiz.step=(_progWiz.muscles||[]).length?\'muscles\':1;_renderProgOverlay()" style="width:100%;background:none;border:1px solid var(--border);color:var(--muted);border-radius:50px;padding:13px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-ui);">← Back</button>';
   }else if(wiz.step==='equip'){
     // Its own screen, so it cannot be scrolled past (Henrik, 2026-10-14: "make the equipment selection a next screen").
     if(title)title.textContent='NEW PROGRAM';
@@ -2076,14 +2110,16 @@ function _renderProgWiz(title,body,footer){
     var gn={strength:'Strength',hypertrophy:'Hypertrophy',rehab:'Rehab'}[wiz.goal]||wiz.goal;
     var sn={pure:'Pure Strength',hybrid:'Hybrid',balanced:'Balanced',upper:'Upper Heavy',lower:'Lower Heavy',bootylicious:'Bootylicious',shoulder:'Shoulder Rehab',back:'Lower Back Rehab',knee:'Knee Rehab'}[wiz.sub]||wiz.sub;
     var html='<div style="margin-bottom:20px;"><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px;">Program Name</div>';
-    html+='<input id="prog-wiz-name" type="text" value="'+_escP(wiz.name||_progWizDefaultName())+'" oninput="_progWiz.name=this.value" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-size:15px;font-weight:600;font-family:var(--font-ui);outline:none;box-sizing:border-box;"></div>';
+    html+='<input id="prog-wiz-name" type="text" value="'+_escP(wiz.name||_progWizDefaultName())+'" oninput="_progWiz.name=this.value;_progWiz.nameTyped=true" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-size:15px;font-weight:600;font-family:var(--font-ui);outline:none;box-sizing:border-box;"></div>';
     html+='<div style="margin-top:20px;padding:16px;background:rgba(232,255,60,0.05);border:1px solid rgba(232,255,60,0.15);border-radius:10px;"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent);margin-bottom:10px;">Summary</div>';
     html+='<div style="font-size:13px;color:var(--muted);line-height:2;">Goal: <span style="color:var(--text);font-weight:600;">'+gn+'</span><br>'+((wiz.muscles||[]).length?'Muscles: <span style="color:var(--text);font-weight:600;">'+_escP(MUSCLES.filter(function(m){return wiz.muscles.indexOf(m.id)>=0;}).map(function(m){return m.label;}).join(', '))+'</span>':'Focus: <span style="color:var(--text);font-weight:600;">'+sn+'</span>')+'<br>Days/week: <span style="color:var(--text);font-weight:600;">'+wiz.nDays+' day'+(wiz.nDays!==1?'s':'')+'</span><br>Sets/muscle/week: <span style="color:var(--text);font-weight:600;">'+(wiz.setsPerMuscle||12)+'</span>'+((wiz.injuries||[]).length?'<br>Injuries: <span style="color:var(--text);font-weight:600;">'+wiz.injuries.map(function(id){var c=REHAB_CONDITIONS.find(function(x){return x.id===id;});return c?c.label:id;}).join(', ')+'</span>':'')+'<br>Where: <span style="color:var(--text);font-weight:600;">'+_escP(_equipLabel(_progWizEquipId()))+'</span></div>';
-    var _pv=null;try{_pv=_generateWorkoutProgram(wiz.goal,wiz.sub,wiz.nDays,'preview',wiz.setsPerMuscle||12,wiz.injuries,_progWizEquipId(),wiz.muscles);}catch(e){}
+    var _pv=null;try{_pv=_generateWorkoutProgram(wiz.goal,wiz.sub,wiz.nDays,'preview',wiz.setsPerMuscle||12,wiz.injuries,_progWizEquipId(),wiz.muscles,{noPullUps:wiz.pullups==='no'});}catch(e){}
     if(_pv&&_pv.days&&_pv.days.length){var _tots=_pv.days.map(function(d){return(d.exercises||[]).reduce(function(s,e){return s+String(e.sets).split('-').length;},0);});var _avg=Math.round(_tots.reduce(function(a,b){return a+b;},0)/_tots.length);var _mx=Math.max.apply(null,_tots);html+='<div style="font-size:12px;color:var(--muted);margin-top:10px;line-height:1.6;">Resulting sessions: ≈'+_avg+' sets avg ('+_mx+' max) — roughly '+Math.round(_avg*3.5)+' min per session</div>';}
     html+='</div>';
+    html+=_progWizPullUpsHtml(wiz);
     body.innerHTML=html;
-    footer.innerHTML='<button onclick="_progWizGenerate()" style="width:100%;background:var(--accent);border:none;color:#000;border-radius:50px;padding:16px 24px;font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font-ui);margin-bottom:8px;">Generate Program →</button><button onclick="_progWiz.step=_progWiz.equip===\'home\'?\'equip\':2;_renderProgOverlay()" style="width:100%;background:none;border:1px solid var(--border);color:var(--muted);border-radius:50px;padding:13px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-ui);">← Back</button>';
+    var _blocked=_progWizNeedsPullUps()&&!wiz.pullups;
+    footer.innerHTML='<button onclick="_progWizGenerate()"'+(_blocked?' disabled':'')+' style="width:100%;opacity:'+(_blocked?'0.45':'1')+';background:var(--accent);border:none;color:#000;border-radius:50px;padding:16px 24px;font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font-ui);margin-bottom:8px;">Generate Program →</button><button onclick="_progWiz.step=_progWiz.equip===\'home\'?\'equip\':2;_renderProgOverlay()" style="width:100%;background:none;border:1px solid var(--border);color:var(--muted);border-radius:50px;padding:13px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-ui);">← Back</button>';
   }
 }
 function _equipLabel(id){var it=_homeItemsOf(id);if(it===null)return'Gym';if(!it.length)return'Home: bodyweight only';return'Home: '+HOME_ITEMS.filter(function(h){return it.indexOf(h.id)>=0;}).map(function(h){return h.label.toLowerCase();}).join(', ');}
@@ -2103,6 +2139,36 @@ function _progWizItemsScreenHtml(items){items=items||[];
   return '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px;">Your home equipment</div><div style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.5;">Tick everything you have. Every exercise is swapped for the best one this equipment allows.</div>'+_homeItemsHtml(items,'_progWizToggleItem')+'<div style="font-size:12px;color:var(--muted);margin-top:12px;">Nothing ticked = bodyweight only.</div>';}
 function _progWizToggleItem(id){var a=_progWiz.homeItems||(_progWiz.homeItems=[]);var i=a.indexOf(id);if(i>=0)a.splice(i,1);else a.push(id);_renderProgOverlay();}
 // The equipment id the wizard hands the generator ('gym', a preset, or 'home:<items>').
+// Does the program as chosen hold a pull-up? Then the wizard asks before it is generated.
+function _progWizNeedsPullUps(){var w=_progWiz;if(!w||!w.goal||_hasLoggedPullUps())return false;var p=null;
+  try{p=_generateWorkoutProgram(w.goal,w.sub,w.nDays,'check',w.setsPerMuscle||12,w.injuries,_progWizEquipId(),w.muscles);}catch(e){return false;}
+  return !!(p&&p.days||[]).length&&p.days.some(function(d){return(d.exercises||[]).some(function(e){return NO_PULLUP_RE.test(e.name||'');});});}
+function _progWizPullUpsHtml(w){if(!_progWizNeedsPullUps())return'';
+  var b=function(v,l){var on=w.pullups===v;return'<button data-pullups="'+v+'" onclick="_progWizPullUps(\''+v+'\')" style="flex:1;padding:12px;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font-ui);background:'+(on?'var(--accent)':'var(--surface2)')+';color:'+(on?'#000':'var(--text)')+';border:1px solid '+(on?'var(--accent)':'var(--border)')+'">'+l+'</button>';};
+  return'<div data-pullups-ask="1" style="margin-top:20px;padding:16px;border:1px solid var(--border);border-radius:10px;"><div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px">Can you do 1–2 pull-ups?</div>'
+    +'<div style="font-size:15px;color:var(--text);line-height:1.5;margin-bottom:12px">This program has pull-ups. If not, you get a lat pulldown (or what your equipment allows) instead.</div>'
+    +'<div style="display:flex;gap:8px">'+b('yes','Yes')+b('no','Not yet')+'</div></div>';}
+function _progWizPullUps(v){if(!_progWiz)return;_progWiz.pullups=v;_setPullUpsAnswer(v);_renderProgOverlay();}
+// Going back to change one thing keeps every other answer (Henrik, 2026-11-11: "the wizard must support to back
+// trough in reverse if you want to go back and change one thing, now you have to start over"):
+// the same goal picked again keeps the muscles and focus; Automatic puts the picked muscles aside and Pick muscles
+// brings them back; a name typed is never overwritten by the default.
+// The ‹ in the overlay's header is Back, never "throw it all away" (Henrik, 2026-11-11: "After generating a program but
+// before saving, if I press back to change ie muscles chosen, I have to start over still! Fix this properly!"):
+// in the wizard it goes one step back; on a generated program not yet saved it drops that program and returns to the
+// wizard's last step with every answer as it was (_progWizLast); anywhere else it closes as before.
+var _progWizLast=null;
+function _progWizPrev(w){var s=w.step;if(s==='mode')return 0;if(s==='muscles')return'mode';if(s===1)return w.goal==='rehab'?0:'mode';
+  if(s===2)return(w.muscles||[]).length?'muscles':1;if(s==='equip')return 2;if(s===3)return w.equip==='home'?'equip':2;return null;}
+function progOverlayBack(){
+  if(_progWiz){var prev=_progWizPrev(_progWiz);if(prev===null){_progWizLast=null;closeProgramOverlay();return;}_progWiz.step=prev;_renderProgOverlay();return;}
+  if(_progIsNew&&_progWizLast&&_progTemplateId===null){_programs.splice(_progEditIdx,1);if(_activeProgramIndex>=_programs.length)_activeProgramIndex=Math.max(0,_programs.length-1);
+    _progIsNew=false;_progEditBuf=null;_progEditIdx=-1;savePrograms();buildProgramSettingsCard();_progWiz=_progWizLast;_progWizLast=null;_progWiz.step=3;_renderProgOverlay();return;}
+  closeProgramOverlay();}
+function _progWizGoal(g){var w=_progWiz;if(!w)return;if(w.goal!==g){w.muscles=[];w.keptMuscles=null;w.sub=null;}w.goal=g;w.step=g==='rehab'?1:'mode';_renderProgOverlay();}
+function _progWizStash(){var w=_progWiz;if(!w)return;if((w.muscles||[]).length)w.keptMuscles=w.muscles.slice();w.muscles=[];}
+function _progWizUnstash(){var w=_progWiz;if(!w)return;if(!(w.muscles||[]).length&&(w.keptMuscles||[]).length)w.muscles=w.keptMuscles.slice();}
+function _progWizAutoName(){var w=_progWiz;if(w&&!w.nameTyped)w.name=_progWizDefaultName();}
 function _progWizEquipId(){if(!_progWiz||_progWiz.equip!=='home')return _gymEquipId(_gymItems());return _homeEquipId(_progWiz.homeItems||[]);}
 function _saveHomeItems(items){var a=(items||[]).slice().sort();setData('wkt-home-equip',a);pushSettingsToAgent({'wkt-home-equip':a});}
 // ── Plan → Gym and Home equipment tabs (Henrik, 2026-11-11). Ticking saves the list at once; the
@@ -2136,7 +2202,7 @@ function equipTabToggle(kind,id){var t=EQUIP_TABS[kind],a=t.cur(),i=a.indexOf(id
 // Rebuilds every program generated with an older list, exactly as the program's own editor does.
 function _rebuildForEquip(kind){var t=EQUIP_TABS[kind],id=t.id(t.cur()),n=0;
   (_programs||[]).forEach(function(p,idx){if(!(p&&p.gen&&t.mine(p)&&p.equipment!==id))return;var g=p.gen;
-    var np=_generateWorkoutProgram(g.goal,g.sub,g.nDays,p.name,g.setsPerMuscle,g.injuries,id,g.muscles);np.touchedAt=_nowStamp();_programs[idx]=np;n++;});
+    var np=_generateWorkoutProgram(g.goal,g.sub,g.nDays,p.name,g.setsPerMuscle,g.injuries,id,g.muscles,{noPullUps:!!g.noPullUps});np.touchedAt=_nowStamp();_programs[idx]=np;n++;});
   return n;}
 function rebuildEquipPrograms(kind){var stale=_equipStale(kind);if(!stale.length)return;
   if(!confirm('Rebuild '+stale.map(function(p){return'"'+p.name+'"';}).join(', ')+' for this equipment?\n\nTheir exercises are generated again for what you have. Changes you made to them by hand are replaced.'))return;
@@ -2157,9 +2223,11 @@ function _progWizDefaultName(){
 function _progWizGenerate(){
   var wiz=_progWiz;var name=(wiz.name&&wiz.name.trim())||_progWizDefaultName();
   var _eq=_progWizEquipId();if(wiz.equip==='home')_saveHomeItems(wiz.homeItems);
-  var prog=_generateWorkoutProgram(wiz.goal,wiz.sub,wiz.nDays,name,wiz.setsPerMuscle||12,wiz.injuries,_eq,wiz.muscles);
+  if(_progWizNeedsPullUps()&&!wiz.pullups)return;
+  var prog=_generateWorkoutProgram(wiz.goal,wiz.sub,wiz.nDays,name,wiz.setsPerMuscle||12,wiz.injuries,_eq,wiz.muscles,{noPullUps:wiz.pullups==='no'&&!_hasLoggedPullUps()});
   prog.touchedAt=_nowStamp();
   _programs.push(prog);buildProgramSettingsCard();
+  _progWizLast=JSON.parse(JSON.stringify(wiz));
   _progWiz=null;_progReadOnly=false;_progEditIdx=_programs.length-1;_progEditBuf=JSON.parse(JSON.stringify(_programs[_progEditIdx]));_progIsNew=true;_renderProgOverlay();
 }
 // Build manually (2026-07-23): skip the generator wizard entirely — create a blank
@@ -2466,7 +2534,7 @@ var MUSCLE_LIB={quads:[['Squat',60],['Leg Press',100],['Leg Extension',35]],hams
   glutes:[['Lunges',20],['Hip Abductor (outside hips)',40]],glutesF:[['Hip Thrust',60],['Hip Abductor (outside hips)',40],['Lunges',20]],
   calves:[['Calf Raises',50],['Seated Calf Raise',40]],chest:[['Bench Press',60],['Incline DB Press',22],['Cable Fly',15]],
   frontdelts:[['Overhead Press',35],['Arnold Press',14],['Front Raise',8]],sidedelts:[['Lateral Raise',8],['Cable Lateral Raise',6]],
-  reardelts:[['Rear Delt Fly',7],['Face Pulls',15]],lats:[['Pull-ups',0],['Lat Pulldown',45]],traps:[['Shrug',60],['Upright Row',25]],upperback:[['Barbell Row',50],['Cable Row',45]],
+  reardelts:[['Rear Delt Fly',7],['Face Pulls',15]],lats:[['Pull-ups',0],['Lat Pulldown',45]],latsF:[['Lat Pulldown',38]],traps:[['Shrug',60],['Upright Row',25]],upperback:[['Barbell Row',50],['Cable Row',45]],
   biceps:[['Barbell Curl',25],['Hammer Curl',12]],triceps:[['Tricep Pushdown',20],['Overhead Tricep Cable',18],['Skull Crushers',20]],
   abs:[['Dead Bug',0],['Plank',0],['Pallof Press',8]]};
 var MUSCLE_CENTER={traps:1,abs:1};
@@ -2477,7 +2545,9 @@ function _muscleShapes(sex,view,id){var out=[];((MUSCLE_REGIONS[sex]||{})[view]|
 function _smoothPath(p){var n=p.length,d='M'+p[0][0]+','+p[0][1];for(var i=0;i<n;i++){var p0=p[(i-1+n)%n],p1=p[i],p2=p[(i+1)%n],p3=p[(i+2)%n];
   var c1x=p1[0]+(p2[0]-p0[0])/6,c1y=p1[1]+(p2[1]-p0[1])/6,c2x=p2[0]-(p3[0]-p1[0])/6,c2y=p2[1]-(p3[1]-p1[1])/6;
   d+='C'+c1x.toFixed(1)+','+c1y.toFixed(1)+' '+c2x.toFixed(1)+','+c2y.toFixed(1)+' '+p2[0]+','+p2[1];}return d+'Z';}
-function _muscleLib(id,goal){return (id==='glutes'&&goal==='aesthetic')?MUSCLE_LIB.glutesF:MUSCLE_LIB[id];}
+// Feminine Aesthetic never gets pull-ups (Henrik, 2026-11-11: "pull-ups isnt an exercise almost any women can do at all"):
+// its lats lead with the pulldown, as its own templates do.
+function _muscleLib(id,goal){if(goal==='aesthetic'&&id==='glutes')return MUSCLE_LIB.glutesF;if(goal==='aesthetic'&&id==='lats')return MUSCLE_LIB.latsF;return MUSCLE_LIB[id];}
 // Which figure: Feminine Aesthetic shows the female body, otherwise the profile's sex.
 // Henrik, 2026-11-11: "a female user gets the female images everywhere and a male the male
 // pictures. Right now my wife get male models." The body follows the PROFILE's sex only, for every
@@ -2576,7 +2646,25 @@ function _applyMuscleTargets(days,targets,nSets,resize){
       big=c.reduce(function(a,b){return over(b)>over(a)?b:a;});}
     resize(big,nSets(big)-1);}});
 }
-function _generateWorkoutProgram(goal,sub,nDays,name,setsPerMuscle,injuries,equip,muscles){
+// Pull-ups only for someone who can do 1–2 (Henrik, 2026-11-11: "for anyone before adding pull-ups, the generator needs
+// to actually ask if the user can do 1-2 pullups at all"): the wizard asks, and opts.noPullUps swaps every pull-up for
+// the first of these the equipment allows (the assisted machine and the band take part of the body weight).
+var NO_PULLUP_RE=/^(Pull-ups|Weighted Pull-ups|Chin-ups|Clapping Pull-ups|Muscle Up)$/;
+var NO_PULLUP_ALT=['Lat Pulldown','Assisted Pull-up Machine','Band Lat Pull','Underhand Inverted Row'];
+function _noPullUpAlt(equip){var home=_homeItemsOf(equip),gym=_gymItemsOf(equip);
+  for(var i=0;i<NO_PULLUP_ALT.length;i++){var n=NO_PULLUP_ALT[i];if(home!==null?_canDoAtHome(n,home):gym?_canDoAtGym(n,gym):true)return n;}
+  return NO_PULLUP_ALT[NO_PULLUP_ALT.length-1];}
+// Pull-ups already logged with reps answer the question (Henrik, 2026-11-11: "if a user has logged pull ups in history
+// already it should of course be added to pull days (without asking a unnecessary question)").
+function _hasLoggedPullUps(){return (typeof logs!=='undefined'&&logs||[]).some(function(l){return(l&&l.exercises||[]).some(function(ex){
+  return NO_PULLUP_RE.test(ex&&ex.name||'')&&(ex.sets||[]).some(function(st){return st&&(parseInt(st.reps)>0||st.reps==='max');});});});}
+function _pullUpsAnswer(){if(_hasLoggedPullUps())return'yes';var p=getData('wkt-profile',{})||{};return p.pullups==='yes'||p.pullups==='no'?p.pullups:'';}
+function _setPullUpsAnswer(v){var p=Object.assign({},getData('wkt-profile',{})||{},{pullups:v});setData('wkt-profile',p);pushSettingsToAgent({'wkt-profile':p});}
+function _generateWorkoutProgram(goal,sub,nDays,name,setsPerMuscle,injuries,equip,muscles,opts){
+  var _noPU=!!(opts&&opts.noPullUps);
+  function _noPullUpDays(){if(!_noPU)return;var alt=_noPullUpAlt(equip);days.forEach(function(day){(day.exercises||[]).forEach(function(ex){if(!NO_PULLUP_RE.test(ex.name||''))return;ex.name=alt;ex.kg=0;
+    if(/max/.test(String(ex.sets))&&!isBWExName(alt)){ex.sets=String(ex.sets).split('-').map(function(r){return r==='max'?'10':r;}).join('-');ex.scheme=String(ex.scheme||'').replace(/^(\d+)×max/,'$1×10');}});
+    var _seen={};day.exercises=(day.exercises||[]).filter(function(ex){if(_seen[ex.name])return false;_seen[ex.name]=1;return true;});});}
   var _mp=(muscles&&muscles.length&&goal!=='rehab')?muscles.slice():null;
   var _home=_isHomeEquip(equip);var _custom=_home&&equip.indexOf('home:')===0;var _swapped=[];var _gymIt=_gymItemsOf(equip);
   var _lsubs=_home?(injuries||[]).concat(['equip:'+equip]):injuries;
@@ -2732,7 +2820,22 @@ function _generateWorkoutProgram(goal,sub,nDays,name,setsPerMuscle,injuries,equi
   // still before allocation, so volume is sized on what will actually be done. Two gym lifts can
   // land on the same home exercise; the de-dupe keeps one and the allocator redistributes.
   function _homeSwapDays(){days.forEach(function(day){(day.exercises||[]).forEach(function(ex){var nn=_equipSwap(ex.name,equip,injuries);if(nn!==ex.name){ex.name=nn;ex.kg=0;_swapped.push(ex);}});var _seen={};day.exercises=(day.exercises||[]).filter(function(ex){if(!ex.name||_seen[ex.name])return false;_seen[ex.name]=1;return true;});});}
+  // Feminine Aesthetic trains glutes often (Henrik, 2026-11-11: "it only trains glutes 1 day out of three? It need to
+  // train glutes much more, 1-3 days per week gets glutes every day, 4-7 2-3 days of glutes"): a day with no glute-led
+  // exercise gets one until 1–3 day programs have glutes every day and 4–7 day programs on at least two. With picked
+  // muscles only when glutes are marked (only marked muscles are trained).
+  function _gluteDays(){if(!(goal==='aesthetic'&&(!_mp||_mp.indexOf('glutes')>=0)))return;
+    var _gNeed=nDays<=3?days.length:Math.min(days.length,2),_isG=function(day){return(day.exercises||[]).some(function(e){return exMuscles(e.name)[0]==='glutes';});};
+    var _hi=_homeItemsOf(equip),_gi=_gymItemsOf(equip),_can=function(n){return _hi!==null?_canDoAtHome(n,_hi):_gi?_canDoAtGym(n,_gi):true;};
+    var _gHave=days.filter(_isG).length,_gLib=['Hip Thrust','Hip Abductor (outside hips)','Kettlebell Glute Bridge','Single-leg Glute Bridge'].filter(_can),_gk=0;
+    days.forEach(function(day){if(_gHave>=_gNeed||_isG(day))return;var has=(day.exercises||[]).map(function(e){return e.name;});
+      var opts=_gLib.filter(function(n){return has.indexOf(n)<0;});var nm=opts[_gk++%Math.max(1,opts.length)]||'Single-leg Glute Bridge';
+      var ex=Object.assign(pw(nm,'3×10-12','volume','10-10-10',0),{keep:true});
+      day.exercises=[ex].concat(day.exercises||[]);_gHave++;});
+  }
+  _gluteDays();
   if(_home||_gymIt)_homeSwapDays();
+  _noPullUpDays();
   // Bootylicious has no chest presses: whatever a home or injury swap turned into a chest-led
   // movement (e.g. Tricep Pushdown → Diamond Push-ups on bodyweight) is taken out again.
   if(key==='aesthetic-bootylicious')days.forEach(function(day){day.exercises=(day.exercises||[]).filter(function(ex){return (getExSplits(ex.name).chest||0)<0.5;});});
@@ -2932,6 +3035,8 @@ function _generateWorkoutProgram(goal,sub,nDays,name,setsPerMuscle,injuries,equi
   // Gym list, second pass (same reason as home): an exercise swapped to a loaded one keeps a real
   // rep count, since only bodyweight work is prescribed as 'max'.
   if(_gymIt){_homeSwapDays();_swapped.forEach(function(ex){if(/max/.test(String(ex.sets))&&!isBWExName(ex.name)){ex.sets=String(ex.sets).split('-').map(function(r){return r==='max'?'10':r;}).join('-');ex.scheme=String(ex.scheme||'').replace(/^(\d+)×max/,'$1×10');}});}
+  _noPullUpDays();
+  _gluteDays();   // again after the equipment swaps, which can turn glute work into other work
   days.forEach(function(day){(day.exercises||[]).forEach(applyTagFromReps);});
   // Bodyweight at home: higher reps allowed (Henrik, 2026-10-12, "B for reps"). Every set is
   // AMRAP ('max'), the representation this app already uses for bodyweight work — tagForReps
@@ -2943,7 +3048,8 @@ function _generateWorkoutProgram(goal,sub,nDays,name,setsPerMuscle,injuries,equi
   var _out={name:name,days:days,goal:goal,setsPerMuscle:setsPerMuscle,injuries:injuries||[]};
   if(_mp)_out.muscles=_mp.slice();
   // A home program keeps what built it, so the program view can rebuild it for new equipment.
-  if(_home||_gymIt){_out.equipment=equip;_out.gen={goal:goal,sub:sub,nDays:nDays,setsPerMuscle:setsPerMuscle,injuries:(injuries||[]).slice()};if(_mp)_out.gen.muscles=_mp.slice();}
+  if(_home||_gymIt){_out.equipment=equip;_out.gen={goal:goal,sub:sub,nDays:nDays,setsPerMuscle:setsPerMuscle,injuries:(injuries||[]).slice()};if(_mp)_out.gen.muscles=_mp.slice();if(_noPU)_out.gen.noPullUps=true;}
+  if(_noPU)_out.noPullUps=true;
   return _out;
 }
 

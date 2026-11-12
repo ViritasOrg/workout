@@ -2241,7 +2241,7 @@ console.log('\n── 48. Program wizard days/sets ─────────�
   check('_progWizGenerate passes setsPerMuscle to _generateWorkoutProgram',
     src.includes('wiz.setsPerMuscle||12'));
   check('_generateWorkoutProgram accepts setsPerMuscle + injuries params',
-    src.includes('function _generateWorkoutProgram(goal,sub,nDays,name,setsPerMuscle,injuries,equip,muscles)'));
+    src.includes('function _generateWorkoutProgram(goal,sub,nDays,name,setsPerMuscle,injuries,equip,muscles,opts)'));
   check('scaleSets helper scales exercise set counts',
     src.includes('function scaleSets(setsStr)'));
   check('pool padding loop fills short pools up to nDays',
@@ -3889,7 +3889,29 @@ if (typeof G._generateWorkoutProgram === 'function' && typeof G._musclePlanPool 
   vm.runInContext('_renderProgOverlay=__rpoSaved;_progWiz=null', sandbox);
   // Henrik 2026-11-10: "the picker should not be a mandatory step, the wizard should give user a
   // choice, automatic or pick muscles".
-  check('wizard: strength, hypertrophy and Feminine Aesthetic go to the Automatic / Pick muscles choice, rehab does not', /_progWiz\.step=_progWiz\.goal===\\'rehab\\'\?1:\\'mode\\'/.test(String(G._renderProgWiz)));
+  {
+    vm.runInContext("var __rpoG=_renderProgOverlay;_renderProgOverlay=function(){}", sandbox);
+    const steps = ['strength', 'hypertrophy', 'aesthetic', 'rehab'].map(g => { vm.runInContext("_progWiz={step:0,goal:null,sub:null,muscles:[],nDays:3,setsPerMuscle:12,injuries:[],name:'',homeItems:[]}", sandbox); G._progWizGoal(g); return vm.runInContext('_progWiz.step', sandbox); });
+    check('wizard: strength, hypertrophy and Feminine Aesthetic go to the Automatic / Pick muscles choice, rehab does not', JSON.stringify(steps) === JSON.stringify(['mode', 'mode', 'mode', 1]), JSON.stringify(steps));
+    // Henrik, 2026-11-11: "the wizard must support to back trough in reverse if you want to go back and change one thing,
+    // now you have to start over"
+    vm.runInContext("_progWiz={step:'muscles',goal:'hypertrophy',sub:null,muscles:['chest','lats'],nDays:3,setsPerMuscle:12,injuries:['knees'],name:'My plan',nameTyped:true,homeItems:[]}", sandbox);
+    G._progWizGoal('hypertrophy');
+    const w1 = vm.runInContext('JSON.stringify(_progWiz)', sandbox);
+    check('wizard back: the same goal picked again keeps the muscles, days, injuries and name', /"muscles":\["chest","lats"\]/.test(w1) && /"injuries":\["knees"\]/.test(w1) && /"name":"My plan"/.test(w1), w1);
+    vm.runInContext("_progWizStash();_progWiz.step=1", sandbox);
+    vm.runInContext("_progWiz.sub='balanced'", sandbox);
+    check('wizard back: Automatic puts the picked muscles aside…', vm.runInContext('_progWiz.muscles.length', sandbox) === 0);
+    vm.runInContext("_progWizUnstash();_progWiz.step='muscles'", sandbox);
+    check('wizard back: …and Pick muscles brings them back', vm.runInContext('_progWiz.muscles.join()', sandbox) === 'chest,lats');
+    vm.runInContext('_progWizAutoName()', sandbox);
+    check('wizard back: a typed name is never replaced by the default', vm.runInContext('_progWiz.name', sandbox) === 'My plan');
+    vm.runInContext('_progWiz.nameTyped=false;_progWizAutoName()', sandbox);
+    check('wizard back: …an untyped one follows the choices', vm.runInContext('_progWiz.name', sandbox) !== 'My plan' && /Hypertrophy/.test(vm.runInContext('_progWiz.name', sandbox)));
+    G._progWizGoal('strength');
+    check('wizard back: a different goal starts the muscles and focus afresh', vm.runInContext('_progWiz.muscles.length===0&&_progWiz.sub===null&&!_progWiz.keptMuscles', sandbox));
+    vm.runInContext('_renderProgOverlay=__rpoG;_progWiz=null', sandbox);
+  }
   vm.runInContext("var __rpoSaved2=_renderProgOverlay;_renderProgOverlay=function(){};_progWiz={step:'mode',goal:'hypertrophy',sub:null,muscles:['chest'],nDays:3,setsPerMuscle:12,injuries:[],name:'',homeItems:[]}", sandbox);
   b = el(); f = el(); G._renderProgWiz(el(), b, f);
   const modeCards = {};
@@ -7688,7 +7710,7 @@ console.log('\n── Training at home ─────────────�
     /data-home-item="dumbbells" style="[^"]*background:var\(--accent\)/.test(w) && !/data-home-item="barbell" style="[^"]*background:var\(--accent\)/.test(w));
   check('wizard: Gym is the default', /cur=cur\|\|'gym'/.test(String(G._progWizEquipHtml)));
   check('wizard: both the preview and Generate pass the ticked equipment to the generator',
-    (String(G._renderProgWiz).match(/wiz\.injuries,_progWizEquipId\(\),wiz\.muscles\)/g) || []).length === 1 && /wiz\.injuries,_eq,wiz\.muscles\)/.test(String(G._progWizGenerate)) && /var _eq=_progWizEquipId\(\)/.test(String(G._progWizGenerate)));
+    (String(G._renderProgWiz).match(/wiz\.injuries,_progWizEquipId\(\),wiz\.muscles,\{noPullUps:wiz\.pullups==='no'\}\)/g) || []).length === 1 && /wiz\.injuries,_eq,wiz\.muscles,\{noPullUps:wiz\.pullups==='no'&&!_hasLoggedPullUps\(\)\}\)/.test(String(G._progWizGenerate)) && /var _eq=_progWizEquipId\(\)/.test(String(G._progWizGenerate)));
   check('wizard: step 2 shows the choice, and the saved equipment is preselected', /_progWizEquipHtml\(wiz\.equip\)/.test(String(G._renderProgWiz)) && /homeItems:\(getData\('wkt-home-equip',\[\]\)/.test(html));
 }
 
@@ -7961,7 +7983,7 @@ check('…regular, wide, diamond and archer push-ups keep 64%',
   const sv = String(G.saveHomeEquip);
   check('saving equipment stores it for the user AND on the backend', String(G._saveHomeItems).includes("setData('wkt-home-equip'") && String(G._saveHomeItems).includes("pushSettingsToAgent({'wkt-home-equip'") && sv.includes('_saveHomeItems(_heq.items)'));
   check('…and rebuilds the program from its own wizard choices, after a confirm that hand edits are replaced',
-    sv.includes('confirm(') && /hand are replaced/.test(sv) && sv.includes('_generateWorkoutProgram(g.goal,g.sub,g.nDays,p.name,g.setsPerMuscle,g.injuries,_homeEquipId(_heq.items),g.muscles)') && sv.includes('savePrograms()'));
+    sv.includes('confirm(') && /hand are replaced/.test(sv) && sv.includes('_generateWorkoutProgram(g.goal,g.sub,g.nDays,p.name,g.setsPerMuscle,g.injuries,_homeEquipId(_heq.items),g.muscles,{noPullUps:!!g.noPullUps})') && sv.includes('savePrograms()'));
   check('…keeping the program in the same slot (active program and its index unchanged)', sv.includes('_programs[idx]=np'));
   check('the equipment list comes back from the backend after a cache wipe', String(G.syncSettingsFromAgent).includes("setData('wkt-home-equip',s['wkt-home-equip'])"));
   check('the equipment editor opens above the program view', /id="homeEquipModal" style="z-index:500"/.test(html));
@@ -9915,6 +9937,7 @@ console.log('\n── No feature is gated to staging ─────────
     /if\(IS_STAGING\)buildDeployCard\(\)|s-deploy-card/,              // the Push to Prod card itself
     /fetch\(\(IS_STAGING\?'https:\/\/viritasorg\.github\.io\//,       // each app's own version.json
     /if\(!IS_STAGING\|\|localStorage\.getItem\('wk-bf-isol-v1'\)\)/, // staging data isolation migration
+    /function _planLogBtnHtml\(idx\)\{if\(!IS_STAGING\)return''/,   // the Log button, a tool for Henrik (2026-11-11: "In stage add a log button in the plan pages")
   ];
   const bad = [];
   _files.forEach(f => {
@@ -10032,3 +10055,156 @@ Promise.resolve(globalThis.__aiCannot).then(() => {
   check('AI chat: Apply closes it too', /_pai=_paiFresh\(\);closeProgAi\(\);/.test(String(G.progAiApply)));
   G.document = doc; G._programs = []; G._pai = G._paiFresh();
 }).catch(e => check('AI chat overlay checks ran', false, String(e && e.stack || e)));
+
+// ── Feminine Aesthetic never gets pull-ups (Henrik, 2026-11-11: "choosing female astetics and not choosing biceps the
+// program still adds pull-ups … pull-ups isnt an exercise almost any women can do at all") ──
+{
+  console.log('\n── Feminine Aesthetic: no pull-ups ───────');
+  const PU = /^(Pull-ups|Weighted Pull-ups|Chin-ups)$/;
+  const picks = [['lats'], ['lats', 'glutes', 'triceps'], ['lats', 'upperback', 'sidedelts', 'glutes', 'hamstrings'], ['lats', 'upperback', 'reardelts', 'traps', 'chest', 'triceps']];
+  const bad = [];
+  for (const ms of picks) for (const n of [1, 2, 3, 4, 5, 6]) for (const inj of [[], ['shoulders']]) {
+    const p = G._generateWorkoutProgram('aesthetic', null, n, 'T', 12, inj, 'gym', ms);
+    p.days.forEach(d => d.exercises.forEach(e => { if (PU.test(e.name)) bad.push(`${ms} ${n}d ${inj}: ${d.name} ${e.name}`); }));
+  }
+  check('Feminine Aesthetic with lats picked trains them with the pulldown, never pull-ups', bad.length === 0, bad.slice(0, 3).join(' | '));
+  const fl = G._generateWorkoutProgram('aesthetic', null, 3, 'T', 12, [], 'gym', ['lats']);
+  check('…and the lats are still trained', fl.days.some(d => d.exercises.some(e => e.name === 'Lat Pulldown')));
+  for (const sub of ['fullbody', 'upperlower', 'bootylicious']) {
+    const auto = [];
+    for (const n of [2, 3, 4, 5, 6]) G._generateWorkoutProgram('aesthetic', sub, n, 'T', 12, [], 'gym').days.forEach(d => d.exercises.forEach(e => { if (PU.test(e.name)) auto.push(`${sub} ${n}d ${e.name}`); }));
+    check(`…nor the automatic ${sub} programs`, auto.length === 0, auto.join(' | '));
+  }
+  check('other goals keep pull-ups for the lats', G._generateWorkoutProgram('hypertrophy', null, 3, 'T', 12, [], 'gym', ['lats']).days.some(d => d.exercises.some(e => e.name === 'Pull-ups')));
+}
+
+
+// ── Pull-ups only for someone who can do 1–2 (Henrik, 2026-11-11: "for anyone before adding pull-ups, the generator needs to
+// actually ask if the user can do 1-2 pullups at all") ──
+{
+  console.log('\n── Pull-ups: asked first ───────');
+  const PU = /^(Pull-ups|Weighted Pull-ups|Chin-ups|Clapping Pull-ups|Muscle Up)$/;
+  const names = (p) => [].concat(...p.days.map(d => d.exercises.map(e => e.name)));
+  const bad = [], reps = [];
+  for (const [g, sub] of [['strength', 'pure'], ['strength', 'hybrid'], ['hypertrophy', 'balanced'], ['hypertrophy', 'upper'], ['aesthetic', 'fullbody']])
+    for (const n of [2, 3, 4, 5, 6]) for (const eq of ['gym', G._gymEquipId(G._gymDefaults()), G._homeEquipId(['pullup']), G._homeEquipId(['bands', 'pullup']), G._homeEquipId([])]) {
+      const p = G._generateWorkoutProgram(g, sub, n, 'T', 12, [], eq, null, { noPullUps: true });
+      names(p).filter(x => PU.test(x)).forEach(x => bad.push(`${g}/${sub} ${n}d ${eq}: ${x}`));
+      p.days.forEach(d => d.exercises.forEach(e => { if (['Lat Pulldown', 'Assisted Pull-up Machine', 'Band Lat Pull'].includes(e.name) && /max/.test(String(e.sets))) reps.push(`${g}/${sub} ${n}d ${eq}: ${e.name} ${e.sets}`); }));
+    }
+  check('"Not yet": no program has a pull-up, whatever the goal, days or equipment', bad.length === 0, bad.slice(0, 3).join(' | '));
+  check('…the loaded work that takes its place has real reps, never AMRAP', reps.length === 0, reps.slice(0, 3).join(' | '));
+  const gymP = G._generateWorkoutProgram('hypertrophy', 'upper', 6, 'T', 12, [], 'gym', null, { noPullUps: true });
+  check('…in the gym it is the lat pulldown', names(gymP).includes('Lat Pulldown'));
+  const homeP = G._generateWorkoutProgram('strength', 'pure', 4, 'T', 12, [], G._homeEquipId(['bands', 'pullup']), null, { noPullUps: true });
+  check('…at home with bands it is the band lat pull', names(homeP).includes('Band Lat Pull') && !names(homeP).some(x => PU.test(x)), names(homeP).join(', '));
+  check('…and a rebuilt program remembers the answer', G._generateWorkoutProgram('hypertrophy', 'upper', 6, 'T', 12, [], G._gymEquipId(G._gymDefaults()), null, { noPullUps: true }).gen.noPullUps === true);
+  check('"Yes" (or not asked): pull-ups stay', names(G._generateWorkoutProgram('hypertrophy', 'upper', 6, 'T', 12, [], 'gym')).includes('Pull-ups'));
+
+  // The wizard asks before a program with pull-ups is generated, and only then.
+  const _w = G._progWiz, _ls = G.localStorage, prof = _ls.getItem('wkt-profile'), _push = G.pushSettingsToAgent, pushed = [];
+  G.pushSettingsToAgent = (kv) => pushed.push(kv);
+  G._progWiz = { step: 3, goal: 'hypertrophy', sub: 'upper', nDays: 6, setsPerMuscle: 12, injuries: [], muscles: [], equip: 'gym', pullups: '' };
+  check('wizard: a program with pull-ups asks "Can you do 1–2 pull-ups?"', G._progWizNeedsPullUps() && /Can you do 1–2 pull-ups\?/.test(G._progWizPullUpsHtml(G._progWiz)) && /data-pullups="no"/.test(G._progWizPullUpsHtml(G._progWiz)));
+  const before = G._programs.length; G._progWizGenerate();
+  check('wizard: …and Generate waits for the answer', G._programs.length === before && !!G._progWiz);
+  const _r = G._renderProgOverlay; G._renderProgOverlay = () => {};
+  G._progWizPullUps('no');
+  check('wizard: the answer is kept on the profile and on the backend', G._progWiz.pullups === 'no' && JSON.parse(_ls.getItem('wkt-profile')).pullups === 'no' && pushed.some(k => k['wkt-profile'] && k['wkt-profile'].pullups === 'no'));
+  check('wizard: …and the next program starts with it', G._pullUpsAnswer() === 'no');
+  G._progWiz = { step: 3, goal: 'aesthetic', sub: 'bootylicious', nDays: 3, setsPerMuscle: 12, injuries: [], muscles: [], equip: 'gym', pullups: '' };
+  check('wizard: a program without pull-ups does not ask', !G._progWizNeedsPullUps() && G._progWizPullUpsHtml(G._progWiz) === '');
+  // Henrik, 2026-11-11: "if a user has logged pull ups in history already it should of course be added to pull days
+  // (without asking a unnecessary question)"
+  const _logs = G.logs;
+  G.logs = [{ id: 1, date: '2026-10-01', day: 2, exercises: [{ name: 'Pull-ups', sets: [{ reps: 6, kg: 0 }, { reps: 5, kg: 0 }] }] }];
+  G._progWiz = { step: 3, goal: 'hypertrophy', sub: 'upper', nDays: 6, setsPerMuscle: 12, injuries: [], muscles: [], equip: 'gym', pullups: 'no' };
+  check('wizard: pull-ups already logged: no question, and they stay on the pull days', !G._progWizNeedsPullUps() && G._progWizPullUpsHtml(G._progWiz) === '' && G._pullUpsAnswer() === 'yes');
+  const n0 = G._programs.length; const _bp = G.buildProgramSettingsCard; G.buildProgramSettingsCard = () => {}; G._renderProgOverlay = () => {};
+  G._progWizGenerate(); const made = G._programs[G._programs.length - 1];
+  check('wizard: …even when an older answer said "Not yet", the program keeps its pull-ups', G._programs.length === n0 + 1 && names(made).includes('Pull-ups') && !made.noPullUps);
+  G._programs.pop(); G.buildProgramSettingsCard = _bp;
+  G.logs = [{ id: 1, date: '2026-10-01', day: 2, exercises: [{ name: 'Pull-ups', sets: [{ reps: 0, kg: 0 }] }] }];
+  check('wizard: a pull-up card with no reps logged does not count', !G._hasLoggedPullUps());
+  G.logs = _logs;
+  G._renderProgOverlay = _r; G._progWiz = _w; G.pushSettingsToAgent = _push;
+  if (prof === null) _ls.removeItem('wkt-profile'); else _ls.setItem('wkt-profile', prof);
+}
+
+// ── Feminine Aesthetic trains glutes often (Henrik, 2026-11-11: "it only trains glutes 1 day out of three? It need to train
+// glutes much more, 1-3 days per week gets glutes every day, 4-7 2-3 days of glutes") ──
+{
+  console.log('\n── Feminine Aesthetic: glutes often ───────');
+  const gDays = (p) => p.days.filter(d => d.exercises.some(e => G.exMuscles(e.name)[0] === 'glutes')).length;
+  const bad = [];
+  for (const sub of ['fullbody', 'upperlower', 'bootylicious', null]) for (const n of [1, 2, 3, 4, 5, 6, 7])
+    for (const inj of [[], ['knees']]) for (const eq of ['gym', G._homeEquipId(['dumbbells', 'bench'])]) {
+      const p = G._generateWorkoutProgram('aesthetic', sub, n, 'T', 12, inj, eq, sub === null ? ['glutes', 'quads', 'lats', 'sidedelts'] : null);
+      const want = n <= 3 ? p.days.length : 2, got = gDays(p);
+      if (got < want) bad.push(`${sub} ${n}d ${inj} ${eq}: glutes on ${got} of ${p.days.length} days`);
+    }
+  check('Feminine Aesthetic: 1–3 days a week have glutes every day, 4–7 days on at least two (every focus, picked muscles, injuries, home)', bad.length === 0, bad.slice(0, 4).join(' | '));
+  const lpp = G._generateWorkoutProgram('aesthetic', null, 3, 'T', 12, [], 'gym', ['glutes', 'quads', 'lats', 'sidedelts']);
+  check('…the 3-day Lower / Push / Pull split from picked muscles gets glutes on all three', gDays(lpp) === 3, JSON.stringify(lpp.days.map(d => d.exercises.map(e => e.name))));
+  check('…but picked muscles without glutes get none added', gDays(G._generateWorkoutProgram('aesthetic', null, 3, 'T', 12, [], 'gym', ['lats', 'sidedelts'])) === 0);
+  check('…and other goals are untouched', JSON.stringify(G._generateWorkoutProgram('hypertrophy', null, 3, 'T', 12, [], 'gym', ['glutes', 'quads', 'lats']).days) === JSON.stringify(G._generateWorkoutProgram('hypertrophy', null, 3, 'T', 12, [], 'gym', ['glutes', 'quads', 'lats']).days) && gDays(G._generateWorkoutProgram('hypertrophy', null, 3, 'T', 12, [], 'gym', ['glutes', 'quads', 'lats'])) < 3);
+}
+
+
+// ── Log button on Plan, staging only (Henrik, 2026-11-11: "In stage add a log button in the plan pages so I can click it
+// and get the program and other info from generator on clipboard") ──
+{
+  console.log('\n── Plan log button ───────');
+  const inStage = new Function('IS_STAGING', 'return (' + String(G._planLogBtnHtml) + ')')(true);
+  const inProd = new Function('IS_STAGING', 'return (' + String(G._planLogBtnHtml) + ')')(false);
+  check('Log button: shown in staging, on the Plan page and in a program view', /data-plan-log="1" onclick="planLogCopy\(\)"/.test(inStage(null)) && /onclick="planLogCopy\(3\)"/.test(inStage(3)));
+  check('Log button: never in prod', inProd(null) === '' && inProd(3) === '');
+  check('Log button: readable (15px, not greyed)', /font-size:15px/.test(inStage(null)) && !/var\(--muted\)/.test(inStage(null)));
+  check('Log button: the Plan page and the program view both carry it', html.includes('<div id="plan-log"') && /_planLogBtnHtml\(progIdx\)/.test(String(G._progViewHtml)) && /_planLogBtnHtml\(null\)/.test(String(G.buildProgramSettingsCard)));
+  const p = G._generateWorkoutProgram('aesthetic', null, 3, 'Glute plan', 12, ['knees'], G._gymEquipId(G._gymDefaults()), ['glutes', 'quads', 'lats'], { noPullUps: true });
+  const t = G._planLogText(p);
+  check('Log text: the program, what the generator was given and the equipment',
+    /program log/.test(t) && /Program: Glute plan/.test(t) && /Generator: \{"goal":"aesthetic"/.test(t) && /"noPullUps":true/.test(t) && /injuries=\["knees"\]/.test(t) && /Equipment: Gym \[gym:/.test(t) && /Gym list: /.test(t) && /Home list: /.test(t), t.slice(0, 600));
+  check('Log text: the profile answers the generator reads', /pull-ups answer=/.test(t) && /pull-ups logged=(yes|no)/.test(t));
+  check('Log text: every day and exercise with its muscles, and the weekly sets per muscle',
+    p.days.every((d, i) => t.includes('Day ' + (i + 1) + ': ' + d.name)) && /Hip Thrust \| .*\| glutes, hamstrings/.test(t) && /Weekly sets per muscle \(main 1, supporting 0\.5\): .*glutes \d/.test(t));
+  check('Log text: and the whole program as JSON', t.includes('Program JSON:\n' + JSON.stringify(p)));
+  // copying: the clipboard gets the text and the button says so
+  (async () => {
+    const btns = [{ textContent: '' }], copied = [];
+    const _nav = G.navigator, _doc = G.document, _st = G.setTimeout, _pr = G._programs;
+    G._programs = [p];
+    G.navigator = { clipboard: { writeText: async (x) => { copied.push(x); } } };
+    G.document = Object.assign(Object.create(_doc), { querySelectorAll: (sel) => sel === '[data-plan-log]' ? btns : [] });
+    G.setTimeout = () => 0;
+    const ok = await G.planLogCopy(0);
+    check('Log button: a tap puts the log on the clipboard and says Copied', ok === true && copied[0].split('\n').slice(1).join('\n') === G._planLogText(p).split('\n').slice(1).join('\n') && btns[0].textContent === 'Copied ✓', JSON.stringify([ok, copied.length, btns[0].textContent, typeof G.navigator]));
+    G.navigator = _nav; G.document = _doc; G.setTimeout = _st; G._programs = _pr;
+  })().catch(e => check('Log button copy check ran', false, String(e && e.stack || e)));
+}
+
+// ── Back from a generated, unsaved program returns to the wizard with every answer (Henrik, 2026-11-11: "After generating a
+// program but before saving, if I press back to change ie muscles chosen, I have to start over still! Fix this properly!") ──
+{
+  console.log('\n── Wizard: Back after Generate ───────');
+  vm.runInContext("var __bk={r:_renderProgOverlay,b:buildProgramSettingsCard,s:savePrograms,p:_programs,a:_activeProgramIndex};_renderProgOverlay=function(){};buildProgramSettingsCard=function(){};savePrograms=function(){};_programs=[{name:'Mine',days:[{name:'D',exercises:[]}]}];_activeProgramIndex=0;", sandbox);
+  vm.runInContext("_progWiz={step:3,goal:'hypertrophy',sub:null,muscles:['chest','lats'],nDays:4,setsPerMuscle:14,injuries:['knees'],name:'My plan',nameTyped:true,homeItems:[],equip:'gym',pullups:'yes'}", sandbox);
+  vm.runInContext('_progWizGenerate()', sandbox);
+  check('Generate: the new program is open for editing, not yet saved', vm.runInContext('_progWiz===null&&_progIsNew===true&&_programs.length===2&&_programs[1].name==="My plan"', sandbox));
+  vm.runInContext('progOverlayBack()', sandbox);
+  const w = JSON.parse(vm.runInContext('JSON.stringify(_progWiz)', sandbox));
+  check('Back on the unsaved program: the wizard is back at its last step with every answer', w && w.step === 3 && w.muscles.join() === 'chest,lats' && w.nDays === 4 && w.setsPerMuscle === 14 && w.injuries.join() === 'knees' && w.name === 'My plan' && w.pullups === 'yes', JSON.stringify(w));
+  check('…and the unsaved program is gone, the saved one kept', vm.runInContext('_programs.length===1&&_programs[0].name==="Mine"&&_progIsNew===false', sandbox));
+  vm.runInContext('progOverlayBack()', sandbox);
+  check('Back again: one step back (sets and days), answers kept', vm.runInContext('_progWiz.step===2&&_progWiz.muscles.length===2', sandbox));
+  vm.runInContext('progOverlayBack()', sandbox);
+  check('Back again: the picked muscles, still marked, ready to change', vm.runInContext('_progWiz.step==="muscles"&&_progWiz.muscles.join()==="chest,lats"', sandbox));
+  vm.runInContext("_progWiz.muscles=['chest','glutes'];_progWiz.step=3;_progWizGenerate()", sandbox);
+  check('…change them and Generate again: one new program, with the new muscles', vm.runInContext('_programs.length===2&&JSON.stringify(_programs[1].muscles)===\'["chest","glutes"]\'', sandbox));
+  vm.runInContext('_saveProgEdit()', sandbox);
+  check('After Save, the wizard is forgotten: Back only closes', vm.runInContext('_progWizLast===null', sandbox));
+  vm.runInContext("_progWiz={step:'mode',goal:'hypertrophy',muscles:[],homeItems:[]};progOverlayBack()", sandbox);
+  check('In the wizard the header ‹ goes one step back, not out', vm.runInContext('_progWiz&&_progWiz.step===0', sandbox));
+  check('The header ‹ is Back, not Close', html.includes('<button class="wiz-back" onclick="progOverlayBack()"'));
+  vm.runInContext("_progWiz=null;_progIsNew=false;_progEditIdx=-1;_progEditBuf=null;_renderProgOverlay=__bk.r;buildProgramSettingsCard=__bk.b;savePrograms=__bk.s;_programs=__bk.p;_activeProgramIndex=__bk.a;", sandbox);
+}
