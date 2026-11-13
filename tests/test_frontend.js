@@ -9433,6 +9433,23 @@ console.log('\n── Exercise search ──────────────
   check('choosing sets the select and fires change', picked && picked[0] === 'Squat' && picked[1] === 'change');
 }
 
+// ── Progress charts: "All" starts at the first session (Henrik, 2026-11-13) ──
+// "Progress tab volume all time looks broken": All is a 36500-day window, so the axis began in 1926, every
+// session sat on its right edge and the day-month labels read 8 Dec … 13 Nov.
+console.log('\n── Progress chart axis ────────────────────────────────────');
+{
+  const today = new Date().toISOString().split('T')[0];
+  const d = (n) => { const x = new Date(); x.setDate(x.getDate() - n); return x.toISOString().split('T')[0]; };
+  const all = G._chartXDomain(36500, [[{ date: d(200) }, { date: d(10) }], [{ date: d(400) }]]);
+  check('All starts at the first session drawn, not 100 years back', all.minDate === d(400) && all.maxDate === today, JSON.stringify(all));
+  const w30 = G._chartXDomain(30, [[{ date: d(400) }, { date: d(5) }]]);
+  check('a 30-day window still starts 30 days back', w30.minDate === d(30));
+  check('no sessions keeps the window', G._chartXDomain(90, [[], []]).minDate === d(90));
+  check('a long span shows the year on its labels', /\d{2}$/.test(G._chartDateLbl(Date.UTC(2025, 10, 13), 400 * 86400000)));
+  check('a short span shows day and month', /^\d{1,2} \w{3}$/.test(G._chartDateLbl(Date.UTC(2026, 10, 13), 30 * 86400000)));
+  check('volume, strength and exercise charts all use it', (rawScript.match(/[^ ]_chartXDomain\(days,[^l]/g) || []).length === 3);
+}
+
 const _summary = () => {
   if (_summarised) return; _summarised = true;
   console.log(`  ${passed} passed  ${failed} failed  ${passed + failed} total`);
