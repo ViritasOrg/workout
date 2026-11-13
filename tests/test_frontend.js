@@ -232,14 +232,14 @@ check('100kg 10-10-10 = 3000',       G.calcVolume('Deadlift 100kg 10-10-10') ===
 check('no kg → null',                 G.calcVolume('Pull-ups max-max-max') === null);
 check('two exercises sum correctly', G.calcVolume('Squat 80kg 5-5\nBench 60kg 8-8') === 80 * 10 + 60 * 16);
 
-// ── 9. DAY_TEMPLATES ─────────────────────────────────────────────────────────
-console.log('\n── DAY_TEMPLATES ──────────────────────────────────────────');
-check('DAY_TEMPLATES defined',       typeof G.DAY_TEMPLATES === 'object');
-check('6 training days',             [1, 2, 3, 4, 5, 6].every(d => Array.isArray(G.DAY_TEMPLATES?.[d])));
-check('each day non-empty',          [1, 2, 3, 4, 5, 6].every(d => (G.DAY_TEMPLATES[d]?.length || 0) > 0));
-check('all exercises have name+kg',  Object.values(G.DAY_TEMPLATES || {}).flat().every(e => e.name && e.kg !== undefined));
-check('day 1 has Squat',             G.DAY_TEMPLATES?.[1]?.some(e => e.name === 'Squat'));
-check('day 4 has Deadlift',          G.DAY_TEMPLATES?.[4]?.some(e => e.name === 'Deadlift'));
+// ── 9. Henrik's old 5-day split is gone (2026-11-13) ─────────────────────────
+// Henrik: "Wife gets my old 5-day split in her workout account? Delete that from the code base asap".
+// DAYS/DAY_TEMPLATES held his own split with his weights (Squat 120 kg) and _seedDefaultProgram
+// handed it to any account that deleted its last program.
+console.log('\n── no built-in 5-day split ────────────────────────────────');
+check('DAY_TEMPLATES is gone',       typeof G.DAY_TEMPLATES === 'undefined');
+check('DAYS split is gone',          typeof G.DAYS === 'undefined');
+check('_seedDefaultProgram is gone', typeof G._seedDefaultProgram === 'undefined');
 
 // ── 10. THEMES ────────────────────────────────────────────────────────────────
 console.log('\n── THEMES ─────────────────────────────────────────────────');
@@ -485,10 +485,34 @@ try {
 } catch(e) {
   check('initPrograms does not throw with empty localStorage', false, e.message);
 }
-check('initPrograms seeds at least one program', Array.isArray(G._programs) && G._programs.length >= 1);
-check('seeded program has name',     typeof G._programs[0]?.name === 'string' && G._programs[0].name.length > 0);
-check('seeded program has days',     Array.isArray(G._programs[0]?.days) && G._programs[0].days.length > 0);
+// No program is seeded any more: the old starter carried Henrik's own weights (2026-11-13).
+check('initPrograms seeds no program for a new account', Array.isArray(G._programs) && G._programs.length === 0,
+  JSON.stringify((G._programs || []).map(p => p.name)));
 check('_activeProgramIndex is 0 after init', G._activeProgramIndex === 0);
+check('no seeded program function is left', typeof G._seedHypertrophyProgram === 'undefined');
+const _loadBad = (() => {
+  const combos = [['strength','pure',4],['strength','hybrid',5],['hypertrophy','balanced',6],['hypertrophy','upper',6],
+    ['hypertrophy','lower',5],['aesthetic','fullbody',3],['aesthetic','bootylicious',5],['rehab','shoulder',6],['rehab','knee',6]];
+  const bad = [];
+  combos.forEach(([g, sb, n]) => { const p = G._generateWorkoutProgram(g, sb, n, 'X', 12, ['shoulders']);
+    p.days.forEach(d => d.exercises.forEach(e => { if (e.kg) bad.push(g + '-' + sb + ' ' + e.name + ' ' + e.kg); })); });
+  return bad;
+})(); check('no generated program carries a load (every kg starts unset)', _loadBad.length === 0, _loadBad.slice(0, 6).join(' | '));
+
+// A neutral 6-day test program (no weights) for the tests below that need one active.
+function _useFixtureSixDay() {
+  const ex = (n) => ({ name: n, scheme: '3×8-12', tag: 'volume', sets: '8-8-8', kg: 0 });
+  const day = (n, exs) => ({ name: n, warmup: false, exercises: exs.map(ex) });
+  sandbox.localStorage.setItem('workout_programs', JSON.stringify({ active_index: 0, programs: [
+    { name: 'Test 6-day', goal: 'hypertrophy', days: [
+      day('Day 1 — Push A', ['Bench Press', 'Lateral Raise']),
+      day('Day 2 — Pull A', ['Pull-ups', 'Barbell Row']),
+      day('Day 3 — Legs A', ['Squat', 'Leg Curl']),
+      day('Day 4 — Push B', ['Incline Bench Press', 'Tricep Pushdown']),
+      day('Day 5 — Pull B', ['Weighted Pull-ups', 'Cable Row']),
+      day('Day 6 — Legs B', ['Romanian Deadlift', 'Leg Press'])] }] }));
+  G.initPrograms();
+}
 
 // Load with saved programs
 const fakePrograms = [
@@ -501,8 +525,7 @@ check('initPrograms loads saved programs from localStorage',
   `programs: ${G._programs.map(p => p.name).join(', ')}`);
 
 // Restore
-sandbox.localStorage.removeItem('workout_programs');
-G.initPrograms();
+_useFixtureSixDay();
 
 // ── 19. buildSessionGroupVol / buildSessionGroupStrength ──────────────────────
 console.log('\n── buildSessionGroupVol / buildSessionGroupStrength ────────');
@@ -1019,8 +1042,7 @@ check('_selectedProgramDay defined', G._selectedProgramDay !== undefined);
 check('rebuildDayGrid defined', typeof G.rebuildDayGrid === 'function');
 
 // Ensure 6-day program is active
-sandbox.localStorage.removeItem('workout_programs');
-G.initPrograms();
+_useFixtureSixDay();
 const _prog6 = G.getActiveProgram();
 check('active program has 6 days after initPrograms', _prog6 && _prog6.days.length === 6,
   `got ${_prog6 && _prog6.days.length} days`);
@@ -1072,16 +1094,14 @@ sandbox.localStorage.removeItem('wkt-draft');
 
 // Restore
 G.logs = _savedLogs23;
-sandbox.localStorage.removeItem('workout_programs');
-G.initPrograms();
+_useFixtureSixDay();
 
 // ── 23. getDayLabel ───────────────────────────────────────────────────────────
 console.log('\n── getDayLabel ────────────────────────────────────────────');
 check('getDayLabel defined', typeof G.getDayLabel === 'function');
 
 // Ensure 6-day hypertrophy program is active
-sandbox.localStorage.removeItem('workout_programs');
-G.initPrograms();
+_useFixtureSixDay();
 
 // 6-Day Hypertrophy — Upper day names: 'Day N — <Focus>'
 // getDayLabel extracts the part after '—'
@@ -2895,9 +2915,7 @@ console.log('\n── No standalone Arms day in program pools ──────
   check('no "Shoulders & Arms" day in any pool definition',
     !src.includes("'Day 4 — Shoulders & Arms'"));
 
-  // Seed program Day 6 must now be Legs B, not Arms & Delts
-  check('_seedHypertrophyProgram Day 6 is "Legs B" (not Arms & Delts)',
-    src.includes("'Day 6 — Legs B'") && !src.includes("'Day 6 — Arms & Delts'"));
+  check('no "Arms & Delts" day in any pool definition', !src.includes("'Day 6 — Arms & Delts'"));
 
   // hypertrophy-upper 6-day pool: Pull B must be followed by Legs B (not Arms)
   // Verify the pool ends with Pull B then Legs B, no arm day in between
@@ -3258,6 +3276,16 @@ console.log('\n── 5-Day Split deletion sticks ──────────
   check('deleted 5-Day Split is NOT recreated', !G._programs.some(p => p.name === '5-Day Split'),
     JSON.stringify(G._programs.map(p => p.name)));
   check('no _seedDefaultProgram call left in _ensurePrograms', !rawScript.includes('_programs.push(_seedDefaultProgram())'));
+  // Deleting the last program used to hand the account Henrik's own 5-day split (2026-11-13).
+  G._programs = [{ name: 'Only one', goal: 'hypertrophy', days: [{ name: 'Day 1 — A', warmup: false, exercises: [] }] }];
+  G._activeProgramIndex = 0; G._progEditIdx = 0;
+  const _cgd = G.confirmGlobalDelete; G.confirmGlobalDelete = () => true;
+  let _delErr = '';
+  try { G._deleteProg(); } catch (e) { _delErr = e.message; }
+  G.confirmGlobalDelete = _cgd;
+  check('deleting the last program leaves no program, never a seeded split',
+    !_delErr && G._programs.length === 0, _delErr || JSON.stringify(G._programs.map(p => p.name)));
+  check('  …and the app still runs with no program', (() => { try { G.rebuildDayGrid(); G.rebuildLogDaySelect(); G.renderWorkout(1); G.prefillLog(1); return true; } catch (e) { return e.message; } })() === true);
   if (savedPrograms === null) G.localStorage.removeItem('workout_programs');
   else G.localStorage.setItem('workout_programs', savedPrograms);
   G.initPrograms();
@@ -3372,10 +3400,6 @@ check('hypertrophy 5-day generator does NOT include the fly', _flyDays(_gbal5) =
 // Reverted: never edits existing programs, and not scattered into seeds
 check('_ensurePrograms does NOT add the fly to existing programs',
   !/Low-to-high Cable Fly/.test(G._ensurePrograms.toString()));
-check('hypertrophy seed does NOT contain the fly',
-  !G._seedHypertrophyProgram().days.some(d => d.exercises.some(e => e.name === 'Low-to-high Cable Fly')));
-check('5-Day Split seed Day 3 does NOT contain the fly',
-  !G.DAYS[3].exercises.some(e => e.name === 'Low-to-high Cable Fly'));
 
 // ── Workout duration (start on first set, end on save) ────────────────────────
 console.log('\n── Workout duration ───────────────────────────────────────');
@@ -4066,18 +4090,6 @@ if (typeof G._isPullDay === 'function') {
   check('_isPullDay("Day 3 — Lower Pull") → false',       !G._isPullDay('Day 3 — Lower Pull'));
   check('_isPullDay("Day 2 — Full Body B") → false',      !G._isPullDay('Day 2 — Full Body B'));
 }
-// Seed program: Pull A opens with Pull-ups
-if (typeof G._seedHypertrophyProgram === 'function') {
-  const _seed = G._seedHypertrophyProgram();
-  const _pullDays = (_seed.days || []).filter(d => typeof G._isPullDay === 'function' && G._isPullDay(d.name));
-  check('Seed program has pull days', _pullDays.length > 0);
-  const _seedBad = _pullDays.filter(d => {
-    const i = (d.exercises || []).findIndex(e => G.isPullUpEx(e.name));
-    return i > 0;
-  });
-  check('Seeded pull days open with a pull-up variant',
-    _seedBad.length === 0, _seedBad.map(d => d.name + ': ' + d.exercises[0].name).join(' | '));
-}
 // Generator: no exercise may precede a pull-up variant on a pull day, across the catalogue
 if (typeof G._generateWorkoutProgram === 'function') {
   const _combos = [['strength','pure'],['strength','hybrid'],['hypertrophy','balanced'],
@@ -4152,7 +4164,7 @@ if (typeof G._swapResetWeights === 'function') {
 {
   const _swapFn = String(G.swapExercise || '');
   check('swapExercise clears the weights on swap',
-    _swapFn.includes('_swapResetWeights(card,this.value)'));
+    _swapFn.includes('_swapResetWeights(card,_new)'));
   check('…before _refreshCardGearBtns re-fills body weight for a bodyweight target',
     _swapFn.indexOf('_swapResetWeights') < _swapFn.indexOf('_refreshCardGearBtns'));
 }
@@ -5153,17 +5165,8 @@ console.log(`\n${'─'.repeat(59)}`);
 // already fixed this way on 2026-07-10 ("deleting it must stick"); the 6-Day was not.
 {
   const src = rawScript;
-  check('the re-seed is gated on a deletion signal', /!hasHyp&&!_hypDeleted/.test(src));
-  check('the signal is read from storage', /localStorage\.getItem\('wkt-hyp-deleted'\)==='1'/.test(src));
-  // Recorded by the DELETE, not inferred from an empty list — emptiness cannot tell
-  // "never had programs" from "deleted them all".
-  check('the delete path records the intent',
-    /name==='6-Day Hypertrophy — Upper'\)\{try\{localStorage\.setItem\('wkt-hyp-deleted','1'\)/.test(src));
-  check('both delete call sites record it',
-    (src.match(/localStorage\.setItem\('wkt-hyp-deleted','1'\)/g) || []).length === 2);
-  check('a fresh install still gets the seed (no signal set)',
-    !/localStorage\.getItem\('wkt-hyp-deleted'\)==='1'\)\s*\{[\s\S]{0,40}unshift/.test(src));
-  check('_seedHypertrophyProgram still exists', typeof G._seedHypertrophyProgram === 'function');
+  // Since 2026-11-13 nothing is seeded at all, so deleting every program sticks by construction.
+  check('nothing re-seeds a program on load', !/unshift\(_seed/.test(src) && !/_seedHypertrophyProgram/.test(src));
 }
 
 
@@ -5544,7 +5547,7 @@ console.log('\n── Swap keeps completed sets / blank-exercise save guard ─�
     check('swapExercise persists the draft after a set-preserving swap',
       fn.includes('scheduleDraft()'));
     check('swapExercise still renames in place when nothing was completed yet',
-      fn.includes('card.dataset.swappedName=this.value'));
+      fn.includes('card.dataset.swappedName=_new'));
   }
   {
     const fn = String(G._addSwapCardAfter || '');
@@ -5699,7 +5702,7 @@ console.log('\n── Prefill from last logged set / draft card position ──�
   {
     const fn = String(G.swapExercise || '');
     check('a rename-in-place swap prefills the new exercise too',
-      fn.includes('_prefillKgFromHistory(card,this.value)'));
+      fn.includes('_prefillKgFromHistory(card,_new)'));
     check('…still after the old load is cleared, never before',
       fn.indexOf('_swapResetWeights') < fn.indexOf('_prefillKgFromHistory'));
   }
@@ -5954,7 +5957,7 @@ console.log('\n── Swap → save the substitution to the program ────
   {
     const fn = String(G.swapExercise || '');
     check('swapExercise offers the program change after a rename-in-place swap',
-      fn.includes('_offerProgramSubstitution(card,this.value)'));
+      fn.includes('_offerProgramSubstitution(card,_new)'));
     check('…and never on the branch that kept completed sets',
       fn.indexOf('_addSwapCardAfter') < fn.indexOf('_offerProgramSubstitution') &&
       /_addSwapCardAfter\([^)]*\);scheduleDraft\(\);return;/.test(fn));
@@ -7462,15 +7465,6 @@ console.log('\n── kg:0 is not a bodyweight signal ────────�
   check('saveLog’s no-card fallback decides the same way',
     saveSrc.includes("_bwCard=_exCard?_exCard.dataset.bw==='1':(isBWExName(ex.name)&&!_isWPU)"));
 
-  // Nothing genuinely bodyweight loses its handling: every kg:0 exercise in the shipped
-  // day templates is recognised by name, which is why dropping the kg test is safe.
-  const tplBw = [];
-  Object.keys(G.DAY_TEMPLATES || {}).forEach(d => (G.DAY_TEMPLATES[d] || [])
-    .forEach(ex => { if (ex.kg === 0) tplBw.push(ex.name); }));
-  check('every kg:0 exercise in DAY_TEMPLATES is name-matched by isBWExName',
-    tplBw.length > 0 && tplBw.every(n => G.isBWExName(n)),
-    tplBw.filter(n => !G.isBWExName(n)).join(', '));
-
   // …and the kg:0 that means "not set yet" is not mistaken for bodyweight.
   check('an exercise added in the program editor is not bodyweight',
     String(G._progAddEx || '').includes('kg:0') &&
@@ -8104,22 +8098,14 @@ console.log('\n── Edit opens the session that was logged ──────�
   check('editLog rebuilds from the active program day',
     fn.includes('getActiveProgramDay(log.day)') &&
     fn.includes('_applyRehabSubs(_edDay.exercises,getActiveProgram())'));
-  check('…with the built-in split only as the fallback for a pre-programs log',
-    /_edDay\?.*:\(DAY_TEMPLATES\[log\.day\]\|\|\[\]\)/.test(fn));
+  check('…and no built-in split to fall back on (Henrik\'s old split is gone, 2026-11-13)',
+    fn.includes('_edDay?_applyRehabSubs(_edDay.exercises,getActiveProgram()):[]') && !fn.includes('DAY_TEMPLATES'));
   check('…the same source prefillLog rendered the cards from',
     String(G.prefillLog || '').includes('_applyRehabSubs(_di.exercises,getActiveProgram())'));
   check('a custom card grows to hold every logged set (4-set exercises kept all 4)',
     fn.includes("while(card.querySelectorAll('input[data-type=\"reps\"]').length<ex.sets.length)addSetToCard(card)") &&
     !/ex\.sets\.forEach\(function\(s,i\)\{if\(i<3\)/.test(fn));
 
-  // His real day-1 names vs the built-in day 1 — the overlap is what editLog used to need.
-  const his = ['Chest Machine Press', 'Incline DB Press', 'Landmine Press',
-               'Cable Fly', 'Tricep Pushdown', 'Lateral Raise'];
-  const builtin = (G.DAY_TEMPLATES[1] || []).map(e => e.name);
-  check('the bug was real: his logged day 1 shares no exercise with DAY_TEMPLATES[1]',
-    his.every(n => builtin.indexOf(n) < 0), builtin.join(', '));
-  check('…and a 7-day program has no DAY_TEMPLATES entry at all to fall back on',
-    !G.DAY_TEMPLATES[7]);
 }
 
 // ── Section 102: "Are you done?" before a workout is written ────────────────
@@ -9393,6 +9379,58 @@ console.log('\n── Water ─────────────────�
   }
   check('  …and the weight, water-target and macro-target requests all use a time limit',
     /_wlFetchWithin\(AGENT_URL\+'\/weights'/.test(_src) && /_wlFetchWithin\(AGENT_URL\+'\/water-log\/target\?'/.test(_src) && /_wkFetchWithin\(AGENT_URL\+'\/macro-targets\?'/.test(_src));
+}
+
+// ── Exercise search (Henrik, 2026-11-13) ─────────────────────────────────────
+// "needs a search field on top, so you can start writing L a n (and the list resorts into only exerciese
+// starting with L then La then Lan", then "search for Legs or Arms should show exercises for legs or arms".
+console.log('\n── Exercise search ────────────────────────────────────────');
+{
+  const groups = [
+    { label: 'Legs', names: ['Leg Press', 'Lunges', 'Squat', 'Leg Curl'] },
+    { label: 'Back', names: ['Lat Pulldown', 'Barbell Row', 'Landmine Row'] },
+    { label: 'Arms', names: ['Bicep Curl', 'Tricep Pushdown'] },
+  ];
+  const names = r => r.flatMap(g => g.names);
+  check('empty search lists every group', names(G._exPickFilter(groups, '')).length === 9);
+  check('L puts the names starting with L first, sorted',
+    JSON.stringify(names(G._exPickFilter(groups, 'L')).slice(0, 5)) === JSON.stringify(['Landmine Row', 'Lat Pulldown', 'Leg Curl', 'Leg Press', 'Lunges']));
+  check('La narrows to La…', JSON.stringify(names(G._exPickFilter(groups, 'la')).slice(0, 2)) === JSON.stringify(['Landmine Row', 'Lat Pulldown']));
+  check('Lan narrows to Lan…', JSON.stringify(names(G._exPickFilter(groups, 'Lan'))) === JSON.stringify(['Landmine Row']));
+  // Henrik, 2026-11-13, on "row" finding nothing: "search has to be less retarded than this".
+  check('a word inside the name matches (row → Barbell Row, Landmine Row)',
+    JSON.stringify(names(G._exPickFilter(groups, 'row'))) === JSON.stringify(['Barbell Row', 'Landmine Row']));
+  check('words in any order (row bar → Barbell Row)', names(G._exPickFilter(groups, 'row bar'))[0] === 'Barbell Row');
+  check('a typo still finds it (pulldwn → Lat Pulldown)', names(G._exPickFilter(groups, 'pulldwn')).includes('Lat Pulldown'));
+  check('a typo still finds it (barbel → Barbell Row)', names(G._exPickFilter(groups, 'barbel'))[0] === 'Barbell Row');
+  check('text inside a word matches (ush → Tricep Pushdown)', names(G._exPickFilter(groups, 'ush')).includes('Tricep Pushdown'));
+  check('nothing unrelated comes back (xyz)', names(G._exPickFilter(groups, 'xyz')).length === 0);
+  const arms = G._exPickFilter(groups, 'Arms');
+  check('Arms lists the arm exercises', JSON.stringify(names(arms)) === JSON.stringify(['Bicep Curl', 'Tricep Pushdown']) && arms[0].label === 'Arms');
+  const legs = G._exPickFilter(groups, 'leg');
+  check('Leg lists the names starting with Leg first and the rest of Legs too',
+    JSON.stringify(names(legs).slice(0, 2)) === JSON.stringify(['Leg Curl', 'Leg Press']) && ['Lunges', 'Squat'].every(n => names(legs).includes(n)));
+  check('one or two letters never pull in a whole group', !G._exPickFilter(groups, 'ar').some(g => g.label === 'Arms'));
+  check('the program editor\'s "✦ Legs — same muscle" group still matches Legs',
+    names(G._exPickFilter([{ label: '✦ Legs — same muscle', names: ['Squat'] }], 'legs')).includes('Squat'));
+  check('nothing found says so', /No exercise matches that/.test(G._exPickListHtml([], '')));
+  const html = G._exPickListHtml(G._exPickFilter(groups, 'lat'), '');
+  check('each result is a button that picks it', /data-ex-pick="Lat Pulldown"/.test(html) && /_exPickChoose\(this\.dataset\.exPick\)/.test(html));
+  check('the log\'s added exercise and the program editor use the search', /_exPickWrap\('<select data-custom-name="1"/.test(rawScript) && /return _exPickWrap\('<select onchange="_progEditBuf/.test(rawScript));
+  check('swapping an exercise opens the search, not a bare dropdown', /function swapExercise\(btn\)\{[^}]*_openExPicker\(/.test(rawScript));
+  // A pick reaches the select and fires its change handler.
+  let picked = null;
+  const opts = [{ tagName: 'OPTION', value: 'Squat' }];
+  const sel = { value: '', options: opts, children: [{ tagName: 'OPTGROUP', label: 'Legs', children: opts }],
+    appendChild(o) { opts.push(o); }, dispatchEvent(e) { picked = [this.value, e.type]; return true; } };
+  const _open = G._openExPicker; let grp = null, cb = null;
+  G._openExPicker = (g, c, f) => { grp = g; cb = f; };
+  if (!G.Event) G.Event = function (t, o) { this.type = t; this.bubbles = !!(o && o.bubbles); };
+  G._pickExFor({ previousElementSibling: sel });
+  G._openExPicker = _open;
+  check('the picker offers the select\'s own options', grp && grp[0].label === 'Legs' && grp[0].names[0] === 'Squat');
+  cb && cb('Squat');
+  check('choosing sets the select and fires change', picked && picked[0] === 'Squat' && picked[1] === 'change');
 }
 
 const _summary = () => {
