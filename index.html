@@ -550,6 +550,12 @@
     </div>
   </div>
 </div>
+<div class="modal-overlay" id="progRegenModal" style="z-index:520">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">REGENERATION COMPLETED</div><button class="modal-close" onclick="regenDiscard()">×</button></div>
+    <div class="modal-body" id="progRegenBody" style="padding:16px"></div>
+  </div>
+</div>
 <div class="modal-overlay" id="homeWeightsModal" style="z-index:510">
   <div class="modal">
     <div class="modal-header"><div class="modal-title" id="homeWeightsTitle">WEIGHTS</div><button class="modal-close" onclick="homeWeightsClose()">×</button></div>
@@ -604,7 +610,7 @@
 const VERSION='1.275';
 // BUILD_NO counts staging builds and is never rewritten by Push to Prod (which resets VERSION to
 // prod's own counter). The What's new card is keyed to it, so its rows show in both apps (2026-11-01).
-const BUILD_NO='1.390';
+const BUILD_NO='1.392';
 const IS_STAGING=(window.location.pathname||'').startsWith('/workout-staging');
 // Backend data namespace, sent as X-App-Id on every call. Staging gets its own so
 // testing here cannot write over production data — before 2026-08-01 both sent no
@@ -1894,6 +1900,54 @@ function saveHomeEquip(){var idx=_heq.idx,p=_programs[idx];if(!p)return;_saveHom
     var np=_generateWorkoutProgram(g.goal,g.sub,g.nDays,p.name,g.setsPerMuscle,g.injuries,_homeEquipId(_heq.items),g.muscles,{noPullUps:!!g.noPullUps});np.touchedAt=_nowStamp();
     _programs[idx]=np;savePrograms();buildProgramSettingsCard();if(idx===_activeProgramIndex&&typeof renderWorkout==='function')renderWorkout(_selectedProgramDay);}
   closeModal('homeEquipModal');_renderProgOverlay();}
+// ── Regenerate program (Henrik, 2026-11-14: "can we have a regenerate program button, instead of having to delete and
+// then recreate program to get the Home gym weights or other updates to the generation of programs?"). Builds the
+// program again in the same slot, with the same name, from the answers it was generated with (gen) and the user's
+// equipment as it is now: a Home program uses the Home list, every other program the Gym list. A program generated before
+// gen was recorded is regenerated from what it still carries: its goal, its day count, the focus in its generated name
+// ("6-Day Hypertrophy — Upper") or its picked muscles, its sets per muscle and injuries. A program none of that fits
+// (built by hand, renamed) shows no button. Hand edits are replaced, so it asks first.
+function _progRegenSpec(p){if(!p||!(p.days||[]).length)return null;var home=_isHomeEquip(p.equipment);
+  var equip=home?_homeEquipId(getData('wkt-home-equip',[])||[]):_gymEquipId(_gymItems());
+  if(p.gen&&p.gen.goal)return{goal:p.gen.goal,sub:p.gen.sub||null,nDays:p.gen.nDays||p.days.length,setsPerMuscle:p.gen.setsPerMuscle||12,injuries:(p.gen.injuries||[]).slice(),muscles:p.gen.muscles||undefined,noPullUps:!!p.gen.noPullUps,equip:equip};
+  if(!p.goal)return null;var tail=String(p.name||'').split(' — ').pop(),sub=null;
+  Object.keys(PROG_SUB_LABELS).forEach(function(k){if(PROG_SUB_LABELS[k]===tail&&String(p.name).indexOf(' — ')>0)sub=k;});
+  var muscles=(p.muscles||[]).length?p.muscles.slice():undefined;if(!sub&&!muscles)return null;
+  return{goal:p.goal,sub:sub,nDays:p.days.length,setsPerMuscle:p.setsPerMuscle||12,injuries:(p.injuries||[]).slice(),muscles:muscles,noPullUps:!!p.noPullUps,equip:equip};}
+function _progRegenBtnHtml(prog,progIdx){if(!_progRegenSpec(prog))return'';
+  return '<div data-prog-regen="1" style="border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:18px;">'
+    +'<div style="font-size:15px;color:var(--text);line-height:1.5;margin-bottom:10px;">Build this program again with the latest program generator and your current '+(_isHomeEquip(prog.equipment)?'Home':'Gym')+' equipment. Changes you made by hand are replaced.</div>'
+    +'<button class="btn btn-primary" onclick="regenerateProgram('+progIdx+')" style="width:100%;">Regenerate program</button></div>';}
+function regenerateProgram(idx){var p=_programs[idx],g=_progRegenSpec(p);if(!g)return;
+  var np=_generateWorkoutProgram(g.goal,g.sub,g.nDays,p.name,g.setsPerMuscle,g.injuries,g.equip,g.muscles,{noPullUps:g.noPullUps});
+  _regen={idx:idx,old:p,np:np};var b=document.getElementById('progRegenBody');if(b)b.innerHTML=_progRegenResultHtml(p,np);openModal('progRegenModal');}
+// The result is shown before anything is replaced (Henrik, 2026-11-14: "I want an overlay saying regeneration completed,
+// show updates and then give user a Save or discard choice"): each day's exercises added, removed and with a new
+// prescription; Save puts the new program in the same slot, Discard leaves the program as it was. No dialog before it
+// (Henrik, 2026-11-14, of the confirm that came first: "I did not get a confirm question at all?"): Discard is the way out.
+var _regen=null;
+function _progRegenDiff(op,np){var out=[],n=Math.max((op.days||[]).length,(np.days||[]).length);
+  for(var i=0;i<n;i++){var od=(op.days||[])[i],nd=(np.days||[])[i],oe=od?od.exercises||[]:[],ne=nd?nd.exercises||[]:[];
+    var on=oe.map(function(e){return e.name;}),nn=ne.map(function(e){return e.name;});
+    var d={day:i+1,name:(nd||od).name||('Day '+(i+1)),gone:!nd,added:nn.filter(function(x){return on.indexOf(x)<0;}),removed:on.filter(function(x){return nn.indexOf(x)<0;}),changed:[]};
+    ne.forEach(function(e){var o=oe.filter(function(x){return x.name===e.name;})[0];var a=o&&(o.scheme||o.sets),b=e.scheme||e.sets;if(o&&a!==b)d.changed.push({name:e.name,from:a,to:b});});
+    if(d.gone||!od||d.added.length||d.removed.length||d.changed.length)out.push(d);}
+  return out;}
+function _progRegenResultHtml(op,np){var diff=_progRegenDiff(op,np),T='font-size:15px;color:var(--text);line-height:1.5;';
+  var h='<div style="'+T+'margin-bottom:12px;">"'+_escP(op.name)+'" was built again with the latest program generator and your current equipment. Save to use it, or Discard to keep the program as it was. Saving replaces changes you made to it by hand.</div>';
+  if(!diff.length)h+='<div data-regen-same="1" style="'+T+'font-weight:700;margin-bottom:12px;">No changes: the program is already up to date.</div>';
+  else{h+='<div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:8px;">What changes</div>';
+    diff.forEach(function(d){h+='<div data-regen-day="'+d.day+'" style="border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;'+T+'"><div style="font-weight:700;margin-bottom:4px;">'+(/^Day \d/.test(d.name)?'':'Day '+d.day+': ')+_escP(d.name)+(d.gone?' (removed)':'')+'</div>';
+      if(!d.gone){d.added.forEach(function(x){h+='<div data-regen-add="1">+ '+_escP(x)+'</div>';});
+        d.removed.forEach(function(x){h+='<div data-regen-del="1">− '+_escP(x)+'</div>';});
+        d.changed.forEach(function(c){h+='<div data-regen-chg="1">'+_escP(c.name)+': '+_escP(c.from)+' → '+_escP(c.to)+'</div>';});}
+      h+='</div>';});}
+  return h+'<div style="display:flex;gap:10px;margin-top:14px;"><button data-regen-discard="1" onclick="regenDiscard()" style="flex:1;padding:14px;border-radius:10px;border:1px solid var(--border-strong);background:var(--surface2);color:var(--text);font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">Discard</button>'
+    +'<button data-regen-save="1" class="btn btn-primary" onclick="regenSave()" style="flex:1;">Save</button></div>';}
+function regenSave(){var r=_regen;_regen=null;closeModal('progRegenModal');if(!r||_programs[r.idx]!==r.old)return;
+  r.np.touchedAt=_nowStamp();_programs[r.idx]=r.np;savePrograms();buildProgramSettingsCard();
+  if(r.idx===_activeProgramIndex&&typeof renderWorkout==='function')renderWorkout(_selectedProgramDay);_renderProgOverlay();}
+function regenDiscard(){_regen=null;closeModal('progRegenModal');}
 function _progViewHtml(prog,isActive,progIdx){
   var html='';
   if(isActive)html+='<div style="margin-bottom:14px;"><span style="background:var(--accent);color:#000;padding:3px 12px;border-radius:4px;font-size:11px;font-weight:700;text-transform:uppercase;">ACTIVE</span></div>';
@@ -1909,6 +1963,7 @@ function _progViewHtml(prog,isActive,progIdx){
       '</div>';
   }
   if(_isHomeEquip(prog.equipment))html+=_progEquipBlockHtml(prog,progIdx);
+  html+=_progRegenBtnHtml(prog,progIdx);
   prog.days.forEach(function(day,i){
     html+='<div style="margin-bottom:16px;">';
     html+='<div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:4px;">Day '+(i+1)+(day.warmup?' \ud83d\udd25':'')+'</div>';
@@ -2267,10 +2322,11 @@ function rebuildEquipPrograms(kind){var stale=_equipStale(kind);if(!stale.length
 function _exCatalogueFor(prog){var cat=_exCatalogue(),home=_homeItemsOf(prog&&prog.equipment);
   if(home!==null)return cat.filter(function(n){return _canDoAtHome(n,home);});var g=_gymItems();return cat.filter(function(n){return _canDoAtGym(n,g);});}
 function _progWizToggleInjury(id){var a=_progWiz.injuries||(_progWiz.injuries=[]);var i=a.indexOf(id);if(i>=0)a.splice(i,1);else a.push(id);_renderProgOverlay();}
+var PROG_SUB_LABELS={pure:'Pure',hybrid:'Hybrid',balanced:'Balanced',upper:'Upper',lower:'Lower',fullbody:'Full Body',upperlower:'Upper/Lower',bootylicious:'Bootylicious',shoulder:'Shoulder',back:'Back',knee:'Knee'};
 function _progWizDefaultName(){
   if(!_progWiz)return'New Program';
   var n={strength:'Strength',hypertrophy:'Hypertrophy',aesthetic:'Feminine Aesthetic',rehab:'Rehab'}[_progWiz.goal]||'';
-  var s={pure:'Pure',hybrid:'Hybrid',balanced:'Balanced',upper:'Upper',lower:'Lower',fullbody:'Full Body',upperlower:'Upper/Lower',bootylicious:'Bootylicious',shoulder:'Shoulder',back:'Back',knee:'Knee'}[_progWiz.sub]||'';
+  var s=PROG_SUB_LABELS[_progWiz.sub]||'';
   if(n&&s&&_progWiz.nDays)return _progWiz.nDays+'-Day '+n+' — '+s;
   if(n&&_progWiz.nDays)return _progWiz.nDays+'-Day '+n;
   if(n&&s)return n+' — '+s;
@@ -4732,6 +4788,7 @@ function obSkip(){if(_obTourOnly){_obCloseTour();return;}obFinish();}
 // onboarded account means the card never existed for it yet: it gets the whole list.
 // Add a row here when a feature ships that a user would not find on their own.
 var WHATS_NEW=[
+  {v:'1.391',title:'Regenerate program',text:'Open a program from Plan and tap Regenerate program: it is built again with the latest program generator and your current Gym or Home equipment, keeping its name. You see what changes and choose Save or Discard.'},
   {v:'1.388',title:'Home programs use your weights',text:'On a Home program, the weight suggested on Today and in Log Workout is the nearest one you have, from the weights picked in Plan → Home equipment.'},
   {v:'1.387',title:'Home weights',text:'Plan → Home equipment: tick Kettlebell, Dumbbells or Barbell + rack and pick the weights you have, or type any other weight and tap Add.'},
   {v:'1.376',title:'Ask AI is a chat',text:'On Plan, Ask AI now opens a chat over the app: type a message, the AI answers in the chat, and Apply sits under the change it proposes. New chat starts over.'},
