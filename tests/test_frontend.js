@@ -8086,50 +8086,55 @@ check('…regular, wide, diamond and archer push-ups keep 64%',
 
 // ── Home equipment weights ───────────────────────────────────────────────────
 // Henrik, 2026-11-14: kettlebell sizes 1–20 kg plus a free field; dumbbells an adjustable 1–10 kg set then
-// 10, 12.5, 15, 17.5…; barbell plates 1.25, 2.5, 5, 10, 15, 20, 25.
+// 10, 12.5, 15, 17.5…; barbell plates 1.25, 2.5, 5, 10, 15, 20, 25; the bar 10 or 20 kg. Then: "it looks horrible, for
+// each section only show an overlay where you add the weights you have, then once clicked Save hide it, show a info
+// symbol next to each heading for home equipment to open the view again".
 {
   console.log('\n── Home equipment weights ───────');
   const _ls = G.localStorage, saved = { home: _ls.getItem('wkt-home-equip'), w: _ls.getItem('wkt-home-weights') };
   const pushed = [], _push = G.pushSettingsToAgent; G.pushSettingsToAgent = (kv) => pushed.push(kv);
-  const _gid = G.document.getElementById; const fields = {}; G.document.getElementById = (id) => fields[id] || _gid.call(G.document, id);
+  const open = new Set(), el = (id) => ({ id, innerHTML: '', textContent: '', value: '', classList: { add: () => open.add(id), remove: () => open.delete(id), contains: () => open.has(id) } });
+  const fields = { homeWeightsModal: el('homeWeightsModal'), homeWeightsTitle: el('homeWeightsTitle'), homeWeightsBody: el('homeWeightsBody'), 'home-equip-card': el('home-equip-card') };
+  const _gid = G.document.getElementById; G.document.getElementById = (id) => fields[id] || _gid.call(G.document, id);
+  const body = () => fields.homeWeightsBody.innerHTML, tab = () => G._equipTabHtml('home');
   _ls.removeItem('wkt-home-weights');
   G.setData('wkt-home-equip', ['bands']);
-  const none = G._equipTabHtml('home');
-  check('no weights block for an item that has no weights, or is not ticked', !none.includes('data-home-weights'));
-  G.setData('wkt-home-equip', ['kettlebell', 'dumbbells', 'barbell']);
-  const h = G._equipTabHtml('home');
-  const kb = h.slice(h.indexOf('data-home-weights="kettlebell"')), kbBlock = kb.slice(0, kb.indexOf('data-hw-add'));
-  check('kettlebell: every size 1–20 kg, nothing ticked yet', [...Array(20)].every((_, i) => kbBlock.includes('data-hw="' + (i + 1) + '"')) && !kbBlock.includes('data-hw="21"') && !kbBlock.includes(' checked'));
-  const db = h.slice(h.indexOf('data-home-weights="dumbbells"')), dbBlock = db.slice(0, db.indexOf('data-hw-add'));
-  check('dumbbells: the adjustable 1–10 kg set in 0.625 kg steps, then 10, 12.5, 15, 17.5 …',
-    dbBlock.includes('data-hw-set="adj-1-10"') && dbBlock.includes('1–10 kg in 0.625 kg steps') && ['10', '12.5', '15', '17.5', '20'].every(k => dbBlock.includes('data-hw="' + k + '"')));
-  const bb = h.slice(h.indexOf('data-home-weights="barbell"')), bbBlock = bb.slice(0, bb.indexOf('data-hw-add'));
-  check('barbell: plates 1.25, 2.5, 5, 10, 15, 20, 25 and nothing else', (bbBlock.match(/data-hw="/g) || []).length === 7 && ['1.25', '2.5', '5', '10', '15', '20', '25'].every(k => bbBlock.includes('data-hw="' + k + '"')));
-  check('every block has a free field and an Add button', ['kettlebell', 'dumbbells', 'barbell'].every(i => h.includes('id="hw-add-' + i + '"') && h.includes('data-hw-add="' + i + '"')));
-  check('readable: 15px or larger and never greyed', !/font-size:1[0-4]px/.test(h) && !/var\(--muted\)/.test(h));
+  check('the tab itself never shows weight lists', !tab().includes('data-home-weights') && !tab().includes('data-hw="'));
+  check('…and no info button on an item without weights or not ticked', !tab().includes('data-hw-info'));
   pushed.length = 0;
+  G.equipTabToggle('home', 'kettlebell');
+  check('ticking Kettlebell opens the overlay with its sizes', open.has('homeWeightsModal') && body().includes('data-home-weights="kettlebell"') && /KETTLEBELL/.test(fields.homeWeightsTitle.textContent));
+  check('…every size 1–20 kg, nothing ticked yet, a free field, Add and Save', [...Array(20)].every((_, i) => body().includes('data-hw="' + (i + 1) + '"')) && !body().includes('data-hw="21"') && !body().includes(' checked') && body().includes('id="hw-add-kettlebell"') && body().includes('data-hw-add="kettlebell"') && body().includes('data-hw-save="1"'));
+  check('…while the tab still shows only the list, with an info button on Kettlebell', !tab().includes('data-hw="') && tab().includes('data-hw-info="kettlebell"'));
   G.homeWeightToggle('kettlebell', 16); G.homeWeightToggle('kettlebell', 8);
-  check('ticking a size saves it on the device and on the backend', JSON.stringify(G._homeWeightsOf('kettlebell').w) === '[8,16]' && pushed.length === 2 && JSON.stringify(pushed[1]['wkt-home-weights'].kettlebell.w) === '[8,16]');
-  check('…and shows it ticked', /data-hw="16"[^>]*><input type="checkbox" checked/.test(G._equipTabHtml('home')) && !/data-hw="15"[^>]*><input type="checkbox" checked/.test(G._equipTabHtml('home')));
+  check('picks are a draft: shown ticked, nothing saved yet', /data-hw="16"[^>]*><input type="checkbox" checked/.test(body()) && G._homeWeightsOf('kettlebell').w.length === 0 && !pushed.some(p => p['wkt-home-weights']));
   G.homeWeightToggle('kettlebell', 8);
-  check('…and ticking again takes it off', JSON.stringify(G._homeWeightsOf('kettlebell').w) === '[16]');
-  G.homeWeightSetToggle('dumbbells', 'adj-1-10');
-  check('the adjustable set can be ticked', G._homeWeightsOf('dumbbells').sets.includes('adj-1-10') && /data-hw-set="adj-1-10"[^>]*><input type="checkbox" checked/.test(G._equipTabHtml('home')));
-  fields['hw-add-kettlebell'] = { value: '24' }; G.homeWeightAdd('kettlebell');
   fields['hw-add-kettlebell'] = { value: '32,5' }; G.homeWeightAdd('kettlebell');
-  const h2 = G._equipTabHtml('home');
-  check('the free field adds other weights (comma too), shown ticked among the others', JSON.stringify(G._homeWeightsOf('kettlebell').w) === '[16,24,32.5]' && /data-hw="24"[^>]*><input type="checkbox" checked/.test(h2) && /data-hw="32.5"[^>]*><input type="checkbox" checked/.test(h2) && !h2.includes('data-hw-warn'));
-  G.homeWeightToggle('kettlebell', 24);
-  check('…and unticking an added weight removes it', !G._equipTabHtml('home').includes('data-hw="24"'));
+  check('the free field adds another weight (comma too), shown ticked', /data-hw="32.5"[^>]*><input type="checkbox" checked/.test(body()) && !body().includes('data-hw-warn'));
   for (const bad of ['abc', '', '0', '500', '12kg']) {
-    fields['hw-add-barbell'] = { value: bad }; G.homeWeightAdd('barbell');
-    const hb = G._equipTabHtml('home');
-    check('a typo (' + JSON.stringify(bad) + ') is not added and says what to type, with its help link', G._homeWeightsOf('barbell').w.length === 0 && hb.includes('data-hw-warn="1"') && hb.includes('between 0.1 and 200') && hb.includes('href="help.html#home-weight-invalid"'));
+    fields['hw-add-kettlebell'] = { value: bad }; G.homeWeightAdd('kettlebell');
+    check('a typo (' + JSON.stringify(bad) + ') is not added and says what to type, with its help link', body().includes('data-hw-warn="1"') && body().includes('between 0.1 and 200') && body().includes('href="help.html#home-weight-invalid"') && (body().match(/data-hw="/g) || []).length === 21);
   }
-  fields['hw-add-barbell'] = { value: '0.5' }; G.homeWeightAdd('barbell');
-  check('…and the next good weight clears the warning', !G._equipTabHtml('home').includes('data-hw-warn') && G._homeWeightsOf('barbell').w[0] === 0.5);
-  G.setData('wkt-home-equip', ['bands']);
-  check('unticking the item hides its weights and keeps them', !G._equipTabHtml('home').includes('data-home-weights') && G._homeWeightsOf('kettlebell').w.length === 2);
+  G.homeWeightsSave();
+  check('Save stores the picks on the device and on the backend, and hides the overlay', JSON.stringify(G._homeWeightsOf('kettlebell').w) === '[16,32.5]' && !open.has('homeWeightsModal') && pushed.some(p => p['wkt-home-weights'] && JSON.stringify(p['wkt-home-weights'].kettlebell.w) === '[16,32.5]'));
+  G.homeWeightsOpen('kettlebell');
+  check('the info button opens it again with what was saved', open.has('homeWeightsModal') && /data-hw="16"[^>]*><input type="checkbox" checked/.test(body()) && !body().includes('data-hw-warn'));
+  G.homeWeightToggle('kettlebell', 16); G.homeWeightsClose();
+  check('× closes it and keeps what was saved', !open.has('homeWeightsModal') && JSON.stringify(G._homeWeightsOf('kettlebell').w) === '[16,32.5]');
+  G.equipTabToggle('home', 'dumbbells');
+  check('Dumbbells: the adjustable 1–10 kg set in 0.625 kg steps, then 10, 12.5, 15, 17.5 …', open.has('homeWeightsModal') && body().includes('data-hw-set="adj-1-10"') && body().includes('1–10 kg in 0.625 kg steps') && ['10', '12.5', '15', '17.5', '20'].every(k => body().includes('data-hw="' + k + '"')));
+  G.homeWeightSetToggle('dumbbells', 'adj-1-10'); G.homeWeightsSave();
+  check('…the adjustable set is saved', G._homeWeightsOf('dumbbells').sets.includes('adj-1-10'));
+  G.equipTabToggle('home', 'barbell');
+  check('Barbell: a 10 kg or 20 kg bar, then plates 1.25, 2.5, 5, 10, 15, 20, 25 and nothing else', body().includes('data-hw-bar="10"') && body().includes('data-hw-bar="20"') && (body().match(/data-hw="/g) || []).length === 7 && ['1.25', '2.5', '5', '10', '15', '20', '25'].every(k => body().includes('data-hw="' + k + '"')));
+  G.homeBarPick('bar-10'); G.homeBarPick('bar-20');
+  check('…one bar at a time', /data-hw-bar="20"[^>]*><input type="checkbox" checked/.test(body()) && !/data-hw-bar="10"[^>]*><input type="checkbox" checked/.test(body()));
+  G.homeWeightsSave();
+  check('…saved', G._homeBarKg() === 20);
+  check('readable: 15px or larger and never greyed, in the tab and the overlay', !/font-size:1[0-4]px/.test(tab() + G._homeWeightsHtml('barbell')) && !/var\(--muted\)/.test(tab() + G._homeWeightsHtml('barbell')));
+  check('the info button does not tick or untick the item', /data-hw-info="barbell"[^>]*onclick="event\.preventDefault\(\);event\.stopPropagation\(\);homeWeightsOpen\('barbell'\)"/.test(tab()));
+  G.equipTabToggle('home', 'barbell');
+  check('unticking an item opens nothing, hides its info button and keeps its weights', !open.has('homeWeightsModal') && !tab().includes('data-hw-info="barbell"') && G._homeBarKg() === 20);
   check('the weights come back from the backend after a cache wipe', String(G.syncSettingsFromAgent).includes("setData('wkt-home-weights',s['wkt-home-weights'])"));
   const help = fs.readFileSync(path.join(__dirname, '..', 'help.html'), 'utf8');
   check('help page: the weight warning has its section, saying what it means, what happens and how to fix it',
@@ -8137,6 +8142,64 @@ check('…regular, wide, diamond and archer push-ups keep 64%',
   G.document.getElementById = _gid; G.pushSettingsToAgent = _push;
   if (saved.home === null) _ls.removeItem('wkt-home-equip'); else _ls.setItem('wkt-home-equip', saved.home);
   if (saved.w === null) _ls.removeItem('wkt-home-weights'); else _ls.setItem('wkt-home-weights', saved.w);
+}
+
+// ── Home programs suggest only weights the user has ──────────────────────────
+// Henrik, 2026-11-14: "1 yes, kind of the whole point is to make Home training better".
+{
+  console.log('\n── Home loads snap to owned weights ───────');
+  const _ls = G.localStorage, savedW = _ls.getItem('wkt-home-weights');
+  const home = { equipment: G._homeEquipId(['kettlebell', 'dumbbells', 'barbell', 'bench']) }, gym = { equipment: 'gym' };
+  G.setData('wkt-home-weights', { kettlebell: { w: [8, 12, 16, 24], sets: [] }, dumbbells: { w: [12.5, 15], sets: ['adj-1-10'] }, barbell: { w: [5, 10], sets: [] } });
+  const S = (n, kg, p) => G._homeSnapKg(n, kg, p || home);
+  check('kettlebell: the nearest size owned', S('Kettlebell Goblet Squat', 18) === 16 && S('Kettlebell Goblet Squat', 21) === 24 && S('Kettlebell Row', 40) === 24 && S('Kettlebell Row', 3) === 8);
+  check('…a tie goes to the lighter bell', S('Kettlebell Row', 14) === 12);
+  check('dumbbells: the adjustable set gives 1 kg then 0.625 kg steps to 10', S('Lateral Raise', 6) === 6 && S('Lateral Raise', 6.3) === 6 && S('Lateral Raise', 6.4) === 6.625 && S('Lateral Raise', 1.2) === 1);
+  check('…and the fixed ones above it', S('Incline DB Press', 13) === 12.5 && S('Incline DB Press', 14) === 15 && S('Incline DB Press', 30) === 15 && S('Hammer Curl', 11) === 10);
+  check('barbell: a 20 kg bar plus pairs of the ticked plates (here 5 and 10 → 10 kg steps)', S('Squat', 44) === 40 && S('Squat', 46) === 50 && S('Bench Press', 15) === 20 && S('Romanian Deadlift', 101) === 100);
+  const _bar = (id) => G.setData('wkt-home-weights', Object.assign(G._homeWeights(), { barbell: { w: G._homeWeightsOf('barbell').w, sets: id ? [id] : [] } }));
+  _bar('bar-10');
+  check('barbell: with the 10 kg bar picked, loads start from 10 kg', S('Squat', 33) === 30 && S('Bench Press', 4) === 10 && G._homeBarKg() === 10);
+  _bar('bar-20');
+  check('…picking the 20 kg bar replaces the 10 kg one', G._homeBarKg() === 20 && !G._homeWeightsOf('barbell').sets.includes('bar-10') && S('Squat', 33) === 30 && S('Squat', 36) === 40);
+  _bar(null);
+  check('…and with no bar picked there is none', G._homeBarKg() === null);
+  G.setData('wkt-home-weights', Object.assign(G._homeWeights(), { barbell: { w: [], sets: ['bar-10'] } }));
+  check('a bar and no plates: the bar alone', S('Squat', 44) === 10);
+  G.setData('wkt-home-weights', Object.assign(G._homeWeights(), { barbell: { w: [5, 10], sets: [] } }));
+  check('…a non-barbell exercise needing the barbell item is left alone', S('Lunges', 33, { equipment: G._homeEquipId(['barbell']) }) === 33);
+  check('a gym program is never touched', S('Kettlebell Goblet Squat', 18, gym) === 18 && S('Squat', 44, gym) === 44);
+  check('bodyweight work and exercises with no item are never touched', S('Push-ups', 18) === 18 && S('Band Curl', 18) === 18);
+  G.setData('wkt-home-weights', {});
+  check('nothing ticked for the item: the load stays as it was', S('Kettlebell Goblet Squat', 18) === 18 && S('Squat', 44) === 44);
+  G.setData('wkt-home-weights', { kettlebell: { w: [16, 20], sets: [] } });
+  // Today's day view.
+  {
+    const _gd = G.getActiveProgramDay, _gp = G.getActiveProgram, _doc = G.document, _l = G.logs;
+    let html = null;
+    G.logs = [{ date: '2026-11-10', day: 1, exercises: [{ name: 'Kettlebell Goblet Squat', sets: [{ kg: 18, reps: 10 }] }] }];
+    G.getActiveProgramDay = () => ({ name: 'Day 1', exercises: [{ name: 'Kettlebell Goblet Squat', sets: '10-10-10', scheme: '3×10', tag: 'volume', kg: 0 }] });
+    G.getActiveProgram = () => ({ goal: 'hypertrophy', equipment: home.equipment, days: [] });
+    G.document = { getElementById: (id) => id === 'workout-display' ? { set innerHTML(v) { html = v; } } : null };
+    try { G.renderWorkout(1); } catch (e) { html = 'THREW ' + e; }
+    check('Today shows the owned bell nearest the last weight (18 → 16 kg)', !!html && />16kg</.test(html) && !/>18kg</.test(html), String(html).slice(0, 300));
+    G.getActiveProgram = () => ({ goal: 'hypertrophy', equipment: 'gym', days: [] });
+    try { G.renderWorkout(1); } catch (e) { html = 'THREW ' + e; }
+    check('…and a gym program still shows what was logged', !!html && />18kg</.test(html));
+    G.getActiveProgramDay = _gd; G.getActiveProgram = _gp; G.document = _doc; G.logs = _l;
+  }
+  // A swapped-in card's prefill.
+  {
+    const _gp = G.getActiveProgram, _l = G.logs;
+    G.logs = [{ date: '2026-11-10', exercises: [{ name: 'Kettlebell Row', sets: [{ kg: 19, reps: 10 }] }] }];
+    G.getActiveProgram = () => ({ equipment: home.equipment, days: [] });
+    const inputs = [{ value: '', dataset: { type: 'kg' } }], card = { dataset: {}, querySelectorAll: sel => (sel.includes('kg') ? inputs : []) };
+    G._prefillKgFromHistory(card, 'Kettlebell Row');
+    check('a swapped-in card is prefilled with the owned bell nearest the last weight (19 → 20 kg)', inputs[0].value === '20', inputs[0].value);
+    G.getActiveProgram = _gp; G.logs = _l;
+  }
+  check('the Log prefill snaps the same way', String(G.prefillLog).includes('lastKg=_homeSnapKg(ex.name,lastKg,getActiveProgram())'));
+  if (savedW === null) _ls.removeItem('wkt-home-weights'); else _ls.setItem('wkt-home-weights', savedW);
 }
 
 // ── Section 101: Edit opens the session that was logged ─────────────────────
