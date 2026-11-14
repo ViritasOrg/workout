@@ -550,6 +550,12 @@
     </div>
   </div>
 </div>
+<div class="modal-overlay" id="homeWeightsModal" style="z-index:510">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title" id="homeWeightsTitle">WEIGHTS</div><button class="modal-close" onclick="homeWeightsClose()">×</button></div>
+    <div class="modal-body" id="homeWeightsBody" style="padding:16px"></div>
+  </div>
+</div>
 <div class="modal-overlay" id="homeEquipModal" style="z-index:500">
   <div class="modal">
     <div class="modal-header"><div class="modal-title">HOME EQUIPMENT</div><button class="modal-close" onclick="closeModal('homeEquipModal')">×</button></div>
@@ -598,7 +604,7 @@
 const VERSION='1.274';
 // BUILD_NO counts staging builds and is never rewritten by Push to Prod (which resets VERSION to
 // prod's own counter). The What's new card is keyed to it, so its rows show in both apps (2026-11-01).
-const BUILD_NO='1.387';
+const BUILD_NO='1.390';
 const IS_STAGING=(window.location.pathname||'').startsWith('/workout-staging');
 // Backend data namespace, sent as X-App-Id on every call. Staging gets its own so
 // testing here cannot write over production data — before 2026-08-01 both sent no
@@ -1240,7 +1246,7 @@ function _dayTplBannerHtml(day,prog){
     '<div style="font-size:11px;color:var(--muted);margin-top:3px;line-height:1.5;">This day starts with '+first.length+' exercise'+(first.length!==1?'s':'')+' from the <b>'+_escP(t?t.name:'template')+'</b> template, not from '+_escP((prog&&prog.name)||'this program')+': '+_escP(names)+'</div>'+
     '</div>';
 }
-function renderWorkout(num){var day=_planDay(num);if(!day)return;var prog=getActiveProgram();var tc={strength:'tag-strength',volume:'tag-volume',rehab:'tag-rehab'};var tl={strength:'Strength',volume:'Volume',rehab:'🔧 Rehab'};var savedW=getData('template_weights_day'+num,{});var html='<div class="workout-detail">'+_deloadBannerHtml()+_dayTplBannerHtml(day,prog)+'<div class="workout-header"><div><div class="workout-title">'+day.name+'</div></div>'+'</div>';var effExs=_applyRehabSubs(day.exercises,prog);effExs.forEach(function(ex){var lastKg=savedW[ex.name];if((lastKg==null||lastKg===0)&&ex._rehabOrig)lastKg=savedW[ex._rehabOrig];if((lastKg==null||lastKg===0)&&logs.length){var _fl=getBestKgFromLogs(ex.name)||(ex._rehabOrig?getBestKgFromLogs(ex._rehabOrig):null);if(_fl)lastKg=_fl;}if(_deloadActive&&lastKg>0){lastKg=_deloadKg(lastKg);if(isBarbellEx(ex.name))lastKg=roundBarbellKg(lastKg);}var kgStr=lastKg!=null&&lastKg>0?'<span style="color:var(--accent);font-weight:600;margin-left:6px">'+kgToUnit(lastKg)+unitLabel()+'</span>':'';var nameHtml=_escP(ex.name)+(ex._rehabOrig?'<span style="color:#ff9b3c;font-size:10px;margin-left:6px" title="Rehab sub for '+_escP(ex._rehabOrig)+'">↺ rehab</span>':'')+_tplChipHtml(ex);html+='<div class="exercise-row"><div class="ex-info"><div class="ex-name">'+nameHtml+'</div><div class="ex-scheme">'+_escP(_deloadActive?_deloadScheme(ex.scheme)+' · deload':ex.scheme)+kgStr+'</div></div><div style="display:flex;align-items:center;gap:8px;flex-shrink:0"><span class="ex-tag '+(tc[ex.tag]||'tag-volume')+'">'+(tl[ex.tag]||ex.tag)+'</span>'+_exSketchBtnHtml('_openExSketch('+JSON.stringify(ex.name)+')')+'</div></div>';});html+='</div>';document.getElementById('workout-display').innerHTML=html;}
+function renderWorkout(num){var day=_planDay(num);if(!day)return;var prog=getActiveProgram();var tc={strength:'tag-strength',volume:'tag-volume',rehab:'tag-rehab'};var tl={strength:'Strength',volume:'Volume',rehab:'🔧 Rehab'};var savedW=getData('template_weights_day'+num,{});var html='<div class="workout-detail">'+_deloadBannerHtml()+_dayTplBannerHtml(day,prog)+'<div class="workout-header"><div><div class="workout-title">'+day.name+'</div></div>'+'</div>';var effExs=_applyRehabSubs(day.exercises,prog);effExs.forEach(function(ex){var lastKg=savedW[ex.name];if((lastKg==null||lastKg===0)&&ex._rehabOrig)lastKg=savedW[ex._rehabOrig];if((lastKg==null||lastKg===0)&&logs.length){var _fl=getBestKgFromLogs(ex.name)||(ex._rehabOrig?getBestKgFromLogs(ex._rehabOrig):null);if(_fl)lastKg=_fl;}if(_deloadActive&&lastKg>0){lastKg=_deloadKg(lastKg);if(isBarbellEx(ex.name))lastKg=roundBarbellKg(lastKg);}lastKg=_homeSnapKg(ex.name,lastKg,prog);var kgStr=lastKg!=null&&lastKg>0?'<span style="color:var(--accent);font-weight:600;margin-left:6px">'+kgToUnit(lastKg)+unitLabel()+'</span>':'';var nameHtml=_escP(ex.name)+(ex._rehabOrig?'<span style="color:#ff9b3c;font-size:10px;margin-left:6px" title="Rehab sub for '+_escP(ex._rehabOrig)+'">↺ rehab</span>':'')+_tplChipHtml(ex);html+='<div class="exercise-row"><div class="ex-info"><div class="ex-name">'+nameHtml+'</div><div class="ex-scheme">'+_escP(_deloadActive?_deloadScheme(ex.scheme)+' · deload':ex.scheme)+kgStr+'</div></div><div style="display:flex;align-items:center;gap:8px;flex-shrink:0"><span class="ex-tag '+(tc[ex.tag]||'tag-volume')+'">'+(tl[ex.tag]||ex.tag)+'</span>'+_exSketchBtnHtml('_openExSketch('+JSON.stringify(ex.name)+')')+'</div></div>';});html+='</div>';document.getElementById('workout-display').innerHTML=html;}
 var _lsDbgKeys=[];
 // Built with DOM nodes and textContent, never innerHTML: every value here is an
 // exception message or a URL — exactly the untrusted-text-into-HTML shape CodeQL
@@ -2164,28 +2170,41 @@ var EQUIP_TABS={gym:{title:'Your gym',hint:'Tick what your gym has. Programs onl
 // ── Home equipment weights (Henrik, 2026-11-14: "if user has ie Kettlebell, give them a list to pick which sizes they
 // have in kg 1-20kg and a free number field to add if they have other weights than 1-20. For dumbells etc give choices
 // like adjustable sets (common 1-10kg in 625g increments) and then 10, 12.5, 15, 17.5 etc) for actual barebell weights
-// do 1.25, 2.5, 5, 10, 15, 20, 25"). Shown in the Home equipment tab under each ticked item that has weights; saved per
-// user as 'wkt-home-weights' {item:{w:[kg…],sets:[id…]}} on the device and on the backend, like the item list.
+// do 1.25, 2.5, 5, 10, 15, 20, 25"). Picked in an overlay (Henrik, 2026-11-14: "it looks horrible, for each section only show
+// an overlay where you add the weights you have, then once clicked Save hide it, show a info symbol next to each heading
+// for home equipment to open the view again"): ticking Kettlebell, Dumbbells or Barbell + rack opens it, ⓘ on the ticked
+// item opens it again, the picks are a draft (_hwEdit) until Save, × leaves what was saved. Saved per user as 'wkt-home-weights' {item:{w:[kg…],sets:[id…]}} on the device and on the backend, like the item list.
 var HOME_WEIGHTS={
   kettlebell:{title:'Kettlebell sizes you have',opts:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]},
   dumbbells:{title:'Dumbbells you have',sets:[{id:'adj-1-10',label:'Adjustable set, 1–10 kg in 0.625 kg steps'}],opts:[10,12.5,15,17.5,20,22.5,25,27.5,30,32.5,35,37.5,40,42.5,45,47.5,50]},
-  barbell:{title:'Barbell plates you have',opts:[1.25,2.5,5,10,15,20,25]}};
-var HOME_WEIGHT_HELP='help.html#home-weight-invalid',_hwWarn=null;
+  barbell:{title:'Your barbell and plates',bars:[{id:'bar-10',kg:10,label:'Bar 10 kg'},{id:'bar-20',kg:20,label:'Bar 20 kg'}],opts:[1.25,2.5,5,10,15,20,25]}};
+// The bar itself (Henrik, 2026-11-14: "an unticked barebell will still need a 10kg or 20kg choice"): one of the two, kept in sets.
+function homeBarPick(id){var e=_hwEdit&&_hwEdit.item==='barbell'?_hwEdit.e:null;if(!e)return;var on=e.sets.indexOf(id)>=0;e.sets=e.sets.filter(function(x){return!/^bar-/.test(x);});if(!on)e.sets.push(id);_renderHomeWeights();}
+function _homeBarKg(){var e=_homeWeightsOf('barbell');var b=(HOME_WEIGHTS.barbell.bars||[]).filter(function(x){return e.sets.indexOf(x.id)>=0;})[0];return b?b.kg:null;}
+var HOME_WEIGHT_HELP='help.html#home-weight-invalid',_hwWarn=null,_hwEdit=null;
 function _homeWeights(){var d=getData('wkt-home-weights',{});return(d&&typeof d==='object'&&!Array.isArray(d))?d:{};}
 function _homeWeightsOf(item){var e=_homeWeights()[item]||{};return{w:(Array.isArray(e.w)?e.w:[]).filter(function(x){return typeof x==='number'&&x>0;}),sets:Array.isArray(e.sets)?e.sets:[]};}
 function _saveHomeWeights(all){setData('wkt-home-weights',all);pushSettingsToAgent({'wkt-home-weights':all});}
 function _fmtKg(x){return String(Math.round(x*1000)/1000);}
 function _setHomeWeights(item,e){var all=_homeWeights();all[item]={w:e.w.slice().sort(function(a,b){return a-b;}),sets:e.sets.slice()};_saveHomeWeights(all);}
-function homeWeightToggle(item,kg){var e=_homeWeightsOf(item),i=e.w.indexOf(kg);if(i>=0)e.w.splice(i,1);else e.w.push(kg);_setHomeWeights(item,e);buildEquipTab('home');}
-function homeWeightSetToggle(item,id){var e=_homeWeightsOf(item),i=e.sets.indexOf(id);if(i>=0)e.sets.splice(i,1);else e.sets.push(id);_setHomeWeights(item,e);buildEquipTab('home');}
+// The overlay: a draft of one item's weights; Save stores it and closes, × closes and keeps what was saved.
+function homeWeightsOpen(item){if(!HOME_WEIGHTS[item])return;var e=_homeWeightsOf(item);_hwEdit={item:item,e:{w:e.w.slice(),sets:e.sets.slice()}};_hwWarn=null;_renderHomeWeights();openModal('homeWeightsModal');}
+function _renderHomeWeights(){if(!_hwEdit)return;var t=document.getElementById('homeWeightsTitle'),b=document.getElementById('homeWeightsBody');
+  if(t)t.textContent=HOME_WEIGHTS[_hwEdit.item].title.toUpperCase();if(b)b.innerHTML=_homeWeightsHtml(_hwEdit.item);}
+function homeWeightsSave(){if(!_hwEdit)return;_setHomeWeights(_hwEdit.item,_hwEdit.e);_hwEdit=null;_hwWarn=null;closeModal('homeWeightsModal');buildEquipTab('home');}
+function homeWeightsClose(){_hwEdit=null;_hwWarn=null;closeModal('homeWeightsModal');}
+function homeWeightToggle(item,kg){if(!_hwEdit||_hwEdit.item!==item)return;var e=_hwEdit.e,i=e.w.indexOf(kg);if(i>=0)e.w.splice(i,1);else e.w.push(kg);_renderHomeWeights();}
+function homeWeightSetToggle(item,id){if(!_hwEdit||_hwEdit.item!==item)return;var e=_hwEdit.e,i=e.sets.indexOf(id);if(i>=0)e.sets.splice(i,1);else e.sets.push(id);_renderHomeWeights();}
 // The free field: any other weight in kg, 0.1–200, comma or point. A typo shows what to type, never fails in silence.
 function homeWeightAdd(item){var el=document.getElementById('hw-add-'+item);var raw=el?String(el.value||'').trim().replace(',','.'):'';var kg=Math.round(parseFloat(raw)*1000)/1000;
-  if(!/^\d+(\.\d+)?$/.test(raw)||!(kg>=0.1&&kg<=200)){_hwWarn={item:item,msg:raw?'"'+raw+'" is not a weight the app can use.':'No weight was typed.'};buildEquipTab('home');return;}
-  _hwWarn=null;var e=_homeWeightsOf(item);if(e.w.indexOf(kg)<0)e.w.push(kg);_setHomeWeights(item,e);buildEquipTab('home');}
-function _homeWeightsHtml(item){var d=HOME_WEIGHTS[item];if(!d)return'';var e=_homeWeightsOf(item);
+  if(!_hwEdit||_hwEdit.item!==item)return;
+  if(!/^\d+(\.\d+)?$/.test(raw)||!(kg>=0.1&&kg<=200)){_hwWarn={item:item,msg:raw?'"'+raw+'" is not a weight the app can use.':'No weight was typed.'};_renderHomeWeights();return;}
+  _hwWarn=null;var e=_hwEdit.e;if(e.w.indexOf(kg)<0)e.w.push(kg);_renderHomeWeights();}
+function _homeWeightsHtml(item){var d=HOME_WEIGHTS[item];if(!d)return'';var e=_hwEdit&&_hwEdit.item===item?_hwEdit.e:_homeWeightsOf(item);
   var chip=function(on,attr,click,label){return'<label '+attr+' style="display:flex;align-items:center;gap:8px;min-width:0;padding:10px 8px;border-radius:10px;cursor:pointer;font-size:15px;color:var(--text);background:var(--surface2);border:1px solid '+(on?'var(--accent)':'var(--border)')+';">'
     +'<input type="checkbox"'+(on?' checked':'')+' onchange="'+click+'" style="width:20px;height:20px;flex-shrink:0;accent-color:var(--accent);"><span style="min-width:0;overflow-wrap:anywhere;font-weight:'+(on?'700':'500')+';">'+label+'</span></label>';};
-  var h='<div data-home-weights="'+item+'" style="margin-top:16px;"><div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:8px;">'+d.title+'</div>';
+  var h='<div data-home-weights="'+item+'">';
+  if(d.bars)h+='<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-bottom:8px;">'+d.bars.map(function(b){return chip(e.sets.indexOf(b.id)>=0,'data-hw-bar="'+b.kg+'"',"homeBarPick('"+b.id+"')",_escP(b.label));}).join('')+'</div>';
   (d.sets||[]).forEach(function(s){h+='<div style="margin-bottom:8px;">'+chip(e.sets.indexOf(s.id)>=0,'data-hw-set="'+s.id+'"',"homeWeightSetToggle('"+item+"','"+s.id+"')",_escP(s.label))+'</div>';});
   var all=d.opts.concat(e.w.filter(function(x){return d.opts.indexOf(x)<0;})).sort(function(a,b){return a-b;});
   h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;">';
@@ -2194,7 +2213,29 @@ function _homeWeightsHtml(item){var d=HOME_WEIGHTS[item];if(!d)return'';var e=_h
     +'<button data-hw-add="'+item+'" onclick="homeWeightAdd(\''+item+'\')" style="flex-shrink:0;padding:10px 16px;border-radius:10px;border:1px solid var(--accent);background:var(--accent);color:#000;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">Add</button></div>';
   if(_hwWarn&&_hwWarn.item===item)h+='<div data-hw-warn="1" style="font-size:15px;color:var(--text);line-height:1.5;margin-top:8px;padding:10px;border:1px solid var(--accent);border-radius:10px;"><b>'+_escP(_hwWarn.msg)+'</b> Type a number of kg between 0.1 and 200, for example 24 or 2.5, then tap Add. '
     +'<a href="'+HOME_WEIGHT_HELP+'" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700">What this means and how to fix it</a></div>';
-  return h+'</div>';}
+  return h+'<button class="btn btn-primary" data-hw-save="1" onclick="homeWeightsSave()" style="margin-top:16px;width:100%;">SAVE</button></div>';}
+// Suggested loads on a Home program use only weights the user has (Henrik, 2026-11-14: "1 yes, kind of the whole point
+// is to make Home training better"). The kg the app proposes (Today, the Log prefill, a swapped-in card) snaps to the
+// nearest weight the exercise's item can make; a tie goes to the lighter one. Kettlebell: the sizes ticked. Dumbbells:
+// the fixed ones plus, with the adjustable set, 1 kg then every 0.625 kg up to 10. Barbell: the bar picked (10 or 20 kg;
+// none picked = 20 kg, the bar the app's barbell rounding assumes) plus any number of pairs of the ticked plates. Nothing ticked for that item,
+// or a gym program: the load is left as it was.
+function _homeLoadItem(name,items){if(!name||isBWExName(name))return null;var n=_exNeeds(name);if(n==='machine')return null;
+  for(var i=0;i<n.length;i++){var set=n[i];if(!set.every(function(x){return items.indexOf(x)>=0;}))continue;
+    if(set.indexOf('kettlebell')>=0)return'kettlebell';if(set.indexOf('dumbbells')>=0)return'dumbbells';if(set.indexOf('barbell')>=0&&isBarbellEx(name))return'barbell';}
+  return null;}
+function _homeAvailKg(item,maxKg){var e=_homeWeightsOf(item),out=[];
+  if(item==='kettlebell')out=e.w.slice();
+  else if(item==='dumbbells'){out=e.w.slice();if(e.sets.indexOf('adj-1-10')>=0){for(var k=0;1+k*0.625<=10;k++)out.push(Math.round((1+k*0.625)*1000)/1000);out.push(10);}}
+  else if(item==='barbell'){var bar=_homeBarKg(),pl=e.w.map(function(x){return Math.round(x*40);}).filter(function(x){return x>0;});
+    if(bar!==null)out=[bar];if(pl.length){if(bar===null){bar=20;out=[bar];}var top=Math.ceil(Math.max(0,(maxKg||0)-bar)/2*40)+Math.max.apply(null,pl),ok=new Uint8Array(top+1);ok[0]=1;
+      for(var v=1;v<=top;v++)for(var j=0;j<pl.length;j++)if(pl[j]<=v&&ok[v-pl[j]]){ok[v]=1;break;}
+      for(var v2=1;v2<=top;v2++)if(ok[v2])out.push(bar+2*v2/40);}}
+  return out;}
+function _homeSnapKg(name,kg,prog){if(!(kg>0))return kg;var items=_homeItemsOf(prog&&prog.equipment);if(items===null)return kg;
+  var item=_homeLoadItem(name,items);if(!item)return kg;var av=_homeAvailKg(item,kg);if(!av.length)return kg;
+  var best=null;av.forEach(function(w){if(best===null||Math.abs(w-kg)<Math.abs(best-kg)-1e-9||(Math.abs(Math.abs(w-kg)-Math.abs(best-kg))<1e-9&&w<best))best=w;});
+  return Math.round(best*1000)/1000;}
 function _equipStale(kind){var t=EQUIP_TABS[kind],id=t.id(t.cur());return(_programs||[]).filter(function(p){return p&&p.gen&&t.mine(p)&&p.equipment!==id;});}
 function _equipTabHtml(kind){var t=EQUIP_TABS[kind],cur=t.cur();
   var h='<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;">'
@@ -2204,15 +2245,16 @@ function _equipTabHtml(kind){var t=EQUIP_TABS[kind],cur=t.cur();
   t.items().forEach(function(it){var on=cur.indexOf(it.id)>=0;
     h+='<label data-equip="'+it.id+'" style="display:flex;align-items:center;gap:10px;min-width:0;padding:12px 10px;border-radius:10px;cursor:pointer;font-size:15px;color:var(--text);background:var(--surface2);border:1px solid '+(on?'var(--accent)':'var(--border)')+';">'
       +'<input type="checkbox"'+(on?' checked':'')+' onchange="equipTabToggle(\''+kind+'\',\''+it.id+'\')" style="width:20px;height:20px;flex-shrink:0;accent-color:var(--accent);">'
-      +'<span style="min-width:0;overflow-wrap:anywhere;font-weight:'+(on?'700':'500')+';">'+_escP(it.label)+'</span></label>';});
+      +'<span style="min-width:0;overflow-wrap:anywhere;font-weight:'+(on?'700':'500')+';">'+_escP(it.label)+'</span>'
+      +(kind==='home'&&on&&HOME_WEIGHTS[it.id]?'<button data-hw-info="'+it.id+'" aria-label="Weights you have" onclick="event.preventDefault();event.stopPropagation();homeWeightsOpen(\''+it.id+'\')" style="margin-left:auto;flex-shrink:0;width:32px;height:32px;border-radius:50%;border:1px solid var(--accent);background:none;color:var(--accent);font-size:17px;font-weight:700;cursor:pointer;font-family:inherit;line-height:1;">i</button>':'')
+      +'</label>';});
   h+='</div>';
-  if(kind==='home')t.items().forEach(function(it){if(cur.indexOf(it.id)>=0)h+=_homeWeightsHtml(it.id);});
   var stale=_equipStale(kind),plain=(_programs||[]).filter(function(p){return p&&t.plain(p);}).length;
   if(stale.length)h+='<button class="btn btn-primary" data-equip-rebuild="1" onclick="rebuildEquipPrograms(\''+kind+'\')" style="margin-top:16px;width:100%;">Rebuild '+stale.length+' '+t.what+' program'+(stale.length===1?'':'s')+' for this list</button>';
   if(plain)h+='<div style="font-size:15px;color:var(--text);line-height:1.5;margin-top:14px;">'+plain+' of your programs '+(plain===1?'was':'were')+' not generated with this list and '+(plain===1?'keeps its':'keep their')+' exercises. A program you generate from now on follows it.</div>';
   return h+'</div>';}
 function buildEquipTab(kind){var el=document.getElementById(EQUIP_TABS[kind].el);if(el)el.innerHTML=_equipTabHtml(kind);}
-function equipTabToggle(kind,id){var t=EQUIP_TABS[kind],a=t.cur(),i=a.indexOf(id);if(i>=0)a.splice(i,1);else a.push(id);t.save(a);buildEquipTab(kind);}
+function equipTabToggle(kind,id){var t=EQUIP_TABS[kind],a=t.cur(),i=a.indexOf(id),adding=i<0;if(i>=0)a.splice(i,1);else a.push(id);t.save(a);buildEquipTab(kind);if(kind==='home'&&adding&&HOME_WEIGHTS[id])homeWeightsOpen(id);}
 // Rebuilds every program generated with an older list, exactly as the program's own editor does.
 function _rebuildForEquip(kind){var t=EQUIP_TABS[kind],id=t.id(t.cur()),n=0;
   (_programs||[]).forEach(function(p,idx){if(!(p&&p.gen&&t.mine(p)&&p.equipment!==id))return;var g=p.gen;
@@ -3342,7 +3384,7 @@ function getBestKgFromLogs(exName){for(const log of logs){const ex=(log.exercise
 // works for exercises that are not in this day's template weights.
 function getLastKgFromLogs(exName){for(var i=0;i<logs.length;i++){var ex=(logs[i].exercises||[]).find(function(e){return e.name===exName;});if(!ex)continue;var sets=ex.sets||[];for(var j=sets.length-1;j>=0;j--){if((sets[j].kg||0)>0&&(sets[j].reps||0)>0)return sets[j].kg;}}return null;}
 function _clearAutoPrefill(card){if(!card||card.dataset.prefillKg===undefined)return;card.querySelectorAll('input[data-type="kg"]').forEach(function(inp){if(inp.value===card.dataset.prefillKg)inp.value='';});delete card.dataset.prefillKg;}
-function _prefillKgFromHistory(card,name){if(!card||!name)return;if(isBWExName(name))return;var kg=getLastKgFromLogs(name);if(!(kg>0))return;if(_deloadActive){kg=_deloadKg(kg);if(isBarbellEx(name))kg=roundBarbellKg(kg);}var val=String(kgToUnit(kg));card.querySelectorAll('input[data-type="kg"]').forEach(function(inp){if(inp.value==='')inp.value=val;});card.dataset.prefillKg=val;}
+function _prefillKgFromHistory(card,name){if(!card||!name)return;if(isBWExName(name))return;var kg=getLastKgFromLogs(name);if(!(kg>0))return;if(_deloadActive){kg=_deloadKg(kg);if(isBarbellEx(name))kg=roundBarbellKg(kg);}kg=_homeSnapKg(name,kg,getActiveProgram());var val=String(kgToUnit(kg));card.querySelectorAll('input[data-type="kg"]').forEach(function(inp){if(inp.value==='')inp.value=val;});card.dataset.prefillKg=val;}
 // An exercise is bodyweight because of WHAT IT IS (isBWExName), never because its
 // configured weight happens to be 0. kg:0 is ALSO what the program editor and the
 // templates write for "no weight set yet" — _progAddEx, _progBuildManual, _tplEx and
@@ -3353,7 +3395,7 @@ function _prefillKgFromHistory(card,name){if(!card||!name)return;if(isBWExName(n
 // left out of template_weights_dayN by saveLog, so the real weight could never be
 // learned and overwrite it. Every genuine bodyweight entry in the shipped programs
 // (Pull-ups, Push-ups, Dips) is matched by name, so nothing loses its BW handling.
-function prefillLog(day){var _di=_planDay(parseInt(day));if(!_di)return;_logStartedAt=null;var tmpl=_applyRehabSubs(_di.exercises,getActiveProgram());const saved=getData('template_weights_day'+day,{});const container=document.getElementById('structured-log');if(!container)return;container.innerHTML='';container.dataset.logDay=String(day);container.dataset.deload=_deloadActive?'1':'0';container.dataset.unit=unitLabel();tmpl.forEach((ex,exIdx)=>{const _isWPU=/weighted\s*(pull|chin)/i.test(ex._rehabOrig||ex.name);const isBodyweight=isBWExName(ex._rehabOrig||ex.name)&&!_isWPU;const bwDefault=weights.length?weights[weights.length-1].weight:'';const histKg=getBestKgFromLogs(ex.name)||(ex._rehabOrig?getBestKgFromLogs(ex._rehabOrig):null);const origSaved=ex._rehabOrig?saved[ex._rehabOrig]:undefined;let lastKg=isBodyweight?bwDefault:(saved[ex.name]!==undefined?saved[ex.name]:(origSaved!==undefined?origSaved:(histKg!==null?histKg:ex.kg)));if(_deloadActive&&!isBodyweight&&lastKg>0){lastKg=_deloadKg(lastKg);if(isBarbellEx(ex.name))lastKg=roundBarbellKg(lastKg);}const repsArr=(_deloadActive?_deloadSets(ex.sets):ex.sets).split('-');const card=document.createElement('div');card.className='ex-card';card.dataset.exIdx=exIdx;card.dataset.tplName=ex.name;if(isBodyweight)card.dataset.bw='1';const _gst=_savedGearState(ex.name);card.dataset.gearHalf=_gst.half;card.dataset.gear2x=_gst.two;card.dataset.db=_gst.db;card.dataset.gear=_gst.half*_gst.two*_gst.db;const gearBtnHtml=_gearBtnsHtml(ex.name,_gst.half,_gst.two,_gst.db);const dbBtnHtml='';const _mode=_loadMode(ex._rehabOrig||ex.name,isBodyweight);card.dataset.load=_mode;const _kgVal=(lastKg&&Number(lastKg)>0)?kgToUnit(lastKg):(lastKg||'');let setsHtml=repsArr.map((r,i)=>'<div class="set-row">'+_setRowInner(i,' data-ex="'+exIdx+'" data-set="'+i+'"',_kgVal,_mode)+'</div>').join('');const _rx=_deloadActive?_deloadScheme(ex.scheme||ex.sets)+' · deload':(ex.scheme||ex.sets);card.innerHTML='<div class="exc-head"><div class="exc-name" data-ex-name="1">'+_escP(ex.name)+(ex._rehabOrig?'<span style="color:#ff9b3c;font-size:11px;margin-left:5px" title="Rehab sub for '+_escP(ex._rehabOrig)+'">↺</span>':'')+_tplChipHtml(ex)+(_isWPU?'<span data-bw-chip="1" style="color:var(--muted);font-size:12px;font-weight:400;margin-left:6px" title="Body weight is included automatically — enter added weight only">'+(bwDefault?'+ '+kgToUnit(bwDefault)+' '+unitLabel()+' BW':'+ BW')+'</span>':'')+'</div>'+_EX_HELP_BTN+_EX_MORE_BTN+'</div>'+'<div class="exc-rx"><span>'+_escP(_rx)+'</span>'+_tagChipHtml(ex.tag)+'<span class="exc-gear" hidden></span></div>'+_lastTimeHtml(ex.name,_mode)+'<div class="sets-row">'+setsHtml+'</div>'+'<div class="card-btn-row"><span class="gear-slot" hidden>'+gearBtnHtml+dbBtnHtml+'</span><button class="set-btn" onclick="removeSet(this)">− set</button><button class="set-btn" onclick="addSet(this)">+ set</button></div>';_renderGearChip(card);container.appendChild(card);});const addBtn=document.createElement('button');addBtn.className='add-ex-btn btn';addBtn.textContent='+ ADD EXERCISE';addBtn.style.cssText='width:100%;margin-top:4px;background:var(--surface2);color:var(--muted);border:1px solid var(--border);';addBtn.onclick=function(){addCustomExercise();};container.appendChild(addBtn);var _lwInput=document.getElementById('log-weight');if(_lwInput&&!_lwInput.value&&weights.length)_lwInput.value=kgToUnit(weights[weights.length-1].weight);document.getElementById('log-date').value=new Date().toISOString().split('T')[0];restoreDraft(day);container.oninput=_onLogInput;saveDraft();_updateLogProgress();}
+function prefillLog(day){var _di=_planDay(parseInt(day));if(!_di)return;_logStartedAt=null;var tmpl=_applyRehabSubs(_di.exercises,getActiveProgram());const saved=getData('template_weights_day'+day,{});const container=document.getElementById('structured-log');if(!container)return;container.innerHTML='';container.dataset.logDay=String(day);container.dataset.deload=_deloadActive?'1':'0';container.dataset.unit=unitLabel();tmpl.forEach((ex,exIdx)=>{const _isWPU=/weighted\s*(pull|chin)/i.test(ex._rehabOrig||ex.name);const isBodyweight=isBWExName(ex._rehabOrig||ex.name)&&!_isWPU;const bwDefault=weights.length?weights[weights.length-1].weight:'';const histKg=getBestKgFromLogs(ex.name)||(ex._rehabOrig?getBestKgFromLogs(ex._rehabOrig):null);const origSaved=ex._rehabOrig?saved[ex._rehabOrig]:undefined;let lastKg=isBodyweight?bwDefault:(saved[ex.name]!==undefined?saved[ex.name]:(origSaved!==undefined?origSaved:(histKg!==null?histKg:ex.kg)));if(_deloadActive&&!isBodyweight&&lastKg>0){lastKg=_deloadKg(lastKg);if(isBarbellEx(ex.name))lastKg=roundBarbellKg(lastKg);}if(!isBodyweight)lastKg=_homeSnapKg(ex.name,lastKg,getActiveProgram());const repsArr=(_deloadActive?_deloadSets(ex.sets):ex.sets).split('-');const card=document.createElement('div');card.className='ex-card';card.dataset.exIdx=exIdx;card.dataset.tplName=ex.name;if(isBodyweight)card.dataset.bw='1';const _gst=_savedGearState(ex.name);card.dataset.gearHalf=_gst.half;card.dataset.gear2x=_gst.two;card.dataset.db=_gst.db;card.dataset.gear=_gst.half*_gst.two*_gst.db;const gearBtnHtml=_gearBtnsHtml(ex.name,_gst.half,_gst.two,_gst.db);const dbBtnHtml='';const _mode=_loadMode(ex._rehabOrig||ex.name,isBodyweight);card.dataset.load=_mode;const _kgVal=(lastKg&&Number(lastKg)>0)?kgToUnit(lastKg):(lastKg||'');let setsHtml=repsArr.map((r,i)=>'<div class="set-row">'+_setRowInner(i,' data-ex="'+exIdx+'" data-set="'+i+'"',_kgVal,_mode)+'</div>').join('');const _rx=_deloadActive?_deloadScheme(ex.scheme||ex.sets)+' · deload':(ex.scheme||ex.sets);card.innerHTML='<div class="exc-head"><div class="exc-name" data-ex-name="1">'+_escP(ex.name)+(ex._rehabOrig?'<span style="color:#ff9b3c;font-size:11px;margin-left:5px" title="Rehab sub for '+_escP(ex._rehabOrig)+'">↺</span>':'')+_tplChipHtml(ex)+(_isWPU?'<span data-bw-chip="1" style="color:var(--muted);font-size:12px;font-weight:400;margin-left:6px" title="Body weight is included automatically — enter added weight only">'+(bwDefault?'+ '+kgToUnit(bwDefault)+' '+unitLabel()+' BW':'+ BW')+'</span>':'')+'</div>'+_EX_HELP_BTN+_EX_MORE_BTN+'</div>'+'<div class="exc-rx"><span>'+_escP(_rx)+'</span>'+_tagChipHtml(ex.tag)+'<span class="exc-gear" hidden></span></div>'+_lastTimeHtml(ex.name,_mode)+'<div class="sets-row">'+setsHtml+'</div>'+'<div class="card-btn-row"><span class="gear-slot" hidden>'+gearBtnHtml+dbBtnHtml+'</span><button class="set-btn" onclick="removeSet(this)">− set</button><button class="set-btn" onclick="addSet(this)">+ set</button></div>';_renderGearChip(card);container.appendChild(card);});const addBtn=document.createElement('button');addBtn.className='add-ex-btn btn';addBtn.textContent='+ ADD EXERCISE';addBtn.style.cssText='width:100%;margin-top:4px;background:var(--surface2);color:var(--muted);border:1px solid var(--border);';addBtn.onclick=function(){addCustomExercise();};container.appendChild(addBtn);var _lwInput=document.getElementById('log-weight');if(_lwInput&&!_lwInput.value&&weights.length)_lwInput.value=kgToUnit(weights[weights.length-1].weight);document.getElementById('log-date').value=new Date().toISOString().split('T')[0];restoreDraft(day);container.oninput=_onLogInput;saveDraft();_updateLogProgress();}
 
 function removeExCard(btn){btn.closest('.ex-card').remove();_updateLogProgress();}
 // ── Mid-workout exercise change — completed sets belong to the exercise that was
@@ -4690,7 +4732,8 @@ function obSkip(){if(_obTourOnly){_obCloseTour();return;}obFinish();}
 // onboarded account means the card never existed for it yet: it gets the whole list.
 // Add a row here when a feature ships that a user would not find on their own.
 var WHATS_NEW=[
-  {v:'1.386',title:'Home weights',text:'Plan → Home equipment: tick Kettlebell, Dumbbells or Barbell + rack and pick the weights you have, or type any other weight and tap Add.'},
+  {v:'1.388',title:'Home programs use your weights',text:'On a Home program, the weight suggested on Today and in Log Workout is the nearest one you have, from the weights picked in Plan → Home equipment.'},
+  {v:'1.387',title:'Home weights',text:'Plan → Home equipment: tick Kettlebell, Dumbbells or Barbell + rack and pick the weights you have, or type any other weight and tap Add.'},
   {v:'1.376',title:'Ask AI is a chat',text:'On Plan, Ask AI now opens a chat over the app: type a message, the AI answers in the chat, and Apply sits under the change it proposes. New chat starts over.'},
   {v:'1.373',title:'Gym and Home equipment',text:'Plan has two new tabs, Gym and Home equipment. Tick what you have: new programs only use exercises it allows, and a button rebuilds programs generated with an older list.'},
   {v:'1.372',title:'Program changes for a few weeks',text:'On Plan, tell Ask AI how long a change should last, for example "for the next 4 weeks no presses due to my shoulder, still train chest and triceps". After Apply the change runs until its end date, shown on the Ask AI card, and then your program changes back by itself.'},
