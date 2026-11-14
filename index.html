@@ -298,10 +298,10 @@
     <div class="header-sub"><span style="color:var(--muted);font-weight:600" id="header-version"></span></div>
   </div>
   <button id="hdr-car" hidden onclick="psOpenStatus()" title="Polestar climate" aria-label="Polestar climate is on" style="background:none;border:none;padding:0 6px;cursor:pointer;margin-left:auto"></button>
-  <div class="weight-badge" onclick="showWeightModal()">
-    <div class="val" id="currentWeight">—</div>
-    <div class="lbl" id="hdr-unit-lbl">kg today</div>
-  </div>
+  <button class="weight-badge" id="hdr-profile" onclick="switchPrimary('profile')" aria-label="Profile" style="font-family:inherit;">
+    <div class="val" aria-hidden="true"><svg width="24" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin-left:auto"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg></div>
+    <div class="lbl" style="color:var(--text);font-weight:700">Profile</div>
+  </button>
 </div>
 <div class="tabs" id="subtabs" style="display:none">
   <button class="tab active" id="tab-btn-today" onclick="showPage('today')">Today</button>
@@ -311,8 +311,9 @@
   <button class="tab" id="tab-btn-log" onclick="showPage('log')">Log Workout</button>
   <button class="tab" id="tab-btn-macros" onclick="showPage('macros')">Macros</button>
   <button class="tab" id="tab-btn-foodedit" onclick="showPage('foodedit')">Food Edit</button>
-  <button class="tab" id="tab-btn-history" onclick="showPage('history')">History</button>
+  <button class="tab" id="tab-btn-profile" onclick="showPage('profile')">Profile</button>
   <button class="tab" id="tab-btn-progress" onclick="showPage('progress')">Progress</button>
+  <button class="tab" id="tab-btn-history" onclick="showPage('history')">History</button>
   <button class="tab" id="tab-btn-settings" onclick="showPage('settings')">Settings</button>
   <button class="tab" id="tab-btn-storage" onclick="showPage('storage')" style="display:none">Storage</button>
 </div>
@@ -346,6 +347,42 @@
   </div>
   <div class="page" id="page-macros"><div id="water-log-body"></div><div id="food-log-body"></div><div id="wk-macro-targets"></div></div>
   <div class="page" id="page-foodedit"><div id="food-edit-body"></div></div>
+  <!-- Profile (Henrik, 2026-11-14): the header's Profile button opens it; Progress and History are its sub-tabs. -->
+  <div class="page" id="page-profile">
+    <div id="pf-info"></div>
+    <div id="pf-navy"></div>
+    <div id="pf-charts" style="margin-top:14px">
+        <!-- Weight chart -->
+        <div class="chart-wrap" style="margin-top:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div class="chart-title" style="margin-bottom:0">Body Weight (kg)</div><div style="display:flex;gap:4px"><button onclick="setWeightWindow(30)" id="wt-btn-30" class="wt-btn">30d</button><button onclick="setWeightWindow(60)" id="wt-btn-60" class="wt-btn">60d</button><button onclick="setWeightWindow(90)" id="wt-btn-90" class="wt-btn vol-btn-active">90d</button><button onclick="setWeightWindow(36500)" id="wt-btn-36500" class="wt-btn">All</button></div></div>
+          <canvas id="weightChart" height="130"></canvas>
+        </div>
+        <div style="margin-top:12px"><div onclick="toggleWeightHist()" style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;cursor:pointer;border-top:1px solid var(--border)"><div class="section-title" style="font-size:13px;margin:0">WEIGHT HISTORY</div><span id="wt-hist-chev" style="font-size:14px;color:var(--muted);transition:transform 0.2s">▾</span></div><div id="weight-history-list" style="display:none;margin-top:4px"></div></div>
+        <!-- BF% chart -->
+        <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:16px">
+          <div class="chart-title">Body Fat %</div>
+          <canvas id="bfChart" height="110"></canvas>
+          <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
+            <input type="text" inputmode="decimal" id="bf-input" placeholder="e.g. 15.0" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--accent);font-weight:600;font-size:14px;outline:none;font-family:var(--font-ui);min-width:0;">
+            <button class="btn btn-primary" onclick="saveBf()" style="padding:10px 18px;white-space:nowrap;width:auto;flex-shrink:0">LOG BF%</button>
+          </div>
+          <div style="margin-top:10px"><div onclick="toggleBfHist()" style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;cursor:pointer;border-top:1px solid var(--border)"><div class="section-title" style="font-size:13px;margin:0">BF% HISTORY</div><span id="bf-hist-chev" style="font-size:14px;color:var(--muted);transition:transform 0.2s">▾</span></div><div id="bf-history-list" style="display:none;margin-top:4px"></div></div>
+        </div>
+        <!-- BMI chart (derived from weight + profile height) -->
+        <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:16px">
+          <div class="chart-title">BMI</div>
+          <canvas id="bmiChart" height="100"></canvas>
+          <div id="bmi-note" style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center"></div>
+        </div>
+        <!-- Lean body mass (derived from weight + BF%) -->
+        <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:16px">
+          <div class="chart-title">Lean Body Mass</div>
+          <canvas id="lbmChart" height="110"></canvas>
+          <div id="lbm-note" style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center"></div>
+        </div>
+    </div>
+    <div id="pf-macros" style="margin-top:14px"></div>
+  </div>
   <div class="page" id="page-history">
     <div id="history-list"><div class="empty"><div class="empty-icon">📋</div>No workouts logged yet.</div></div>
   </div>
@@ -371,34 +408,6 @@
         <div class="stat-card"><div class="stat-val" id="stat-streak">0</div><div class="stat-lbl">This Week</div></div>
         <div class="stat-card"><div class="stat-val" id="stat-volume">—</div><div class="stat-lbl">Last Session</div><div class="stat-change" style="color:var(--muted)">tonnes</div></div>
         <div class="stat-card" style="grid-column:span 2"><div class="stat-val" id="stat-volume-total">—</div><div class="stat-lbl">Total Volume</div></div>
-      </div>
-      <!-- Weight chart -->
-      <div class="chart-wrap" style="margin-top:16px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div class="chart-title" style="margin-bottom:0">Body Weight (kg)</div><div style="display:flex;gap:4px"><button onclick="setWeightWindow(30)" id="wt-btn-30" class="wt-btn">30d</button><button onclick="setWeightWindow(60)" id="wt-btn-60" class="wt-btn">60d</button><button onclick="setWeightWindow(90)" id="wt-btn-90" class="wt-btn vol-btn-active">90d</button><button onclick="setWeightWindow(36500)" id="wt-btn-36500" class="wt-btn">All</button></div></div>
-        <canvas id="weightChart" height="130"></canvas>
-      </div>
-      <div style="margin-top:12px"><div onclick="toggleWeightHist()" style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;cursor:pointer;border-top:1px solid var(--border)"><div class="section-title" style="font-size:13px;margin:0">WEIGHT HISTORY</div><span id="wt-hist-chev" style="font-size:14px;color:var(--muted);transition:transform 0.2s">▾</span></div><div id="weight-history-list" style="display:none;margin-top:4px"></div></div>
-      <!-- BF% chart -->
-      <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:16px">
-        <div class="chart-title">Body Fat %</div>
-        <canvas id="bfChart" height="110"></canvas>
-        <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
-          <input type="text" inputmode="decimal" id="bf-input" placeholder="e.g. 15.0" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--accent);font-weight:600;font-size:14px;outline:none;font-family:var(--font-ui);">
-          <button class="btn btn-primary" onclick="saveBf()" style="padding:10px 18px;white-space:nowrap">LOG BF%</button>
-        </div>
-        <div style="margin-top:10px"><div onclick="toggleBfHist()" style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;cursor:pointer;border-top:1px solid var(--border)"><div class="section-title" style="font-size:13px;margin:0">BF% HISTORY</div><span id="bf-hist-chev" style="font-size:14px;color:var(--muted);transition:transform 0.2s">▾</span></div><div id="bf-history-list" style="display:none;margin-top:4px"></div></div>
-      </div>
-      <!-- BMI chart (derived from weight + profile height) -->
-      <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:16px">
-        <div class="chart-title">BMI</div>
-        <canvas id="bmiChart" height="100"></canvas>
-        <div id="bmi-note" style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center"></div>
-      </div>
-      <!-- Lean body mass (derived from weight + BF%) -->
-      <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:16px">
-        <div class="chart-title">Lean Body Mass</div>
-        <canvas id="lbmChart" height="110"></canvas>
-        <div id="lbm-note" style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center"></div>
       </div>
     </div>
     <!-- Strength panel -->
@@ -516,8 +525,6 @@
   <button class="navbtn"        id="navbtn-plan"     onclick="switchPrimary('plan')"><span class="navic">◇</span>Plan</button>
   <button class="navbtn"        id="navbtn-log"      onclick="switchPrimary('log')"><span class="navic">◉</span>Log</button>
   <button class="navbtn"        id="navbtn-macros"   onclick="switchPrimary('macros')"><span class="navic">◔</span>Macros</button>
-  <button class="navbtn"        id="navbtn-history"  onclick="switchPrimary('history')"><span class="navic">⬡</span>History</button>
-  <button class="navbtn"        id="navbtn-progress" onclick="switchPrimary('progress')"><span class="navic">∿</span>Progress</button>
   <button class="navbtn"        id="navbtn-more"     onclick="switchPrimary('more')"><span class="navic">≡</span>More</button>
 </nav>
 <div class="prog-overlay" id="prog-overlay">
@@ -610,7 +617,7 @@
 const VERSION='1.276';
 // BUILD_NO counts staging builds and is never rewritten by Push to Prod (which resets VERSION to
 // prod's own counter). The What's new card is keyed to it, so its rows show in both apps (2026-11-01).
-const BUILD_NO='1.392';
+const BUILD_NO='1.395';
 const IS_STAGING=(window.location.pathname||'').startsWith('/workout-staging');
 // Backend data namespace, sent as X-App-Id on every call. Staging gets its own so
 // testing here cannot write over production data — before 2026-08-01 both sent no
@@ -938,14 +945,16 @@ const THEMES=[
 ];
 function applyTheme(id){var t=THEMES.find(function(x){return x.id===id;})||THEMES[0];var r=document.documentElement.style;Object.entries(t.vars).forEach(function(e){r.setProperty('--'+e[0],e[1]);});setData('wkt-theme',id);pushSettingsToAgent({'wkt-theme':id});}
 (function(){var _st=getData('wkt-theme',1);if(_st!==1)applyTheme(_st);})();
-const PAGE_LABELS=Object.assign({today:'Today',plan:'Plan',gym:'Gym',homeequip:'Home equipment',log:'Log Workout',macros:'Macros',foodedit:'Food Edit',history:'History',progress:'Progress'},{storage:'Storage'});
-const PAGE_DEFAULTS=Object.assign({today:true,plan:true,gym:true,homeequip:true,log:true,macros:true,foodedit:true,history:true,progress:true},{storage:true});
+const PAGE_LABELS=Object.assign({today:'Today',plan:'Plan',gym:'Gym',homeequip:'Home equipment',log:'Log Workout',macros:'Macros',foodedit:'Food Edit',profile:'Profile',progress:'Progress',history:'History'},{storage:'Storage'});
+const PAGE_DEFAULTS=Object.assign({today:true,plan:true,gym:true,homeequip:true,log:true,macros:true,foodedit:true,profile:true,progress:true,history:true},{storage:true});
 // Two-tier navigation (ported from the peptide app): 5 fixed bottom "primary" tabs,
 // each grouping one or more page destinations; a secondary sub-tab strip appears only
 // when the active group has more than one visible destination (More → Settings/Storage).
 // Every legacy page id and showPage(id) call is preserved — this is an additive nav layer.
-const PRIMARY_GROUPS={today:['today'],plan:['plan','gym','homeequip'],log:['log'],macros:['macros','foodedit'],history:['history'],progress:['progress'],more:['settings','storage']};
-const PRIMARY_ORDER=['today','plan','log','macros','history','progress','more'];
+// Profile (Henrik, 2026-11-14: "change the top right corner weight button to a Profile button", "also move progress and
+// history in to this new profile section as sub tabs"): opened from the header, so it has no bottom-bar button.
+const PRIMARY_GROUPS={today:['today'],plan:['plan','gym','homeequip'],log:['log'],macros:['macros','foodedit'],profile:['profile','progress','history'],more:['settings','storage']};
+const PRIMARY_ORDER=['today','plan','log','macros','profile','more'];
 function primaryOf(id){for(var _p in PRIMARY_GROUPS){if(PRIMARY_GROUPS[_p].indexOf(id)>=0)return _p;}return '';}
 let _pageVis={};let _currentPage='today';let _currentPrimary='today';let _lastSub={};
 function _subVisible(id){if(id==='settings')return true;if(!(id in PAGE_LABELS))return false;return!!_pageVis[id];}
@@ -1322,7 +1331,7 @@ function _diagRenderInto(host){
 function buildStoragePage(){var _el=document.getElementById('page-storage');if(!_el)return;var _esc=function(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};_lsDbgKeys=[];for(var _di=0;_di<localStorage.length;_di++){var _dk=localStorage.key(_di);if(_dk!=null)_lsDbgKeys.push(_dk);}_lsDbgKeys.sort();var _rows=_lsDbgKeys.map(function(k,i){var _raw=localStorage.getItem(k)||'';var _extra='';try{var _pv=JSON.parse(_raw);if(Array.isArray(_pv))_extra='array · '+_pv.length+' items';else if(_pv!==null&&typeof _pv==='object')_extra='object · '+Object.keys(_pv).length+' keys';else _extra=typeof _pv;}catch(e){_extra='string';}var _trunc=_raw.length>300;var _disp=_trunc?_raw.slice(0,300)+'…':_raw;return'<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px">'+'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">'+'<div><span style="font-family:monospace;font-size:12px;color:var(--accent);font-weight:600">'+_esc(k)+'</span><span style="font-size:10px;color:var(--muted);margin-left:8px">'+_esc(_extra)+'</span></div>'+'<button onclick="lsDbgCopy('+i+')" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 10px;font-size:10px;cursor:pointer;font-family:inherit;flex-shrink:0">Copy</button>'+'</div>'+'<pre style="font-family:monospace;font-size:10px;color:var(--muted);white-space:pre-wrap;word-break:break-all;margin:0;line-height:1.4;max-height:100px;overflow:hidden">'+_esc(_disp)+'</pre>'+'</div>';}).join('');_el.innerHTML='<div style="padding:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><div style="font-size:13px;color:var(--muted)">'+_lsDbgKeys.length+' keys in localStorage</div><div style="display:flex;gap:8px"><button onclick="buildStoragePage()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">Refresh</button><button onclick="lsDbgCopyAll()" style="background:var(--accent);color:#000;border:none;border-radius:8px;padding:7px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">Copy All</button></div></div>'+_rows+'</div>';_diagRenderInto(_el);}
 function lsDbgCopy(i){var k=_lsDbgKeys[i];if(k==null)return;var v=localStorage.getItem(k)||'';var out={};try{out[k]=JSON.parse(v);}catch(e){out[k]=v;}navigator.clipboard.writeText(JSON.stringify(out,null,2)).catch(function(){});}
 function lsDbgCopyAll(){var out={};for(var _ci=0;_ci<localStorage.length;_ci++){var _ck=localStorage.key(_ci);if(!_ck)continue;var _cv=localStorage.getItem(_ck)||'';try{out[_ck]=JSON.parse(_cv);}catch(e){out[_ck]=_cv;}}navigator.clipboard.writeText(JSON.stringify(out,null,2)).catch(function(){});}
-function showPage(name,btn){localStorage.setItem('wkt-last-page',name);_currentPage=name;var _pr=primaryOf(name);if(_pr){_currentPrimary=_pr;_lastSub[_pr]=name;try{localStorage.setItem('wkt-last-sub-'+_pr,name);}catch(e){}_setPrimaryActive(_pr);_applySubtabVis(_pr);}document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tabs .tab').forEach(b=>b.classList.remove('active'));document.getElementById('page-'+name).classList.add('active');var _tb=document.getElementById('tab-btn-'+name);if(_tb)_tb.classList.add('active');if(name==='macros'){buildWkMacroTargets();buildWaterLog();buildFoodLog();}if(name==='foodedit')buildFoodEdit();if(name==='gym')buildEquipTab('gym');if(name==='homeequip')buildEquipTab('home');if(name==='today'||name==='plan')buildProgramSettingsCard();if(name==='today')buildWhatsNewCard();if(name==='history')renderHistory();if(name==='progress')renderProgress();if(name==='settings'){loadSettings();buildFlKeyCard();buildPolestarCard();}if(name==='storage')buildStoragePage();if(name==='log'){var _lc=document.getElementById('structured-log');var _hasReps=_lc&&Array.from(_lc.querySelectorAll('input[data-type="reps"]')).some(function(i){return parseInt(i.value)>0;});var _curDay=parseInt(document.getElementById('log-day').value)||0;
+function showPage(name,btn){localStorage.setItem('wkt-last-page',name);_currentPage=name;var _pr=primaryOf(name);if(_pr){_currentPrimary=_pr;_lastSub[_pr]=name;try{localStorage.setItem('wkt-last-sub-'+_pr,name);}catch(e){}_setPrimaryActive(_pr);_applySubtabVis(_pr);}document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tabs .tab').forEach(b=>b.classList.remove('active'));document.getElementById('page-'+name).classList.add('active');var _tb=document.getElementById('tab-btn-'+name);if(_tb)_tb.classList.add('active');if(name==='macros'){buildWkMacroTargets();buildWaterLog();buildFoodLog();}if(name==='foodedit')buildFoodEdit();if(name==='gym')buildEquipTab('gym');if(name==='homeequip')buildEquipTab('home');if(name==='today'||name==='plan')buildProgramSettingsCard();if(name==='today')buildWhatsNewCard();if(name==='profile')buildProfilePage();if(name==='history')renderHistory();if(name==='progress')renderProgress();if(name==='settings'){loadSettings();buildFlKeyCard();buildPolestarCard();}if(name==='storage')buildStoragePage();if(name==='log'){var _lc=document.getElementById('structured-log');var _hasReps=_lc&&Array.from(_lc.querySelectorAll('input[data-type="reps"]')).some(function(i){return parseInt(i.value)>0;});var _curDay=parseInt(document.getElementById('log-day').value)||0;
     // Re-prefill when the on-screen log was built under a now-stale deload or unit
     // state (both toggles live outside the Log page, so their inline re-prefill only
     // fires when Log is already open). Never blow away a log with reps entered.
@@ -4337,11 +4346,11 @@ function _exSketchBtnHtml(onclick){return '<button onclick="'+_escP(onclick)+'" 
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 function showWeightModal(){openModal('weightModal');}
-function saveWeight(){const val=unitToKg(document.getElementById('weight-input').value);if(!val||val<=0)return;const today=new Date().toISOString().split('T')[0];weights.push({date:today,weight:val});weights.sort((a,b)=>a.date.localeCompare(b.date));setData('weight_log',weights);updateCurrentWeight();document.getElementById('weight-input').value='';renderWeightHistory();renderProgress();pushWeightToAgent(today,val);}
+function saveWeight(){const val=unitToKg(document.getElementById('weight-input').value);if(!val||val<=0)return;const today=new Date().toISOString().split('T')[0];weights.push({date:today,weight:val});weights.sort((a,b)=>a.date.localeCompare(b.date));setData('weight_log',weights);updateCurrentWeight();document.getElementById('weight-input').value='';renderWeightHistory();renderProgress();if(_currentPage==='profile')buildProfilePage();pushWeightToAgent(today,val);}
 async function checkForUpdate(){const btn=document.getElementById('s-update-btn');if(btn){btn.textContent='Checking…';btn.disabled=true;btn.style.borderColor='var(--border)';btn.style.color='var(--muted)';}try{const r=await fetch((IS_STAGING?'https://viritasorg.github.io/workout-staging/version.json':'https://viritasorg.github.io/workout/version.json')+'?t='+Date.now());if(!r.ok)throw new Error('HTTP '+r.status);const {version}=await r.json();if(version===VERSION){if(btn){btn.textContent='Up to date ✓';btn.style.color='#3cffa0';btn.style.borderColor='#3cffa0';setTimeout(()=>{btn.textContent='Check';btn.style.color='var(--muted)';btn.style.borderColor='var(--border)';btn.disabled=false;},2500);}}else{if(btn){btn.textContent='Update to v'+version;btn.style.background='var(--accent)';btn.style.color='#000';btn.style.border='none';btn.style.borderRadius='20px';btn.disabled=false;btn.onclick=()=>window.location.reload(true);}}}catch(e){if(btn){btn.textContent='Failed';btn.disabled=false;setTimeout(()=>{btn.textContent='Check';},2000);}}}
 async function checkAppVersion(){try{const r=await fetch((IS_STAGING?'https://viritasorg.github.io/workout-staging/version.json':'https://viritasorg.github.io/workout/version.json')+'?t='+Date.now());if(!r.ok)return;const {version}=await r.json();const current=VERSION;if(version!==current){const b=document.createElement('div');b.style.cssText='position:fixed;bottom:0;left:0;right:0;background:#1c1c1c;border-top:1px solid var(--accent);padding:12px 20px;display:flex;justify-content:space-between;align-items:center;z-index:400;font-size:13px;';b.innerHTML='<span style="color:var(--text)">New version <strong style="color:var(--accent)">v'+version+'</strong> available</span><button onclick="window.location.reload(true)" style="background:var(--accent);color:#000;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font-ui)">Update</button>';document.body.appendChild(b);}}catch(e){}}
 async function checkSyncStatus(){const dot=document.getElementById('sync-dot');if(!dot)return;try{const ctrl=new AbortController();setTimeout(()=>ctrl.abort(),5000);const [rw,rl]=await Promise.all([fetch(AGENT_URL+'/weights',{headers:authHeaders(),signal:ctrl.signal}),fetch(AGENT_URL+'/workout-logs',{headers:authHeaders(),signal:ctrl.signal})]);if(!rw.ok||!rl.ok){dot.className='agent-dot down';dot.title='Backend unreachable';return;}const remoteW=await rw.json();const remoteL=await rl.json();const localW=getData('weight_log',[]);const localL=getData('workout_logs',[]);const toSyncW=localW.filter(w=>!remoteW.find(b=>b.date===w.date));const unsyncedW=toSyncW.length;const remoteIds=new Set(remoteL.map(l=>String(l.id)));const toSyncL=localL.filter(l=>!remoteIds.has(String(l.id)));const unsyncedL=toSyncL.length;if(unsyncedW>0){toSyncW.forEach(w=>pushWeightToAgent(w.date,w.weight));}if(unsyncedL>0){toSyncL.forEach(l=>pushWorkoutLogToAgent(l));}const ok=unsyncedW===0&&unsyncedL===0;dot.className='agent-dot '+(ok?'up':'warn');dot.title=ok?'Weights ✓ · Workout logs ✓ — all backed up':[unsyncedW?'⚠ '+unsyncedW+' weight(s) not synced':'',unsyncedL?'⚠ '+unsyncedL+' workout log(s) not synced':''].filter(Boolean).join(' · ');}catch(e){dot.className='agent-dot down';dot.title='Sync check failed';}}
-function updateCurrentWeight(){if(weights.length)document.getElementById('currentWeight').textContent=kgToUnit(weights[weights.length-1].weight);}
+function updateCurrentWeight(){if(typeof _currentPage!=='undefined'&&_currentPage==='profile'&&typeof _pfRenderInfo==='function')_pfRenderInfo();}
 function deleteWeight(date){if(!confirmGlobalDelete('the weight logged on '+date))return;weights=weights.filter(w=>w.date!==date);setData('weight_log',weights);updateCurrentWeight();renderWeightHistory();deleteWeightFromAgent(date);}
 function deleteInvalidWeights(){weights=weights.filter(function(w){return w.date&&/^\d{4}-\d{2}-\d{2}$/.test(w.date);});setData('weight_log',weights);updateCurrentWeight();renderWeightHistory();}
 function sortWeightHistory(arr){return [...arr].sort(function(a,b){var av=/^\d{4}-\d{2}-\d{2}$/.test(a.date||'');var bv=/^\d{4}-\d{2}-\d{2}$/.test(b.date||'');if(av!==bv)return av?1:-1;return a.date<b.date?1:a.date>b.date?-1:0;});}
@@ -4396,8 +4405,9 @@ function drawLbmChart(){var canvas=document.getElementById('lbmChart');if(!canva
 //
 // Only deleted dates are pruned. A local row the server has simply never seen is
 // still uploaded, which is what keeps a reading logged offline from being lost.
-async function syncBodyCompFromAgent(){try{const r=await fetch(AGENT_URL+'/bodycomp?include_deleted=true',{headers:authHeaders()});if(!r.ok)return;const all=await r.json();const remote=all.filter(function(e){return!e.deleted;});const gone=new Set(all.filter(function(e){return e.deleted;}).map(function(e){return e.date;}));const remoteDates=new Set(remote.map(function(e){return e.date;}));const local=getData('bf_log',[]).filter(function(e){return!gone.has(e.date);});const toUpload=local.filter(function(e){return!remoteDates.has(e.date);});const merged=[...remote.map(function(e){return{date:e.date,bf:e.bf};}), ...toUpload];merged.sort(function(a,b){return a.date.localeCompare(b.date);});bfLog=merged;setData('bf_log',merged);drawBfChart();renderBfHistory();drawLbmChart();const uploads=toUpload;if(uploads.length)await Promise.all(uploads.map(function(e){return pushBodyCompToAgent(e.date,e.bf);}));}catch(e){}}
-async function pushBodyCompToAgent(date,bf){try{await fetch(AGENT_URL+'/bodycomp',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({date:date,bf:bf})});}catch(e){}}
+async function syncBodyCompFromAgent(){try{const r=await fetch(AGENT_URL+'/bodycomp?include_deleted=true',{headers:authHeaders()});if(!r.ok)return;const all=await r.json();const remote=all.filter(function(e){return!e.deleted;});const gone=new Set(all.filter(function(e){return e.deleted;}).map(function(e){return e.date;}));const remoteDates=new Set(remote.map(function(e){return e.date;}));const local=getData('bf_log',[]).filter(function(e){return!gone.has(e.date);});const toUpload=local.filter(function(e){return!remoteDates.has(e.date);});const merged=[...remote.map(function(e){var o={date:e.date,bf:e.bf};if(e.neck)o.neck=e.neck;if(e.belly)o.belly=e.belly;if(e.method)o.method=e.method;if(e.skinfolds)o.skinfolds=e.skinfolds;return o;}), ...toUpload];merged.sort(function(a,b){return a.date.localeCompare(b.date);});bfLog=merged;setData('bf_log',merged);drawBfChart();renderBfHistory();drawLbmChart();const uploads=toUpload;if(uploads.length)await Promise.all(uploads.map(function(e){return pushBodyCompToAgent(e.date,e.bf,_bcExtra(e));}));}catch(e){}}
+async function pushBodyCompToAgent(date,bf,extra){try{await fetch(AGENT_URL+'/bodycomp',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify(Object.assign({date:date,bf:bf},extra||{}))});}catch(e){}}
+function _bcExtra(e){var x={};if(e&&e.neck)x.neck=e.neck;if(e&&e.belly)x.belly=e.belly;if(e&&e.method)x.method=e.method;if(e&&e.skinfolds)x.skinfolds=e.skinfolds;return x;}
 async function deleteBodyCompFromAgent(date){try{await fetch(AGENT_URL+'/bodycomp/'+date,{method:'DELETE',headers:authHeaders()});}catch(e){}}
 async function syncWorkoutLogsFromAgent(){try{const r=await fetch(AGENT_URL+'/workout-logs',{headers:authHeaders()});if(!r.ok)return;const remote=await r.json();const local=getData('workout_logs',[]);const byId={};local.forEach(function(l){byId[String(l.id)]=l;});remote.forEach(function(l){byId[String(l.id)]=l;});const clean=Object.values(byId).sort(function(a,b){return b.date.localeCompare(a.date);});logs=clean;setData('workout_logs',clean);var _sd=getData('wkt-draft',null);if(_sd&&(_sd.savedLogId?remote.some(function(l){return String(l.id)===String(_sd.savedLogId);}):_draftLog(_sd,remote))){var _shown=!_sd.savedLogId&&_logStartedAt&&_logStartedAt===_sd.startedAt;clearDraft();if(_shown){var _sdn=parseInt(document.getElementById('log-day').value)||1;prefillLog(_sdn);rebuildDayGrid();}}if(!localStorage.getItem('bw_kg_migration_v2')){var bwNm={has:isBWExName};var mig=0;logs.forEach(function(log){if(!log.exercises||!log.exercises.length)return;var relW2=weights.filter(function(w){return w.date<=log.date;});if(!relW2.length)return;var bw2=relW2[relW2.length-1].weight;var ch=false;log.exercises.forEach(function(ex){if(!bwNm.has(ex.name))return;(ex.sets||[]).forEach(function(s){if(s.reps>0&&s.kg===0){s.kg=bw2;ch=true;}});});if(ch){mig++;pushWorkoutLogToAgent(log);}});if(mig>0)setData('workout_logs',logs);localStorage.setItem('bw_kg_migration_v2','1');}if(!localStorage.getItem('wk-weighted-pu-vol-v1')){var wpuRe=/weighted\s*(pull|chin)/i;var migWpu=0;logs.forEach(function(log){if(!log.exercises||!log.exercises.length)return;if(!log.exercises.some(function(ex){return wpuRe.test(ex.name);}))return;var bwDate=getBWForDate(log.date);var addVol=0;log.exercises.forEach(function(ex){if(!wpuRe.test(ex.name))return;var g=ex.gear!=null?parseFloat(ex.gear):1;(ex.sets||[]).forEach(function(s){if(s.reps>0&&s.kg>0)addVol+=bwDate*s.reps*g;});});if(addVol>0){log.volume=(log.volume||0)+addVol;migWpu++;pushWorkoutLogToAgent(log);}});if(migWpu>0)setData('workout_logs',logs);localStorage.setItem('wk-weighted-pu-vol-v1','1');}var _adn=document.querySelector('.day-card.active .day-num');if(_adn)renderWorkout(parseInt(_adn.textContent)||1);if(localStorage.getItem('wkt-last-page')==='progress')renderProgress();}catch(e){}}
 async function pushWorkoutLogToAgent(log){try{const r=await fetch(AGENT_URL+'/workout-logs',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify(log)});return r.ok?'':'HTTP '+r.status;}catch(e){return (e&&e.message)||'network error';}}
@@ -4495,6 +4505,147 @@ function buildAppearanceCard(){
   card.innerHTML=html;
 }
 function buildCacheCard(){var card=document.getElementById('s-cache-card');if(!card)return;card.innerHTML='<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">'+sSecHdr('cache','Local Cache')+sSecBody('cache')+'<div style="padding:14px 16px;"><div style="font-size:12px;color:var(--muted);margin-bottom:12px;">All data is stored on the server. Clear the local cache to force a full re-sync.</div><button onclick="wipeLocalCache()" style="background:var(--danger,#ff3c3c);color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-ui);">Wipe local cache</button></div></div></div>';}
+// ── Profile page (Henrik, 2026-11-14: "change the top right corner weight button to a Profile button, and take user to a
+// page showing all profile information incl us navy measurments etc, here show progress over time for weight, bmi, body
+// fat etc same as in peptide tracker"; then "also macros progress or adherence over time should live in the profile as
+// well, but keep Macro reporting as a top level tab as today"). The weight, body-fat, BMI and lean-mass charts moved here
+// from Progress; the header no longer shows the weight, Log weight here opens the same weight modal it did.
+var NAVY_HELP='help.html#navy-invalid',_pfNavyErr='';
+function _pfLatest(){var p=getData('wkt-profile',{})||{},w=weights&&weights.length?weights[weights.length-1].weight:(p.weight||null);
+  var bf=bfLog&&bfLog.length?bfLog[bfLog.length-1]:null,h=p.height||null;
+  return{gender:p.gender||'',age:p.age||null,height:h,weight:w,bmi:(w&&h)?Math.round(w/Math.pow(h/100,2)*10)/10:null,bf:bf?bf.bf:null,bfDate:bf?bf.date:'',lean:(w&&bf)?Math.round(w*(1-bf.bf/100)*10)/10:null};}
+// Edit in place (Henrik, 2026-11-14: "Edit profile should not open the onboarding but just make all fields in Profile view
+// editable, the Edit button becomes a Save button, and Log weight a Cancel button"). Sex, age, height, weight and body fat
+// are editable; BMI and lean mass follow from them. A changed weight or body fat is logged for today, as Log weight and
+// LOG BF% do; sex, age and height go into the profile, on the device and on the backend, as the wizard saves them.
+var _pfEdit=null,_pfEditErr='',PROFILE_HELP='help.html#profile-invalid';
+function _pfInfoHtml(){var L=_pfLatest(),T='font-size:15px;color:var(--text);',E=_pfEdit;
+  var row=function(k,v){return'<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);'+T+'"><span>'+k+'</span><span style="font-weight:700;min-width:0">'+v+'</span></div>';};
+  var field=function(id,val,suffix){return'<span style="display:inline-flex;align-items:center;gap:6px"><input id="'+id+'" type="text" inputmode="decimal" value="'+(val==null?'':_escP(val))+'" style="width:84px;text-align:right;font-size:16px;font-weight:700;padding:8px 10px;color:var(--text);background:var(--surface2);border:1px solid var(--border-strong);border-radius:8px;font-family:inherit">'+suffix+'</span>';};
+  var chip=function(g,label){var on=E&&E.gender===g;return'<button data-pf-sex="'+g+'" onclick="pfEditSex(\''+g+'\')" style="padding:8px 14px;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;background:'+(on?'var(--accent)':'var(--surface2)')+';color:'+(on?'#000':'var(--text)')+';border:1px solid '+(on?'var(--accent)':'var(--border-strong)')+'">'+label+'</button>';};
+  var h='<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;">'
+    +'<div style="font-size:17px;font-weight:700;color:var(--text);margin-bottom:6px;">Your profile</div>';
+  if(E){h+=row('Sex','<span style="display:inline-flex;gap:6px">'+chip('male','Male')+chip('female','Female')+'</span>')+row('Age',field('pf-e-age',E.age,'yrs'))+row('Height',field('pf-e-height',E.height,'cm'))
+      +row('Weight',field('pf-e-weight',E.weight!=null?kgToUnit(E.weight):null,unitLabel()))+row('BMI',L.bmi?L.bmi.toFixed(1):'—')+row('Body fat',field('pf-e-bf',E.bf,'%'))+row('Lean mass',L.lean?kgToUnit(L.lean)+' '+unitLabel():'—');
+    if(_pfEditErr)h+='<div data-pf-edit-err="1" style="'+T+'line-height:1.5;margin-top:10px;padding:10px;border:1px solid var(--danger,#ff3b30);border-radius:10px;"><b>'+_escP(_pfEditErr)+'</b> <a href="'+PROFILE_HELP+'" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700">What this means and how to fix it</a></div>';
+    return h+'<div style="display:flex;gap:10px;margin-top:14px;"><button data-pf-cancel="1" onclick="pfEditCancel()" style="flex:1;padding:12px;border-radius:10px;border:1px solid var(--border-strong);background:var(--surface2);color:var(--text);font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">Cancel</button>'
+      +'<button class="btn btn-primary" data-pf-save="1" onclick="pfEditSave()" style="flex:1;">Save</button></div></div>';}
+  return h+row('Sex',L.gender?(L.gender==='female'?'Female':'Male'):'—')+row('Age',L.age?L.age+' yrs':'—')+row('Height',L.height?L.height+' cm':'—')
+    +row('Weight',L.weight?kgToUnit(L.weight)+' '+unitLabel():'—')+row('BMI',L.bmi?L.bmi.toFixed(1):'—')
+    +row('Body fat',L.bf?L.bf+' %':'—')+row('Lean mass',L.lean?kgToUnit(L.lean)+' '+unitLabel():'—')
+    +'<div style="display:flex;gap:10px;margin-top:14px;"><button class="btn btn-primary" data-pf-weight="1" onclick="showWeightModal()" style="flex:1;">Log weight</button>'
+    +'<button data-pf-edit="1" onclick="pfEditStart()" style="flex:1;padding:12px;border-radius:10px;border:1px solid var(--border-strong);background:var(--surface2);color:var(--text);font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">Edit profile</button></div></div>';}
+function pfEditStart(){var L=_pfLatest();_pfEdit={gender:L.gender||'',age:L.age,height:L.height,weight:L.weight,bf:L.bf};_pfEditErr='';_pfRenderInfo();}
+function pfEditCancel(){_pfEdit=null;_pfEditErr='';_pfRenderInfo();}
+function _pfKeepTyped(){if(!_pfEdit)return;[['age','pf-e-age'],['height','pf-e-height'],['bf','pf-e-bf']].forEach(function(f){var e=document.getElementById(f[1]);if(e)_pfEdit[f[0]]=e.value;});
+  var w=document.getElementById('pf-e-weight');if(w)_pfEdit.weightTyped=w.value;}
+function pfEditSex(g){if(!_pfEdit)return;_pfKeepTyped();_pfEdit.gender=g;var wt=_pfEdit.weightTyped;_pfRenderInfo();var w=document.getElementById('pf-e-weight');if(w&&wt!=null)w.value=wt;}
+function pfEditSave(){if(!_pfEdit)return;var v=function(id){var e=document.getElementById(id);var t=e?String(e.value||'').trim():'';return t===''?null:parseDec(t);};
+  var age=v('pf-e-age'),h=v('pf-e-height'),wu=v('pf-e-weight'),bf=v('pf-e-bf'),wkg=wu==null?null:unitToKg(String(wu));_pfEditErr='';
+  if(!_pfEdit.gender)_pfEditErr='Choose Male or Female.';
+  else if(age!=null&&!(age>=13&&age<=100))_pfEditErr='Type your age in years, between 13 and 100.';
+  else if(h!=null&&!(h>=100&&h<=250))_pfEditErr='Type your height in cm, between 100 and 250.';
+  else if(wkg!=null&&!(wkg>=20&&wkg<=300))_pfEditErr='Type your weight in '+unitLabel()+', a believable body weight.';
+  else if(bf!=null&&!(bf>=2&&bf<=60))_pfEditErr='Type body fat in %, between 2 and 60.';
+  if(_pfEditErr){_pfKeepTyped();var wt=_pfEdit.weightTyped;_pfRenderInfo();var we=document.getElementById('pf-e-weight');if(we&&wt!=null)we.value=wt;return;}
+  var L=_pfLatest(),p=getData('wkt-profile',{})||{};p.gender=_pfEdit.gender;p.age=age!=null?Math.round(age):null;p.height=h;setData('wkt-profile',p);
+  var kv={'wkt-profile':p,user_sex:p.gender};if(p.age)kv.user_age=String(p.age);if(p.height)kv.user_height=String(p.height);
+  var today=new Date().toISOString().split('T')[0];
+  if(wkg!=null&&(L.weight==null||Math.abs(wkg-L.weight)>=0.05)){wkg=Math.round(wkg*10)/10;weights=weights.filter(function(x){return x.date!==today;});weights.push({date:today,weight:wkg});weights.sort(function(a,b){return a.date.localeCompare(b.date);});setData('weight_log',weights);pushWeightToAgent(today,wkg);kv.user_weight=String(wkg);}
+  if(bf!=null&&(L.bf==null||Math.abs(bf-L.bf)>=0.05)){bf=Math.round(bf*10)/10;bfLog=bfLog.filter(function(x){return x.date!==today;});bfLog.push({date:today,bf:bf});bfLog.sort(function(a,b){return a.date.localeCompare(b.date);});setData('bf_log',bfLog);pushBodyCompToAgent(today,bf);}
+  pushSettingsToAgent(kv);_pfEdit=null;buildProfilePage();}
+function _pfRenderInfo(){var el=document.getElementById('pf-info');if(el)el.innerHTML=_pfInfoHtml();}
+// Body fat, every kind of entry (Henrik, 2026-11-14: "BF needs to allow, all kinds of entries ie new measurements or a
+// value"): the same methods as Peptide Tracker's Body tab, which shares this data (tape (US Navy), skinfold caliper with
+// Jackson-Pollock 3 or 7 sites or Durnin-Womersley 4 sites, DEXA, AI photo estimate) plus a plain value. Each entry
+// keeps its method, as Peptide Tracker's do, so a series is never a mix of instruments without saying so; a plain value
+// is stored as LOG BF% has always stored one, {date, bf}.
+var _pfBfMethod='navy',_pfCalMethod='jp3';
+var PF_BF_METHODS=[['navy','Tape (US Navy)'],['caliper','Caliper'],['dexa','DEXA scan'],['ai','AI photo'],['value','Value']];
+var PF_BF_DIRECT_HELP={dexa:'Type the body-fat percentage from your DEXA report.',
+  ai:'Take a few photos (front, side and back, relaxed, in even light) and upload them to any chat assistant for a body-fat estimate. Type the percentage it gives you.',
+  value:'Type a body-fat percentage you already have.'};
+var PF_CAL_LABEL={jp3:'Jackson-Pollock 3-site',jp7:'Jackson-Pollock 7-site',dw4:'Durnin-Womersley 4-site'};
+var PF_SITE_LABEL={chest:'Chest',abdomen:'Abdomen',thigh:'Thigh',triceps:'Triceps',suprailiac:'Suprailiac',axilla:'Midaxillary',subscapular:'Subscapular',biceps:'Biceps'};
+var PF_METHOD_LABEL={navy:'US Navy tape',jp3:'Caliper, JP 3-site',jp7:'Caliper, JP 7-site',dw4:'Caliper, DW 4-site',dexa:'DEXA scan',ai:'AI photo estimate'};
+// Skinfold equations, the same as Peptide Tracker's tab-body.js: Jackson-Pollock 3- and 7-site and Durnin-Womersley
+// 4-site body density, then Siri (1961).
+var _DW_COEF={male:[{max:19,C:1.1620,M:0.0630},{max:29,C:1.1631,M:0.0632},{max:39,C:1.1422,M:0.0544},{max:49,C:1.1620,M:0.0700},{max:200,C:1.1715,M:0.0779}],
+  female:[{max:19,C:1.1549,M:0.0678},{max:29,C:1.1599,M:0.0717},{max:39,C:1.1423,M:0.0632},{max:49,C:1.1333,M:0.0612},{max:200,C:1.1339,M:0.0645}]};
+function caliperSites(method,sex){if(method==='jp7')return['chest','axilla','triceps','subscapular','abdomen','suprailiac','thigh'];if(method==='dw4')return['biceps','triceps','subscapular','suprailiac'];
+  return sex==='female'?['triceps','suprailiac','thigh']:['chest','abdomen','thigh'];}
+function _bodyDensity(method,sex,age,sum){var s=sum,a=age,f=(sex==='female');
+  if(method==='jp7')return f?(1.097-0.00046971*s+0.00000056*s*s-0.00012828*a):(1.112-0.00043499*s+0.00000055*s*s-0.00028826*a);
+  if(method==='jp3')return f?(1.0994921-0.0009929*s+0.0000023*s*s-0.0001392*a):(1.10938-0.0008267*s+0.0000016*s*s-0.0002574*a);
+  var tbl=_DW_COEF[f?'female':'male'],row=null;for(var i=0;i<tbl.length;i++){if(a<=tbl[i].max){row=tbl[i];break;}}if(!row)row=tbl[tbl.length-1];
+  return row.C-row.M*(Math.log(s)/Math.LN10);}
+function caliperBF(method,sex,age,vals){var sites=caliperSites(method,sex),sum=0;for(var i=0;i<sites.length;i++){var v=vals[sites[i]];if(!(v>0))return null;sum+=v;}
+  var bd=_bodyDensity(method,sex,age,sum);if(!(bd>0))return null;var bf=495/bd-450;if(!isFinite(bf))return null;return Math.round(bf*10)/10;}
+function _pfNavyHtml(){var p=getData('wkt-profile',{})||{},fem=p.gender==='female',last=(bfLog||[]).length?bfLog[bfLog.length-1]:null,m=_pfBfMethod,T='font-size:15px;color:var(--text);line-height:1.5;';
+  var inp=function(id,label,ph){return'<label style="display:flex;flex-direction:column;gap:6px;font-size:15px;color:var(--text);font-weight:600;">'+label+'<input id="'+id+'" type="text" inputmode="decimal" placeholder="'+ph+'" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:16px;font-family:inherit;outline:none;"></label>';};
+  var chip=function(attr,on,click,label){return'<button '+attr+' onclick="'+click+'" style="flex:1 1 calc(33% - 6px);padding:9px 6px;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;background:'+(on?'var(--accent)':'var(--surface2)')+';color:'+(on?'#000':'var(--text)')+';border:1px solid '+(on?'var(--accent)':'var(--border-strong)')+'">'+label+'</button>';};
+  var h='<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:14px;">'
+    +'<div style="font-size:17px;font-weight:700;color:var(--text);margin-bottom:10px;">Log body fat</div>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">'+PF_BF_METHODS.map(function(x){return chip('data-pf-bfm="'+x[0]+'"',m===x[0],"pfSetBfMethod('"+x[0]+"')",x[1]);}).join('')+'</div>'
+    +'<div style="display:flex;flex-direction:column;gap:10px;">';
+  if(m==='navy')h+='<div style="'+T+'">Measure with a tape in cm. Body fat is worked out from these and your height'+(fem?', with the hip measurement for women':'')+'.</div>'+inp('pf-neck','Neck (cm)','e.g. 40')+inp('pf-waist','Waist at the navel (cm)','e.g. 90')+(fem?inp('pf-hips','Hips (cm)','e.g. 100'):'');
+  else if(m==='caliper'){var sites=caliperSites(_pfCalMethod,fem?'female':'male');
+    h+='<div style="display:flex;gap:6px;">'+[['jp3','JP 3-site'],['jp7','JP 7-site'],['dw4','DW 4-site']].map(function(x){return chip('data-pf-cal="'+x[0]+'"',_pfCalMethod===x[0],"pfSetCalMethod('"+x[0]+"')",x[1]);}).join('')+'</div>'
+      +'<div style="'+T+'">'+PF_CAL_LABEL[_pfCalMethod]+': '+sites.length+' sites, in mm. Take each pinch on the right side of the body and read it 1–2 seconds after the caliper settles. Uses your age.</div>'
+      +sites.map(function(st){return inp('pf-sf-'+st,PF_SITE_LABEL[st]+' (mm)','e.g. 12');}).join('');}
+  else h+='<div style="'+T+'">'+PF_BF_DIRECT_HELP[m]+'</div>'+inp('pf-bf-direct','Body fat (%)','e.g. 15.0');
+  h+='</div><button class="btn btn-primary" data-pf-navy="1" onclick="pfLogBf()" style="width:100%;margin-top:12px;">Log body fat</button>'
+    +(_pfNavyErr?'<div data-pf-navy-err="1" style="'+T+'margin-top:10px;padding:10px;border:1px solid var(--danger,#ff3b30);border-radius:10px;"><b>'+_escP(_pfNavyErr)+'</b> <a href="'+NAVY_HELP+'" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700">What this means and how to fix it</a></div>':'')
+    +(last?'<div data-pf-bf-last="1" style="'+T+'margin-top:10px;">Last: '+_escP(last.date)+' · '+last.bf+' % body fat'+(PF_METHOD_LABEL[last.method]?' · '+PF_METHOD_LABEL[last.method]:'')+(last.neck?' · neck '+last.neck+' cm':'')+(last.belly?' · waist '+last.belly+' cm':'')+'</div>':'');
+  return h+'</div>';}
+function _pfRenderNavy(){var el=document.getElementById('pf-navy');if(el)el.innerHTML=_pfNavyHtml();}
+function pfSetBfMethod(m){_pfBfMethod=m;_pfNavyErr='';_pfRenderNavy();}
+function pfSetCalMethod(m){_pfCalMethod=m;_pfNavyErr='';_pfRenderNavy();}
+function _pfVal(id){var e=document.getElementById(id);var t=e?String(e.value||'').trim():'';return t===''?NaN:parseDec(t);}
+function pfLogBf(){var p=getData('wkt-profile',{})||{},fem=p.gender==='female',sex=fem?'female':'male',m=_pfBfMethod,e=null;_pfNavyErr='';
+  if(m==='navy'){var neck=_pfVal('pf-neck'),waist=_pfVal('pf-waist'),hips=fem?_pfVal('pf-hips'):null;
+    if(!(p.height>0))_pfNavyErr='Your height is missing. Tap Edit profile and add it, then log again.';
+    else if(!(neck>=20&&neck<=60))_pfNavyErr='Type the neck measurement in cm, between 20 and 60.';
+    else if(!(waist>=50&&waist<=200))_pfNavyErr='Type the waist measurement in cm, between 50 and 200.';
+    else if(fem&&!(hips>=60&&hips<=200))_pfNavyErr='Type the hip measurement in cm, between 60 and 200.';
+    else if(waist<=neck)_pfNavyErr='The waist must be larger than the neck. Measure again.';
+    var nb=_pfNavyErr?null:navyBF(sex,p.height,neck,waist,hips);
+    if(!_pfNavyErr&&nb===null)_pfNavyErr='These measurements do not give a body fat. Measure again.';
+    if(!_pfNavyErr)e={bf:nb,neck:neck,belly:waist,method:'navy'};}
+  else if(m==='caliper'){var age=p.age,sites=caliperSites(_pfCalMethod,sex),vals={};
+    if(!(age>=18&&age<=100))_pfNavyErr='Your age is missing. Tap Edit profile and add it (18–100), then log again.';
+    for(var i=0;!_pfNavyErr&&i<sites.length;i++){var v=_pfVal('pf-sf-'+sites[i]);if(!(v>0&&v<100))_pfNavyErr='Type the '+PF_SITE_LABEL[sites[i]].toLowerCase()+' skinfold in mm, between 1 and 99.';else vals[sites[i]]=Math.round(v*10)/10;}
+    var cb=_pfNavyErr?null:caliperBF(_pfCalMethod,sex,age,vals);
+    if(!_pfNavyErr&&(cb===null||cb<3||cb>60))_pfNavyErr='These skinfolds give a body fat outside 3–60 %. Measure again.';
+    if(!_pfNavyErr)e={bf:cb,method:_pfCalMethod,skinfolds:vals};}
+  else{var d=_pfVal('pf-bf-direct');if(!(d>=3&&d<=60))_pfNavyErr='Type the body-fat percentage, between 3 and 60.';else{e={bf:Math.round(d*10)/10};if(m!=='value')e.method=m;}}
+  if(_pfNavyErr){_pfRenderNavy();return;}
+  if(m==='navy'&&!(e.bf>=3&&e.bf<=60)){_pfNavyErr='These measurements give a body fat outside 3–60 %. Measure again.';_pfRenderNavy();return;}
+  var today=new Date().toISOString().split('T')[0];e.date=today;
+  bfLog=bfLog.filter(function(x){return x.date!==today;});bfLog.push(e);bfLog.sort(function(a,b){return a.date.localeCompare(b.date);});setData('bf_log',bfLog);
+  pushBodyCompToAgent(today,e.bf,_bcExtra(e));buildProfilePage();}
+// Macro adherence over time: each logged day's kcal, protein, carbs and fat as % of that day's goals (GET /food-log/stats
+// series), the same numbers the Macros tab averages.
+var PF_MACROS=[['kcal','Kcal','#e8ff3c'],['protein','Protein','#4fc3f7'],['carbs','Carbs','#ffb74d'],['fat','Fat','#f48fb1']];
+function _pfMacroHtml(s){var T='font-size:15px;color:var(--text);line-height:1.5;';
+  var h='<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;"><div style="font-size:17px;font-weight:700;color:var(--text);margin-bottom:4px;">Macro adherence</div>';
+  if(!s||!(s.series||[]).length)return h+'<div data-pf-macro-empty="1" style="'+T+'">Shows once you have logged food on days with goals set. Log food and set your goals in Macros.</div></div>';
+  h+='<div style="'+T+'margin-bottom:10px;">Each day as % of that day\'s goals, '+_escP(s.from)+' to '+_escP(s.to)+'. The line at 100 % is on target.</div><canvas id="pfMacroChart" height="160" style="width:100%;display:block;"></canvas>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:10px;">'+PF_MACROS.filter(function(m){return s.metrics&&s.metrics[m[0]];}).map(function(m){return'<span data-pf-macro="'+m[0]+'" style="'+T+'"><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:'+m[2]+';margin-right:6px;vertical-align:-1px"></span>'+m[1]+' '+Math.round(s.metrics[m[0]].avg)+' % avg</span>';}).join('')+'</div>';
+  return h+'</div>';}
+function _pfDrawMacroChart(s){var c=document.getElementById('pfMacroChart');if(!c||!c.getContext||!s||!(s.series||[]).length)return;var ctx=c.getContext('2d'),dpr=window.devicePixelRatio||1,W=c.offsetWidth||300,H=160;
+  c.width=W*dpr;c.height=H*dpr;c.style.width=W+'px';c.style.height=H+'px';ctx.scale(dpr,dpr);
+  var pts=s.series,max=150;pts.forEach(function(p){PF_MACROS.forEach(function(m){if(p[m[0]]>max)max=p[m[0]];});});max=Math.ceil(max/50)*50;
+  var L=34,R=8,Tp=8,B=18,x=function(i){return L+(pts.length<2?(W-L-R)/2:i*(W-L-R)/(pts.length-1));},y=function(v){return Tp+(1-v/max)*(H-Tp-B);};
+  ctx.font='12px sans-serif';ctx.fillStyle=getComputedStyle(document.body).getPropertyValue('--text')||'#fff';ctx.strokeStyle='rgba(255,255,255,0.15)';
+  [0,50,100,150,200,250,300].filter(function(v){return v<=max;}).forEach(function(v){ctx.beginPath();ctx.moveTo(L,y(v));ctx.lineTo(W-R,y(v));ctx.stroke();ctx.fillText(v+'%',2,y(v)+4);});
+  ctx.setLineDash([5,4]);ctx.strokeStyle='rgba(255,255,255,0.7)';ctx.beginPath();ctx.moveTo(L,y(100));ctx.lineTo(W-R,y(100));ctx.stroke();ctx.setLineDash([]);
+  PF_MACROS.forEach(function(m){ctx.strokeStyle=m[2];ctx.fillStyle=m[2];ctx.lineWidth=2;ctx.beginPath();var on=false;pts.forEach(function(p,i){var v=p[m[0]];if(v==null){on=false;return;}if(on)ctx.lineTo(x(i),y(v));else{ctx.moveTo(x(i),y(v));on=true;}});ctx.stroke();
+    pts.forEach(function(p,i){var v=p[m[0]];if(v!=null){ctx.beginPath();ctx.arc(x(i),y(v),2.5,0,Math.PI*2);ctx.fill();}});});ctx.lineWidth=1;
+  ctx.fillStyle=getComputedStyle(document.body).getPropertyValue('--text')||'#fff';ctx.fillText(pts[0].date.slice(5),L,H-4);var e=pts[pts.length-1].date.slice(5);ctx.fillText(e,W-R-ctx.measureText(e).width,H-4);}
+async function _pfRenderMacros(){var el=document.getElementById('pf-macros');if(!el)return;if(typeof _flLoadStats==='function')await _flLoadStats();el.innerHTML=_pfMacroHtml(_flStats);_pfDrawMacroChart(_flStats);}
+function buildProfilePage(){_pfRenderInfo();_pfRenderNavy();
+  drawChart();renderWeightHistory();drawBfChart();renderBfHistory();drawBmiChart();drawLbmChart();_pfRenderMacros();}
 function buildProfileCard(){
   var card=document.getElementById('s-profile-card');
   if(!card)return;
@@ -4658,8 +4809,9 @@ var TOUR_TABS=[
   {icon:'💪',name:'LOG WORKOUT',desc:'After training, log your sets, weights, and reps. State is preserved while you train — even if you switch apps.'},
   {icon:'🍽️',name:'MACROS',desc:'Type what you ate, or take a photo of the food or its label, and the AI estimates the calories and macros and saves them against your daily targets. Log water there too.'},
   {icon:'✏️',name:'FOOD EDIT',desc:'Fix or delete a food entry, or change how much of it you ate.'},
-  {icon:'📅',name:'HISTORY',desc:'Review all past sessions with full exercise and set details.'},
-  {icon:'📈',name:'PROGRESS',desc:'Track bodyweight trends, weekly volume per muscle group, and estimated 1RM strength over time.'},
+  {icon:'👤',name:'PROFILE',desc:'The Profile button at the top right: your details, weight, US Navy body-fat measurement, and how weight, BMI, body fat, lean mass and macro adherence change over time.'},
+  {icon:'📈',name:'PROGRESS',desc:'In Profile: weekly volume per muscle group and estimated 1RM strength over time.'},
+  {icon:'📅',name:'HISTORY',desc:'In Profile: review all past sessions with full exercise and set details.'},
   {icon:'⚙️',name:'SETTINGS',desc:'Manage programs, tab visibility, appearance, profile, and sync.'}
 ];
 // The movie follows the answers given earlier in the wizard (Henrik, 2026-10-24: "ask the onboarding
@@ -4755,11 +4907,11 @@ function obGender(g){
     b.classList.toggle('ob-sel',(g==='male'&&b.textContent.indexOf('Male')>-1)||(g==='female'&&b.textContent.indexOf('Female')>-1));
   });
 }
-function calcNavyBF(){
-  var h=parseDec(_obData.height),neck=parseDec(_obData.neck),waist=parseDec(_obData.waist),hips=parseDec(_obData.hips);
+// US Navy body fat (Hodgdon-Beckett, cm). One implementation: the onboarding wizard and the Profile page both use it.
+function navyBF(gender,h,neck,waist,hips){
   if(!h||!neck||!waist||h<=0||neck<=0||waist<=0)return null;
   var bf;
-  if(_obData.gender==='female'){
+  if(gender==='female'){
     if(!hips||hips<=0)return null;
     var v=waist+hips-neck;if(v<=0)return null;
     // Hodgdon-Beckett formula for females (cm)
@@ -4771,6 +4923,7 @@ function calcNavyBF(){
   }
   return Math.max(1,Math.min(60,Math.round(bf*10)/10));
 }
+function calcNavyBF(){return navyBF(_obData.gender,parseDec(_obData.height),parseDec(_obData.neck),parseDec(_obData.waist),parseDec(_obData.hips));}
 function obUpdateBF(){
   var el=document.getElementById('ob-bf-result');if(!el)return;
   var bf=calcNavyBF();
@@ -4788,6 +4941,9 @@ function obSkip(){if(_obTourOnly){_obCloseTour();return;}obFinish();}
 // onboarded account means the card never existed for it yet: it gets the whole list.
 // Add a row here when a feature ships that a user would not find on their own.
 var WHATS_NEW=[
+  {v:'1.395',title:'Log body fat any way',text:'On Profile, Log body fat takes a tape measurement (US Navy), caliper skinfolds (3, 4 or 7 sites), a DEXA scan, an AI photo estimate or a plain value.'},
+  {v:'1.394',title:'Edit your profile',text:'On Profile, Edit profile now makes the fields editable right there: change sex, age, height, weight or body fat and tap Save, or Cancel to leave it as it was.'},
+  {v:'1.393',title:'Profile',text:'The button at the top right is now Profile: your details, Log weight, a US Navy body-fat measurement, and how weight, BMI, body fat, lean mass and macro adherence change over time. Progress and History are its sub-tabs.'},
   {v:'1.391',title:'Regenerate program',text:'Open a program from Plan and tap Regenerate program: it is built again with the latest program generator and your current Gym or Home equipment, keeping its name. You see what changes and choose Save or Discard.'},
   {v:'1.388',title:'Home programs use your weights',text:'On a Home program, the weight suggested on Today and in Log Workout is the nearest one you have, from the weights picked in Plan → Home equipment.'},
   {v:'1.387',title:'Home weights',text:'Plan → Home equipment: tick Kettlebell, Dumbbells or Barbell + rack and pick the weights you have, or type any other weight and tap Add.'},

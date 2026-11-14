@@ -2108,7 +2108,7 @@ console.log('\n── BF% backend sync — save, delete, load ──────
   check('syncBodyCompFromAgent defined',
     src.includes('async function syncBodyCompFromAgent()'));
   check('syncBodyCompFromAgent merges bf field from remote entries',
-    src.includes('return{date:e.date,bf:e.bf}'));
+    src.includes('var o={date:e.date,bf:e.bf};'));
   check('syncBodyCompFromAgent updates bfLog and saves to bf_log',
     src.includes('bfLog=merged') && src.includes("setData('bf_log',merged)"));
   check('syncBodyCompFromAgent called at startup',
@@ -3590,9 +3590,9 @@ console.log('\n── Name-keyed drafts / leg-day prehab strip ─────�
 console.log('\n── Bottom navbar / PLASMA GUI port ─────────────────────────');
 {
   const src = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
-  check('fixed bottom navbar markup exists with 6 primaries',
-    ['navbtn-today', 'navbtn-plan', 'navbtn-log', 'navbtn-macros', 'navbtn-history', 'navbtn-progress', 'navbtn-more']
-      .every(id => src.includes('id="' + id + '"')));
+  check('fixed bottom navbar markup exists with 5 primaries (History and Progress live in Profile)',
+    ['navbtn-today', 'navbtn-plan', 'navbtn-log', 'navbtn-macros', 'navbtn-more'].every(id => src.includes('id="' + id + '"')) &&
+    !src.includes('id="navbtn-history"') && !src.includes('id="navbtn-progress"'));
   check('navbar buttons call switchPrimary', src.includes("switchPrimary('more')") && src.includes("switchPrimary('today')"));
   check('navbar CSS is fixed to bottom with safe-area inset',
     src.includes('.navbar{position:fixed;bottom:0') && src.includes('env(safe-area-inset-bottom'));
@@ -3604,7 +3604,7 @@ console.log('\n── Bottom navbar / PLASMA GUI port ────────�
   check('Macros is its own primary, with Food Edit as its sub-tab, after Log',
     JSON.stringify(G.PRIMARY_GROUPS.macros) === JSON.stringify(['macros', 'foodedit']) &&
     JSON.stringify(G.PRIMARY_GROUPS.log) === JSON.stringify(['log']) &&
-    /const PRIMARY_ORDER=\['today','plan','log','macros','history','progress','more'\]/.test(src));
+    /const PRIMARY_ORDER=\['today','plan','log','macros','profile','more'\]/.test(src));
   // Henrik, 2026-10-21 (his own commit, rebuilt on staging): Program becomes Today, and the
   // program library + templates move to a new Plan tab.
   {
@@ -3662,7 +3662,7 @@ console.log('\n── Swipe navigation between top-level tabs ──────
   check('swipe: view follows finger via translateX', /av\.style\.transform='translateX\(/.test(rawScript));
   check('swipe: rubber-band resistance at the ends', rawScript.includes('dx*0.28'));
   if (typeof G._navSwipeTarget === 'function') {
-    const order = ['today','plan','log','macros','history','progress','more']; // mirrors PRIMARY_ORDER (const, not exported to sandbox)
+    const order = ['today','plan','log','macros','profile','more']; // mirrors PRIMARY_ORDER (const, not exported to sandbox)
     check('swipe next from first → second', G._navSwipeTarget(order, order[0], 1) === order[1]);
     check('swipe prev from second → first', G._navSwipeTarget(order, order[1], -1) === order[0]);
     check('no wrap past last tab', G._navSwipeTarget(order, order[order.length-1], 1) === null);
@@ -8271,6 +8271,145 @@ check('…regular, wide, diamond and archer push-ups keep 64%',
   G._programs = _p; G.confirm = _c; G.savePrograms = _sp; G.buildProgramSettingsCard = _bp; G._renderProgOverlay = _ro; G.renderWorkout = _rw; G._activeProgramIndex = _ai;
   if (saved.home === null) _ls.removeItem('wkt-home-equip'); else _ls.setItem('wkt-home-equip', saved.home);
   if (saved.gym === null) _ls.removeItem('wkt-gym-equip'); else _ls.setItem('wkt-gym-equip', saved.gym);
+}
+
+// ── Profile ──────────────────────────────────────────────────────────────────
+// Henrik, 2026-11-14: "change the top right corner weight button to a Profile button, and take user to a page showing
+// all profile information incl us navy measurments etc, here show progress over time for weight, bmi, body fat etc same
+// as in peptide tracker"; "also move progress and history in to this new profile section as sub tabs"; "also macros
+// progress or adherence over time should live in the profile as well, but keep Macro reporting as a top level tab".
+{
+  console.log('\n── Profile ───────');
+  const src = html;
+  const hdr = src.slice(src.indexOf('<div class="header">'), src.indexOf('<div class="tabs" id="subtabs"'));
+  check('the header button is Profile and opens the Profile section; no weight in the header',
+    /id="hdr-profile" onclick="switchPrimary\('profile'\)"/.test(hdr) && />Profile</.test(hdr) && !hdr.includes('currentWeight') && !hdr.includes('showWeightModal'));
+  check('Profile holds Profile, Progress and History, in that order', JSON.stringify(G.PRIMARY_GROUPS.profile) === JSON.stringify(['profile', 'progress', 'history']) &&
+    G.primaryOf('history') === 'profile' && G.primaryOf('progress') === 'profile' && G.PAGE_LABELS.profile === 'Profile' &&
+    src.indexOf('id="tab-btn-profile"') < src.indexOf('id="tab-btn-progress"') && src.indexOf('id="tab-btn-progress"') < src.indexOf('id="tab-btn-history"'));
+  check('Macros stays its own bottom-bar tab', JSON.stringify(G.PRIMARY_GROUPS.macros) === JSON.stringify(['macros', 'foodedit']) && src.includes('id="navbtn-macros"'));
+  check('showing Profile builds it', /if\(name==='profile'\)buildProfilePage\(\)/.test(src));
+  const page = src.slice(src.indexOf('id="page-profile"'), src.indexOf('id="page-history"'));
+  check('the weight, body-fat, BMI and lean-mass charts moved from Progress to Profile',
+    ['weightChart', 'weight-history-list', 'bfChart', 'bf-input', 'bmiChart', 'lbmChart'].every(id => page.includes('id="' + id + '"')) &&
+    (src.match(/id="weightChart"/g) || []).length === 1);
+  check('…with the macro adherence chart below', page.includes('id="pf-macros"'));
+  // Henrik, 2026-11-14: the body-fat box beside LOG BF% was squeezed flat, because .btn-primary makes a button full width.
+  check('the body-fat input keeps its room: LOG BF% takes only its own width', /onclick="saveBf\(\)" style="[^"]*width:auto;flex-shrink:0/.test(page) && /id="bf-input"[^>]*min-width:0/.test(page));
+  const _ls = G.localStorage, saved = { p: _ls.getItem('wkt-profile'), bf: _ls.getItem('bf_log') }, _w = G.weights, _b = G.bfLog;
+  G.setData('wkt-profile', { onboarded: true, gender: 'male', age: 40, height: 180, weight: 90 });
+  G.weights = [{ date: '2026-11-01', weight: 88 }, { date: '2026-11-10', weight: 86 }];
+  G.bfLog = [{ date: '2026-11-05', bf: 18 }];
+  const info = G._pfInfoHtml();
+  check('profile info: sex, age, height, latest weight, BMI, body fat and lean mass', ['Male', '40 yrs', '180 cm', '86', '26.5', '18 %', '70.5'].every(t => info.includes(t)), info.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 300));
+  check('…with Log weight (the old header button) and Edit profile', info.includes('data-pf-weight="1" onclick="showWeightModal()"') && info.includes('data-pf-edit="1" onclick="pfEditStart()"'));
+  // Henrik, 2026-11-14: "Edit profile should not open the onboarding but just make all fields in Profile view editable,
+  // the Edit button becomes a Save button, and Log weight a Cancel button".
+  {
+    const ef = {}, _gid0 = G.document.getElementById, el = { innerHTML: '' }; G.document.getElementById = (id) => id === 'pf-info' ? el : (ef[id] || _gid0.call(G.document, id));
+    const sent = [], _ps = G.pushSettingsToAgent, _pw = G.pushWeightToAgent, _pb = G.pushBodyCompToAgent, _bpp = G.buildProfilePage;
+    G.pushSettingsToAgent = (kv) => sent.push(['settings', kv]); G.pushWeightToAgent = (d, w) => sent.push(['weight', d, w]); G.pushBodyCompToAgent = (d, b) => sent.push(['bf', d, b]);
+    let built = 0; G.buildProfilePage = () => { built++; };
+    let wiz = 0; const _oo = G.openOnboarding; G.openOnboarding = () => { wiz++; };
+    G.pfEditStart();
+    const eh = el.innerHTML;
+    check('Edit profile makes the fields editable in place, without the setup wizard', wiz === 0 && ['pf-e-age', 'pf-e-height', 'pf-e-weight', 'pf-e-bf'].every(id => eh.includes('id="' + id + '"')) && eh.includes('data-pf-sex="male"') && eh.includes('data-pf-sex="female"'));
+    check('…Edit becomes Save and Log weight becomes Cancel', /data-pf-save="1" onclick="pfEditSave\(\)"[^>]*>Save</.test(eh) && /data-pf-cancel="1" onclick="pfEditCancel\(\)"[^>]*>Cancel</.test(eh) && !eh.includes('data-pf-weight') && !eh.includes('data-pf-edit="1"'));
+    check('…with the current values filled in', /id="pf-e-age"[^>]*value="40"/.test(eh) && /id="pf-e-height"[^>]*value="180"/.test(eh) && /id="pf-e-bf"[^>]*value="18"/.test(eh));
+    check('…readable: 15px or larger and never greyed', !/font-size:1[0-4]px/.test(eh) && !/var\(--muted\)/.test(eh));
+    G.pfEditCancel();
+    check('Cancel goes back to the view with nothing changed', el.innerHTML.includes('data-pf-edit="1"') && sent.length === 0 && G.getData('wkt-profile', {}).age === 40);
+    G.pfEditStart();
+    ef['pf-e-age'] = { value: '41' }; ef['pf-e-height'] = { value: '181' }; ef['pf-e-weight'] = { value: '85,5' }; ef['pf-e-bf'] = { value: '17' };
+    G.pfEditSex('female');
+    check('choosing a sex keeps what was typed', G._pfEdit.gender === 'female' && G._pfEdit.age === '41');
+    ef['pf-e-height'] = { value: '90' }; G.pfEditSave();
+    check('an impossible value saves nothing and says what to do, with its help link', sent.length === 0 && el.innerHTML.includes('data-pf-edit-err="1"') && el.innerHTML.includes('height') && el.innerHTML.includes('href="help.html#profile-invalid"') && G.getData('wkt-profile', {}).height === 180);
+    ef['pf-e-height'] = { value: '181' }; G.pfEditSave();
+    const pr = G.getData('wkt-profile', {}), today = new Date().toISOString().split('T')[0];
+    check('Save stores sex, age and height in the profile, on the device and the backend', pr.gender === 'female' && pr.age === 41 && pr.height === 181 && pr.onboarded === true &&
+      sent.some(x => x[0] === 'settings' && x[1]['wkt-profile'] && x[1]['wkt-profile'].height === 181 && x[1].user_sex === 'female' && x[1].user_age === '41'));
+    check('…a changed weight and body fat are logged for today', G.weights[G.weights.length - 1].date === today && G.weights[G.weights.length - 1].weight === 85.5 && G.bfLog[G.bfLog.length - 1].bf === 17 &&
+      sent.some(x => x[0] === 'weight' && x[2] === 85.5) && sent.some(x => x[0] === 'bf' && x[2] === 17));
+    check('…and the page shows the view again', G._pfEdit === null && built === 1);
+    sent.length = 0; G.pfEditStart(); ef['pf-e-weight'] = { value: '85.5' }; ef['pf-e-bf'] = { value: '17' }; G.pfEditSave();
+    check('an unchanged weight or body fat logs nothing new', !sent.some(x => x[0] === 'weight' || x[0] === 'bf'));
+    G.document.getElementById = _gid0; G.pushSettingsToAgent = _ps; G.pushWeightToAgent = _pw; G.pushBodyCompToAgent = _pb; G.buildProfilePage = _bpp; G.openOnboarding = _oo;
+    G.setData('wkt-profile', { onboarded: true, gender: 'male', age: 40, height: 180, weight: 90 });
+    G.weights = [{ date: '2026-11-01', weight: 88 }, { date: '2026-11-10', weight: 86 }]; G.bfLog = [{ date: '2026-11-05', bf: 18 }];
+    const help0 = fs.readFileSync(path.join(__dirname, '..', 'help.html'), 'utf8');
+    check('help page: the profile warning has its section', /id="profile-invalid"[\s\S]*What it means[\s\S]*What happens if you ignore it[\s\S]*How to fix it/.test(help0));
+  }
+  check('navyBF: the same Hodgdon-Beckett numbers the onboarding wizard uses', G.navyBF('male', 180, 40, 90) === (() => { G._obData.gender = 'male'; G._obData.height = '180'; G._obData.neck = '40'; G._obData.waist = '90'; return G.calcNavyBF(); })() && G.navyBF('male', 180, 40, 90) > 10 && G.navyBF('male', 180, 40, 90) < 25);
+  const pushed = [], _f = G.fetch, _bp = G.buildProfilePage; G.fetch = (u, o) => { if (o && o.method === 'POST') pushed.push([u, JSON.parse(o.body)]); return Promise.resolve({ ok: true, json: async () => ({}) }); };
+  let rebuilt = 0; G.buildProfilePage = () => { rebuilt++; };
+  const fields = {}, _gid = G.document.getElementById; G.document.getElementById = (id) => fields[id] || _gid.call(G.document, id);
+  const nav = G._pfNavyHtml();
+  check('Log body fat starts on the US Navy tape: neck and waist for a man, no hips', nav.includes('id="pf-neck"') && nav.includes('id="pf-waist"') && !nav.includes('id="pf-hips"') && nav.includes('onclick="pfLogBf()"'));
+  fields['pf-neck'] = { value: '40' }; fields['pf-waist'] = { value: '90,0' };
+  G.pfLogBf();
+  const today = new Date().toISOString().split('T')[0], last = G.bfLog[G.bfLog.length - 1];
+  check('logging computes body fat, stores it for today with the measurements, and sends them to the backend',
+    last.date === today && last.bf === G.navyBF('male', 180, 40, 90) && last.neck === 40 && last.belly === 90 && last.method === 'navy' &&
+    pushed.some(([u, b]) => /\/bodycomp$/.test(u) && b.date === today && b.neck === 40 && b.belly === 90 && b.method === 'navy' && b.bf === last.bf) && rebuilt === 1);
+  check('…and the card shows the last measurement', G._pfNavyHtml().includes('neck 40 cm') && G._pfNavyHtml().includes('waist 90 cm'));
+  for (const [neck, waist, why] of [['', '90', 'neck'], ['40', 'abc', 'waist'], ['58', '55', 'larger']]) {
+    fields['pf-neck'] = { value: neck }; fields['pf-waist'] = { value: waist }; const n = G.bfLog.length; G.pfLogBf();
+    const h = G._pfNavyHtml();
+    check('a wrong measurement (' + why + ') logs nothing and says what to do, with its help link', G.bfLog.length === n && h.includes('data-pf-navy-err="1"') && h.includes(why) && h.includes('href="help.html#navy-invalid"'));
+  }
+  G.setData('wkt-profile', { onboarded: true, gender: 'female', age: 35 });
+  check('a woman also gives her hips', G._pfNavyHtml().includes('id="pf-hips"'));
+  fields['pf-neck'] = { value: '34' }; fields['pf-waist'] = { value: '75' }; fields['pf-hips'] = { value: '100' }; G.pfLogBf();
+  check('without a height it asks for it first', G._pfNavyHtml().includes('height is missing'));
+  G.setData('wkt-profile', { onboarded: true, gender: 'female', age: 35, height: 168 }); G.pfLogBf();
+  check('…and with it, uses the hips in the formula', G.bfLog[G.bfLog.length - 1].bf === G.navyBF('female', 168, 34, 75, 100) && !G._pfNavyHtml().includes('data-pf-navy-err'));
+  const mstats = { from: '2026-11-01', to: '2026-11-03', metrics: { kcal: { avg: 96 }, protein: { avg: 88 }, carbs: null, fat: null },
+    series: [{ date: '2026-11-01', kcal: 100, protein: 90, carbs: null, fat: null }, { date: '2026-11-02', kcal: 92, protein: 86, carbs: null, fat: null }] };
+  const mh = G._pfMacroHtml(mstats);
+  check('macro adherence: a chart of each day as % of its goals, with the average per macro that has a goal', mh.includes('id="pfMacroChart"') && mh.includes('Kcal 96 % avg') && mh.includes('Protein 88 % avg') && !mh.includes('data-pf-macro="carbs"'));
+  check('…and when there is nothing to plot it says how to get there', G._pfMacroHtml(null).includes('data-pf-macro-empty') && G._pfMacroHtml({ series: [] }).includes('Macros'));
+  check('readable: the new cards use 15px or larger and no grey', ![info, G._pfNavyHtml(), mh, G._pfMacroHtml(null)].some(h => /font-size:1[0-4]px/.test(h) || /var\(--muted\)/.test(h)));
+  check('bodycomp sync keeps the measurements a US Navy entry came with', String(G.syncBodyCompFromAgent).includes('if(e.neck)o.neck=e.neck'));
+  const help = fs.readFileSync(path.join(__dirname, '..', 'help.html'), 'utf8');
+  // Henrik, 2026-11-14: "BF needs to allow, all kinds of entries ie new measurements or a value".
+  {
+    G.setData('wkt-profile', { onboarded: true, gender: 'male', age: 40, height: 180 });
+    const nav2 = G._pfNavyHtml();
+    check('every kind of entry is offered: tape, caliper, DEXA, AI photo and a plain value', ['navy', 'caliper', 'dexa', 'ai', 'value'].every(m => nav2.includes('data-pf-bfm="' + m + '"')));
+    const today2 = new Date().toISOString().split('T')[0], sent2 = [];
+    G.fetch = (u, o) => { if (o && o.method === 'POST') sent2.push(JSON.parse(o.body)); return Promise.resolve({ ok: true, json: async () => ({}) }); };
+    G.pfSetCalMethod('jp3'); G.pfSetBfMethod('caliper');
+    const ch = G._pfNavyHtml();
+    check('caliper: JP 3-site asks a man for chest, abdomen and thigh', ['chest', 'abdomen', 'thigh'].every(x => ch.includes('id="pf-sf-' + x + '"')) && !ch.includes('pf-sf-triceps') && ch.includes('data-pf-cal="jp7"') && ch.includes('data-pf-cal="dw4"'));
+    fields['pf-sf-chest'] = { value: '10' }; fields['pf-sf-abdomen'] = { value: '20' }; fields['pf-sf-thigh'] = { value: '15' };
+    G.pfLogBf();
+    const cl = G.bfLog[G.bfLog.length - 1], want = G.caliperBF('jp3', 'male', 40, { chest: 10, abdomen: 20, thigh: 15 });
+    check('…logs the Jackson-Pollock result with its method and skinfolds, also to the backend', cl.date === today2 && cl.bf === want && cl.method === 'jp3' && cl.skinfolds.thigh === 15 && want > 5 && want < 25 &&
+      sent2.some(b => b.method === 'jp3' && b.skinfolds && b.skinfolds.chest === 10 && b.bf === want));
+    // Expected values computed with Peptide Tracker's own tab-body.js caliperBF on 2026-11-14: the two apps share this data.
+    check('…the same equations as Peptide Tracker (JP3, DW4, JP7)', G.caliperBF('jp3', 'male', 40, { chest: 10, abdomen: 20, thigh: 15 }) === 14.7 &&
+      G.caliperBF('dw4', 'female', 30, { biceps: 5, triceps: 12, subscapular: 10, suprailiac: 9 }) === 24.2 &&
+      G.caliperBF('jp7', 'female', 25, { chest: 5, axilla: 6, triceps: 12, subscapular: 10, abdomen: 15, suprailiac: 9, thigh: 20 }) === 16.6);
+    G.pfSetCalMethod('dw4');
+    check('…DW 4-site asks for biceps, triceps, subscapular and suprailiac', ['biceps', 'triceps', 'subscapular', 'suprailiac'].every(x => G._pfNavyHtml().includes('id="pf-sf-' + x + '"')));
+    fields['pf-sf-biceps'] = { value: '0' }; G.pfLogBf();
+    check('…a missing skinfold logs nothing and names it', G._pfNavyHtml().includes('biceps skinfold') && G.bfLog[G.bfLog.length - 1] === cl);
+    for (const [m, method] of [['dexa', 'dexa'], ['ai', 'ai'], ['value', undefined]]) {
+      G.pfSetBfMethod(m); fields['pf-bf-direct'] = { value: '14,4' }; G.pfLogBf();
+      const d = G.bfLog[G.bfLog.length - 1];
+      check(m + ': the percentage typed is logged for today' + (method ? ' as ' + method : ' as a plain value'), d.date === today2 && d.bf === 14.4 && d.method === method && G._pfNavyHtml().includes('id="pf-bf-direct"'));
+    }
+    fields['pf-bf-direct'] = { value: '75' }; G.pfLogBf();
+    check('…a body fat outside 3–60 % logs nothing and says so', G._pfNavyHtml().includes('between 3 and 60') && G.bfLog[G.bfLog.length - 1].bf === 14.4);
+    check('the card stays readable in every method', ['navy', 'caliper', 'dexa', 'ai', 'value'].every(m => { G.pfSetBfMethod(m); const h = G._pfNavyHtml(); return !/font-size:1[0-4]px/.test(h) && !/var\(--muted\)/.test(h); }));
+    G.pfSetBfMethod('navy');
+    check('bodycomp sync keeps a caliper entry\'s skinfolds', String(G.syncBodyCompFromAgent).includes('if(e.skinfolds)o.skinfolds=e.skinfolds'));
+  }
+  check('help page: the US Navy warning has its section', /id="navy-invalid"[\s\S]*What it means[\s\S]*What happens if you ignore it[\s\S]*How to fix it/.test(help));
+  G.fetch = _f; G.buildProfilePage = _bp; G.document.getElementById = _gid; G.weights = _w; G.bfLog = _b;
+  if (saved.p === null) _ls.removeItem('wkt-profile'); else _ls.setItem('wkt-profile', saved.p);
+  if (saved.bf === null) _ls.removeItem('bf_log'); else _ls.setItem('bf_log', saved.bf);
 }
 
 // ── Section 101: Edit opens the session that was logged ─────────────────────
