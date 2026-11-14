@@ -8084,6 +8084,61 @@ check('…regular, wide, diamond and archer push-ups keep 64%',
   if (saved.home === null) _ls.removeItem('wkt-home-equip'); else _ls.setItem('wkt-home-equip', saved.home);
 }
 
+// ── Home equipment weights ───────────────────────────────────────────────────
+// Henrik, 2026-11-14: kettlebell sizes 1–20 kg plus a free field; dumbbells an adjustable 1–10 kg set then
+// 10, 12.5, 15, 17.5…; barbell plates 1.25, 2.5, 5, 10, 15, 20, 25.
+{
+  console.log('\n── Home equipment weights ───────');
+  const _ls = G.localStorage, saved = { home: _ls.getItem('wkt-home-equip'), w: _ls.getItem('wkt-home-weights') };
+  const pushed = [], _push = G.pushSettingsToAgent; G.pushSettingsToAgent = (kv) => pushed.push(kv);
+  const _gid = G.document.getElementById; const fields = {}; G.document.getElementById = (id) => fields[id] || _gid.call(G.document, id);
+  _ls.removeItem('wkt-home-weights');
+  G.setData('wkt-home-equip', ['bands']);
+  const none = G._equipTabHtml('home');
+  check('no weights block for an item that has no weights, or is not ticked', !none.includes('data-home-weights'));
+  G.setData('wkt-home-equip', ['kettlebell', 'dumbbells', 'barbell']);
+  const h = G._equipTabHtml('home');
+  const kb = h.slice(h.indexOf('data-home-weights="kettlebell"')), kbBlock = kb.slice(0, kb.indexOf('data-hw-add'));
+  check('kettlebell: every size 1–20 kg, nothing ticked yet', [...Array(20)].every((_, i) => kbBlock.includes('data-hw="' + (i + 1) + '"')) && !kbBlock.includes('data-hw="21"') && !kbBlock.includes(' checked'));
+  const db = h.slice(h.indexOf('data-home-weights="dumbbells"')), dbBlock = db.slice(0, db.indexOf('data-hw-add'));
+  check('dumbbells: the adjustable 1–10 kg set in 0.625 kg steps, then 10, 12.5, 15, 17.5 …',
+    dbBlock.includes('data-hw-set="adj-1-10"') && dbBlock.includes('1–10 kg in 0.625 kg steps') && ['10', '12.5', '15', '17.5', '20'].every(k => dbBlock.includes('data-hw="' + k + '"')));
+  const bb = h.slice(h.indexOf('data-home-weights="barbell"')), bbBlock = bb.slice(0, bb.indexOf('data-hw-add'));
+  check('barbell: plates 1.25, 2.5, 5, 10, 15, 20, 25 and nothing else', (bbBlock.match(/data-hw="/g) || []).length === 7 && ['1.25', '2.5', '5', '10', '15', '20', '25'].every(k => bbBlock.includes('data-hw="' + k + '"')));
+  check('every block has a free field and an Add button', ['kettlebell', 'dumbbells', 'barbell'].every(i => h.includes('id="hw-add-' + i + '"') && h.includes('data-hw-add="' + i + '"')));
+  check('readable: 15px or larger and never greyed', !/font-size:1[0-4]px/.test(h) && !/var\(--muted\)/.test(h));
+  pushed.length = 0;
+  G.homeWeightToggle('kettlebell', 16); G.homeWeightToggle('kettlebell', 8);
+  check('ticking a size saves it on the device and on the backend', JSON.stringify(G._homeWeightsOf('kettlebell').w) === '[8,16]' && pushed.length === 2 && JSON.stringify(pushed[1]['wkt-home-weights'].kettlebell.w) === '[8,16]');
+  check('…and shows it ticked', /data-hw="16"[^>]*><input type="checkbox" checked/.test(G._equipTabHtml('home')) && !/data-hw="15"[^>]*><input type="checkbox" checked/.test(G._equipTabHtml('home')));
+  G.homeWeightToggle('kettlebell', 8);
+  check('…and ticking again takes it off', JSON.stringify(G._homeWeightsOf('kettlebell').w) === '[16]');
+  G.homeWeightSetToggle('dumbbells', 'adj-1-10');
+  check('the adjustable set can be ticked', G._homeWeightsOf('dumbbells').sets.includes('adj-1-10') && /data-hw-set="adj-1-10"[^>]*><input type="checkbox" checked/.test(G._equipTabHtml('home')));
+  fields['hw-add-kettlebell'] = { value: '24' }; G.homeWeightAdd('kettlebell');
+  fields['hw-add-kettlebell'] = { value: '32,5' }; G.homeWeightAdd('kettlebell');
+  const h2 = G._equipTabHtml('home');
+  check('the free field adds other weights (comma too), shown ticked among the others', JSON.stringify(G._homeWeightsOf('kettlebell').w) === '[16,24,32.5]' && /data-hw="24"[^>]*><input type="checkbox" checked/.test(h2) && /data-hw="32.5"[^>]*><input type="checkbox" checked/.test(h2) && !h2.includes('data-hw-warn'));
+  G.homeWeightToggle('kettlebell', 24);
+  check('…and unticking an added weight removes it', !G._equipTabHtml('home').includes('data-hw="24"'));
+  for (const bad of ['abc', '', '0', '500', '12kg']) {
+    fields['hw-add-barbell'] = { value: bad }; G.homeWeightAdd('barbell');
+    const hb = G._equipTabHtml('home');
+    check('a typo (' + JSON.stringify(bad) + ') is not added and says what to type, with its help link', G._homeWeightsOf('barbell').w.length === 0 && hb.includes('data-hw-warn="1"') && hb.includes('between 0.1 and 200') && hb.includes('href="help.html#home-weight-invalid"'));
+  }
+  fields['hw-add-barbell'] = { value: '0.5' }; G.homeWeightAdd('barbell');
+  check('…and the next good weight clears the warning', !G._equipTabHtml('home').includes('data-hw-warn') && G._homeWeightsOf('barbell').w[0] === 0.5);
+  G.setData('wkt-home-equip', ['bands']);
+  check('unticking the item hides its weights and keeps them', !G._equipTabHtml('home').includes('data-home-weights') && G._homeWeightsOf('kettlebell').w.length === 2);
+  check('the weights come back from the backend after a cache wipe', String(G.syncSettingsFromAgent).includes("setData('wkt-home-weights',s['wkt-home-weights'])"));
+  const help = fs.readFileSync(path.join(__dirname, '..', 'help.html'), 'utf8');
+  check('help page: the weight warning has its section, saying what it means, what happens and how to fix it',
+    /id="home-weight-invalid"[\s\S]*What it means[\s\S]*What happens if you ignore it[\s\S]*How to fix it/.test(help));
+  G.document.getElementById = _gid; G.pushSettingsToAgent = _push;
+  if (saved.home === null) _ls.removeItem('wkt-home-equip'); else _ls.setItem('wkt-home-equip', saved.home);
+  if (saved.w === null) _ls.removeItem('wkt-home-weights'); else _ls.setItem('wkt-home-weights', saved.w);
+}
+
 // ── Section 101: Edit opens the session that was logged ─────────────────────
 // Henrik 2026-10-15: "when I open todays training in history it is empty when I click
 // edit?????" — his 2026-10-15 log (id 1792084147681, day 1) is a push session: Chest
@@ -9449,6 +9504,43 @@ console.log('\n── Progress chart axis ────────────�
   check('a short span shows day and month', /^\d{1,2} \w{3}$/.test(G._chartDateLbl(Date.UTC(2026, 10, 13), 30 * 86400000)));
   check('volume, strength and exercise charts all use it', (rawScript.match(/[^ ]_chartXDomain\(days,[^l]/g) || []).length === 3);
 }
+
+// ── Food Edit: Update an entry (Henrik, 2026-11-14) ──────────────────────────
+// "Add a update for a entry so one doesn't have to delete and enter again, ie store the actual input moving forward".
+console.log('\n── Food Edit: Update an entry ─────────────────────────────');
+(async () => {
+  const _src = fs.readFileSync(htmlPath, 'utf8');
+  const blk = _src.slice(_src.indexOf('// Update an entry (Henrik, 2026-11-14'), _src.indexOf('async function buildFoodEdit('));
+  const sent = []; let reply = { ok: true, status: 200, j: { ok: true, rows: [] } }; let rebuilt = 0;
+  const U = vm.createContext({
+    AGENT_URL: 'https://agent', JSON, String, Number, authHeaders: (x) => Object.assign({}, x || {}),
+    _flEsc: (x) => String(x == null ? '' : x).replace(/</g, '&lt;'), _flBtn: (l, a) => '<button onclick="' + a + '">' + l + '</button>',
+    _flDetail: (r, j) => (j && j.detail) || ('The server answered ' + r.status + '.'),
+    _flEditHtml: () => '', _flEditDate: '2026-11-14', _flDay: () => '2026-11-14', _flLoadRows: async () => [], _flRows: [],
+    buildFoodEdit: async () => { rebuilt++; }, document: { getElementById: () => null },
+    fetch: async (url, opt) => { sent.push({ url, body: JSON.parse(opt.body) }); return { ok: reply.ok, status: reply.status, json: async () => reply.j }; },
+  });
+  vm.runInContext(blk, U);
+  const row = { id: 'a1', date: '2026-11-14', time: '10:25', food: 'coffee with milk and sugar', amount: '330 ml', input: '2 coffees (double espresso, 2dl milk)', batch: 'b1' };
+  const rows = [row, { id: 'a2', batch: 'b1', food: 'sugar' }];
+  const html = U._flUpdHtml(row, rows);
+  check('Update shows the text the entry was made from', html.includes('2 coffees (double espresso, 2dl milk)'));
+  check('…and says it replaces every entry from that text', html.includes('replaces the 2 entries from this text'));
+  check('an entry from before the text was kept starts from its name and amount',
+    U._flUpdText({ food: 'Steak', amount: '200 g' }) === 'Steak 200 g');
+  U._flEditRows = rows;
+  await U.flUpdRun('a1');
+  check('Estimate again sends the text, the entry\'s day and time, and which entry it replaces',
+    sent.length === 1 && /\/food-log\/estimate$/.test(sent[0].url) && sent[0].body.replace === 'a1' &&
+    sent[0].body.date === '2026-11-14' && sent[0].body.time === '10:25' && sent[0].body.text === '2 coffees (double espresso, 2dl milk)');
+  check('…and the day is drawn again from the server once it is in', rebuilt === 1 && U._flUpd === null);
+  reply = { ok: false, status: 503, j: { detail: 'Google is busy.' } };
+  U._flUpd = 'a1';
+  await U.flUpdRun('a1');
+  check('a failed update says why and keeps the box open', U._flUpdErr === 'Google is busy.' && U._flUpd === 'a1');
+  check('every Food Edit entry has an Update button', /_flBtn\('Update',"flUpdOpen\('/.test(_src));
+  if (failed > 0) process.exitCode = 1;
+})();
 
 const _summary = () => {
   if (_summarised) return; _summarised = true;
