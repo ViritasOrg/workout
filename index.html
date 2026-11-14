@@ -32,8 +32,9 @@
   #login-screen.hidden{display:none;}
   .login-logo{font-family:var(--font-display);font-size:36px;letter-spacing:3px;color:var(--accent);margin-bottom:8px;}
   .login-sub{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:48px;}
-  .header{padding:calc(22px + env(safe-area-inset-top,0px)) 20px 0;display:flex;align-items:flex-start;justify-content:space-between;}
-  .header-title{font-family:var(--font-display);font-size:34px;letter-spacing:3px;color:var(--accent);line-height:1;}
+  .header{padding:calc(22px + env(safe-area-inset-top,0px)) 20px 0;display:flex;align-items:center;justify-content:space-between;}
+  .header-title{font-family:var(--font-display);font-size:34px;letter-spacing:3px;color:var(--accent);line-height:1;overflow:hidden;}
+  .header>div:first-child{min-width:0;flex:1 1 auto;}
   .header-sub{font-size:13px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;display:flex;align-items:center;gap:5px;margin-top:3px;}
   .weight-badge{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;text-align:right;cursor:pointer;flex-shrink:0;margin-left:12px;}
   .weight-badge .val{font-family:var(--font-display);font-size:22px;color:var(--accent);line-height:1;white-space:nowrap;}
@@ -297,10 +298,10 @@
     <div class="header-title">TRAINING</div>
     <div class="header-sub"><span style="color:var(--muted);font-weight:600" id="header-version"></span></div>
   </div>
-  <button id="hdr-car" hidden onclick="psOpenStatus()" title="Polestar climate" aria-label="Polestar climate is on" style="background:none;border:none;padding:0 6px;cursor:pointer;margin-left:auto"></button>
-  <button class="weight-badge" id="hdr-profile" onclick="switchPrimary('profile')" aria-label="Profile" style="font-family:inherit;">
-    <div class="val" aria-hidden="true"><svg width="24" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin-left:auto"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg></div>
-    <div class="lbl" style="color:var(--text);font-weight:700">Profile</div>
+  <button id="hdr-car" hidden onclick="psOpenStatus()" title="Polestar climate" aria-label="Polestar climate is on" style="background:none;border:none;padding:0 4px;cursor:pointer;margin-left:auto;display:flex;align-items:center;height:56px"></button>
+  <button class="weight-badge" id="hdr-profile" onclick="switchPrimary('profile')" aria-label="Profile" style="font-family:inherit;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;">
+    <div class="val" aria-hidden="true"><svg width="24" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:0 auto"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg></div>
+    <div class="lbl" id="hdr-profile-lbl" style="color:var(--text);font-weight:700;max-width:96px;overflow:hidden;text-overflow:ellipsis">Profile</div>
   </button>
 </div>
 <div class="tabs" id="subtabs" style="display:none">
@@ -617,7 +618,7 @@
 const VERSION='1.277';
 // BUILD_NO counts staging builds and is never rewritten by Push to Prod (which resets VERSION to
 // prod's own counter). The What's new card is keyed to it, so its rows show in both apps (2026-11-01).
-const BUILD_NO='1.395';
+const BUILD_NO='1.397';
 const IS_STAGING=(window.location.pathname||'').startsWith('/workout-staging');
 // Backend data namespace, sent as X-App-Id on every call. Staging gets its own so
 // testing here cannot write over production data — before 2026-08-01 both sent no
@@ -920,8 +921,20 @@ function applyOwnerName(name){
   _ownerName=String(name==null?'':name).trim();
   try{document.title=ownerTitle(_ownerName,'Training');}catch(e){}
   var l=document.querySelector('.login-logo');if(l)l.textContent=ownerTitle(_ownerName,APP_NOUN);
-  var h=document.querySelector('.header-title');if(h)h.textContent=ownerTitle(_ownerName,APP_NOUN);
+  // The main screen says TRAINING only; the name is on the Profile button (Henrik, 2026-11-14: "I want the main screen to
+  // say TRAINING (no name) - car symbol (if a polestar login exists) - Profile symbol with user name").
+  var h=document.querySelector('.header-title');if(h)h.textContent=APP_NOUN;
+  // The Profile button and sub-tab carry the user's name (Henrik, 2026-11-14: "Change Profile to Name of user");
+  // an account with no name in the whitelist keeps "Profile".
+  var pl=profileLabel(_ownerName);['hdr-profile-lbl','tab-btn-profile'].forEach(function(id){var e=document.getElementById(id);if(e)e.textContent=pl;});
+  _fitHeaderTitle();
 }
+// A long name makes the title smaller instead of pushing the car and the Profile button off the screen: from 34px
+// down to 16px until each word fits the space left of them.
+function _fitHeaderTitle(){var h=document.querySelector&&document.querySelector('.header-title');if(!h||!h.style)return;var px=34;h.style.fontSize=px+'px';
+  while(px>16&&h.scrollWidth>h.clientWidth){px--;h.style.fontSize=px+'px';}}
+window.addEventListener&&window.addEventListener('resize',function(){try{_fitHeaderTitle();}catch(e){}});
+function profileLabel(name){var n=String(name==null?'':name).trim();return n||'Profile';}
 function _cachedOwnerName(){
   var c=getData('wk-owner-name',null);
   if(!c||!c.id)return '';
@@ -5003,7 +5016,7 @@ function obFinish(){
   buildAppearanceCard();buildCacheCard();buildStageCopyCard();buildProfileCard();
 }
 document.getElementById('log-date').value=new Date().toISOString().split('T')[0];document.getElementById('log-date').addEventListener('input',scheduleDraft);document.addEventListener('visibilitychange',function(){if(document.hidden)saveDraft();});
-applyOwnerName(_cachedOwnerName());updateCurrentWeight();_refreshUnitUI();initPrograms();buildWhatsNewCard();(function(){var _ds=document.getElementById('log-day');if(_ds)_ds.value=_selectedProgramDay;prefillLog(_selectedProgramDay);})();document.getElementById('login-version').textContent='v'+VERSION;document.getElementById('header-version').textContent='v'+VERSION;(function(){if(!localStorage.getItem('bw_kg_migration_v1')){var bwNames={has:isBWExName};var migrated=0;logs.forEach(function(log){if(!log.exercises||!log.exercises.length)return;var relW=weights.filter(function(w){return w.date<=log.date;});if(!relW.length)return;var bw=relW[relW.length-1].weight;var changed=false;log.exercises.forEach(function(ex){if(!bwNames.has(ex.name))return;(ex.sets||[]).forEach(function(s){if(s.reps>0&&s.kg===0){s.kg=bw;changed=true;}});});if(changed){migrated++;pushWorkoutLogToAgent(log);}});if(migrated>0)setData('workout_logs',logs);localStorage.setItem('bw_kg_migration_v1','1');}})();syncWeightsFromAgent();syncWorkoutLogsFromAgent();syncProgramsFromAgent();syncSettingsFromAgent();syncBodyCompFromAgent();syncWorkoutDraftFromAgent();(function(){if(!IS_STAGING||localStorage.getItem('wk-bf-isol-v1'))return;localStorage.setItem('wk-bf-isol-v1','1');var _raw=null;try{_raw=typeof _r!=='undefined'&&_r&&_r.getItem?_r.getItem('bf_log'):null;}catch(e){}if(!_raw)return;var _old=[];try{_old=JSON.parse(_raw)||[];}catch(e){}if(!_old.length)return;_old.forEach(function(e){if(e&&e.date&&typeof e.bf==='number'&&e.bf>0)pushBodyCompToAgent(e.date,e.bf);});setTimeout(syncBodyCompFromAgent,2000);})();(function(){if(!localStorage.getItem('wk-gear-migration-v1')){fetch(AGENT_URL+'/workout-logs/migrate-gear',{method:'POST',headers:authHeaders()}).then(function(r){if(r.ok){localStorage.setItem('wk-gear-migration-v1','1');syncWorkoutLogsFromAgent();}}).catch(function(){});}})();syncPolestarCar();checkAgentStatus();checkSyncStatus();initTabVis();buildAppearanceCard();buildCacheCard();buildStageCopyCard();buildProfileCard();obInit();(function(){if(_pageVis.log!==false&&document.getElementById('page-log'))showPage('log');})();// the app always opens on Log (Henrik, 2026-11-03: "Workout default should be Log")_initSwipeNav();
+applyOwnerName(_cachedOwnerName());updateCurrentWeight();_refreshUnitUI();initPrograms();buildWhatsNewCard();(function(){var _ds=document.getElementById('log-day');if(_ds)_ds.value=_selectedProgramDay;prefillLog(_selectedProgramDay);})();document.getElementById('login-version').textContent='v'+VERSION;document.getElementById('header-version').textContent='v'+VERSION;(function(){if(!localStorage.getItem('bw_kg_migration_v1')){var bwNames={has:isBWExName};var migrated=0;logs.forEach(function(log){if(!log.exercises||!log.exercises.length)return;var relW=weights.filter(function(w){return w.date<=log.date;});if(!relW.length)return;var bw=relW[relW.length-1].weight;var changed=false;log.exercises.forEach(function(ex){if(!bwNames.has(ex.name))return;(ex.sets||[]).forEach(function(s){if(s.reps>0&&s.kg===0){s.kg=bw;changed=true;}});});if(changed){migrated++;pushWorkoutLogToAgent(log);}});if(migrated>0)setData('workout_logs',logs);localStorage.setItem('bw_kg_migration_v1','1');}})();syncWeightsFromAgent();syncWorkoutLogsFromAgent();syncProgramsFromAgent();syncSettingsFromAgent();syncBodyCompFromAgent();syncFeaturesFromAgent();syncWorkoutDraftFromAgent();(function(){if(!IS_STAGING||localStorage.getItem('wk-bf-isol-v1'))return;localStorage.setItem('wk-bf-isol-v1','1');var _raw=null;try{_raw=typeof _r!=='undefined'&&_r&&_r.getItem?_r.getItem('bf_log'):null;}catch(e){}if(!_raw)return;var _old=[];try{_old=JSON.parse(_raw)||[];}catch(e){}if(!_old.length)return;_old.forEach(function(e){if(e&&e.date&&typeof e.bf==='number'&&e.bf>0)pushBodyCompToAgent(e.date,e.bf);});setTimeout(syncBodyCompFromAgent,2000);})();(function(){if(!localStorage.getItem('wk-gear-migration-v1')){fetch(AGENT_URL+'/workout-logs/migrate-gear',{method:'POST',headers:authHeaders()}).then(function(r){if(r.ok){localStorage.setItem('wk-gear-migration-v1','1');syncWorkoutLogsFromAgent();}}).catch(function(){});}})();syncPolestarCar();checkAgentStatus();checkSyncStatus();initTabVis();buildAppearanceCard();buildCacheCard();buildStageCopyCard();buildProfileCard();obInit();(function(){if(_pageVis.log!==false&&document.getElementById('page-log'))showPage('log');})();// the app always opens on Log (Henrik, 2026-11-03: "Workout default should be Log")_initSwipeNav();
 async function pushAllToBackend(){const btn=document.getElementById('sync-btn');btn.textContent='Syncing...';btn.disabled=true;try{const remote=await(await fetch(AGENT_URL+'/weights',{headers:authHeaders()})).json();const remoteDates=new Set(remote.map(w=>w.date));const local=getData('weight_log',[]);const toSync=local.filter(w=>!remoteDates.has(w.date));for(const w of toSync){await fetch(AGENT_URL+'/weights',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify(w)});}btn.textContent='✓ Synced '+toSync.length+' entries';setTimeout(()=>{btn.closest('.sync-banner').remove();},3000);}catch(e){btn.textContent='Failed';btn.disabled=false;}}
 if(!localStorage.getItem('sync_done_fly')&&getData('weight_log',[]).length){const b=document.createElement('div');b.className='sync-banner';b.style.cssText='position:fixed;bottom:calc(64px + env(safe-area-inset-bottom,0px));left:0;right:0;background:#1c1c1c;border-top:1px solid #e8ff3c;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;z-index:500;font-size:13px;';b.innerHTML='<span style="color:#f0f0f0">Sync local data to new backend?</span><button id="sync-btn" onclick="pushAllToBackend();localStorage.setItem(\u0027sync_done_fly\u0027,\u00271\u0027)" style="background:#e8ff3c;color:#000;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font-ui)">Sync Now</button>';document.body.appendChild(b);}
 if(!localStorage.getItem('workout_logs_synced_fly')&&getData('workout_logs',[]).length){const b2=document.createElement('div');b2.className='sync-banner';b2.style.cssText='position:fixed;bottom:calc(64px + env(safe-area-inset-bottom,0px));left:0;right:0;background:#1c1c1c;border-top:1px solid #e8ff3c;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;z-index:500;font-size:13px;';b2.innerHTML='<span style="color:#f0f0f0">Backup workout logs to backend?</span><button id="wl-sync-btn" onclick="pushAllWorkoutLogsToBackend()" style="background:#e8ff3c;color:#000;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font-ui)">Backup Now</button>';document.body.appendChild(b2);}
@@ -5504,16 +5517,19 @@ async function _psStart(path){
 function _psCarSvg(mode,w){var sym=mode==='cool'
     ?'<g stroke="#4da3ff" stroke-width="1.6" stroke-linecap="round"><path d="M28 1v10M23.7 3.5l8.6 5M23.7 8.5l8.6-5"/></g>'
     :mode==='heat'?'<g stroke="#ff9f1a" stroke-width="1.6" fill="none" stroke-linecap="round"><path d="M24 11c-1.5-2 1.5-4 0-6M28 11c-1.5-2 1.5-4 0-6M32 11c-1.5-2 1.5-4 0-6"/></g>':'';
-  var c=mode==='off'?'#8a8a8a':'#e53935',glass=mode==='off'?'#d0d0d0':'#ffd6d4';
+  // Off is the app's highlight colour, the same as the Profile icon (Henrik, 2026-11-14: "the car symbol for the Polestar
+  // should be the same yellow (highlight color) as the profile symbol"); on stays red so a running climate still shows.
+  var c=mode==='off'?'var(--accent)':'#e53935',glass=mode==='off'?'#000':'#ffd6d4';
   return '<svg class="ps-car ps-car-'+(mode==='cool'||mode==='heat'||mode==='off'?mode:'on')+'" width="'+(w||34)+'" viewBox="0 0 36 24" aria-hidden="true">'+sym
-    +'<path d="M3 19v-4l3-1 4-4h11l5 4 5 1v4z" fill="'+c+'"/><circle cx="10" cy="19.5" r="2.6" fill="#222" stroke="'+c+'"/><circle cx="26" cy="19.5" r="2.6" fill="#222" stroke="'+c+'"/>'
+    +'<path d="M3 19v-4l3-1 4-4h11l5 4 5 1v4z" style="fill:'+c+'"/><circle cx="10" cy="19.5" r="2.6" fill="#222" style="stroke:'+c+'"/><circle cx="26" cy="19.5" r="2.6" fill="#222" style="stroke:'+c+'"/>'
     +'<path d="M11 11h4.5v3H8zM17 11h3.5l3.5 3h-7z" fill="'+glass+'"/></svg>';}
 function _psRenderCar(){var el=document.getElementById('hdr-car');if(!el)return;
   var mode=_psCar||(_ps&&_ps.set?'off':'');
   if(!mode){el.hidden=true;el.innerHTML='';return;}
   // The warning triangle sits over the car while the last start or stop got no answer or was refused.
-  el.innerHTML=_psWarn?'<span style="position:relative;display:inline-flex">'+_psCarSvg(mode,42)+_psWarnSvg()+'</span>':_psCarSvg(mode,42);el.hidden=false;
-  if(el.setAttribute)el.setAttribute('aria-label',_psWarn?'Polestar: the car did not answer. Tap for details':'Polestar climate');}
+  el.innerHTML=_psWarn?'<span style="position:relative;display:inline-flex">'+_psCarSvg(mode,48)+_psWarnSvg()+'</span>':_psCarSvg(mode,48);el.hidden=false;
+  if(el.setAttribute)el.setAttribute('aria-label',_psWarn?'Polestar: the car did not answer. Tap for details':'Polestar climate');
+  if(typeof _fitHeaderTitle==='function')_fitHeaderTitle();}
 function _psWarnSvg(){return '<svg class="ps-warn" width="20" viewBox="0 0 24 22" aria-hidden="true" style="position:absolute;top:0;right:-4px">'
   +'<path d="M12 1 23 21H1z" fill="#ffc400" stroke="#000" stroke-width="1.5" stroke-linejoin="round"/><path d="M12 8v6" stroke="#000" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="17.5" r="1.4" fill="#000"/></svg>';}
 function syncPolestarCar(){return _psLoad().then(_psRenderCar);}

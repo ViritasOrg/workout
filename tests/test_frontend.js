@@ -2220,7 +2220,7 @@ console.log('\n── 47b. BF% pre-isolation migration ────────�
   check('migration flag wk-bf-isol-v1 stored to prevent re-run',
     src.includes("localStorage.setItem('wk-bf-isol-v1','1')"));
   check('migration placed in startup sequence (not inside onGoogleSignIn)',
-    src.includes("syncBodyCompFromAgent();syncWorkoutDraftFromAgent();(function(){if(!IS_STAGING||localStorage.getItem('wk-bf-isol-v1'))"));
+    src.includes("syncBodyCompFromAgent();syncFeaturesFromAgent();syncWorkoutDraftFromAgent();(function(){if(!IS_STAGING||localStorage.getItem('wk-bf-isol-v1'))"));
 }
 
 // ── 47c. No hardcoded personal data (2026-08-05) ─────────────────────────────
@@ -8289,6 +8289,32 @@ check('…regular, wide, diamond and archer push-ups keep 64%',
     src.indexOf('id="tab-btn-profile"') < src.indexOf('id="tab-btn-progress"') && src.indexOf('id="tab-btn-progress"') < src.indexOf('id="tab-btn-history"'));
   check('Macros stays its own bottom-bar tab', JSON.stringify(G.PRIMARY_GROUPS.macros) === JSON.stringify(['macros', 'foodedit']) && src.includes('id="navbtn-macros"'));
   check('showing Profile builds it', /if\(name==='profile'\)buildProfilePage\(\)/.test(src));
+  // Henrik, 2026-11-14: "TRAINING - Car symbol - Profile button, needs to be aligned with eachother and sized in a balanced way".
+  check('the header centres the title, the car and the Profile button on one line, car and button the same height',
+    /\.header\{[^}]*align-items:center/.test(src) && /id="hdr-car"[^>]*height:56px/.test(src) && /id="hdr-profile"[^>]*height:56px/.test(src));
+  {
+    // A long name shrinks the title (34px down to 16px) instead of pushing the Profile button off the screen.
+    const h = { style: {}, clientWidth: 150, get scrollWidth() { return Math.round(parseInt(this.style.fontSize) * 7); } }, _qs2 = G.document.querySelector;
+    G.document.querySelector = (q) => q === '.header-title' ? h : null; G._fitHeaderTitle();
+    const shrunk = h.style.fontSize; h.clientWidth = 400; G._fitHeaderTitle();
+    check('…a long name shrinks the title to fit instead of pushing the Profile button off the screen; a short one keeps 34px',
+      shrunk === '21px' && h.style.fontSize === '34px' && /\.header>div:first-child\{min-width:0;flex:1 1 auto;\}/.test(src));
+    G.document.querySelector = _qs2;
+  }
+  // Henrik, 2026-11-14: "Change Profile to Name of user".
+  {
+    const els = { 'hdr-profile-lbl': { textContent: 'Profile' }, 'tab-btn-profile': { textContent: 'Profile' } }, _gid1 = G.document.getElementById, _qs = G.document.querySelector;
+    G.document.getElementById = (id) => els[id] || _gid1.call(G.document, id); G.document.querySelector = () => null;
+    G.applyOwnerName('Henrik');
+    check('the Profile button and sub-tab carry the user\'s name', els['hdr-profile-lbl'].textContent === 'Henrik' && els['tab-btn-profile'].textContent === 'Henrik');
+    // Henrik, 2026-11-14: "Title is only TRAINING on app main screen" — the name was only fetched on a fresh Google
+    // sign-in, so an app opened on a saved session never learnt it. The startup sync fetches it too.
+    check('the startup sync fetches the name, not only a fresh sign-in', /syncBodyCompFromAgent\(\);syncFeaturesFromAgent\(\);syncWorkoutDraftFromAgent\(\);\(function\(\)\{if\(!IS_STAGING/.test(src));
+    G.applyOwnerName('');
+    check('…and say Profile for an account with no name, never someone else\'s', els['hdr-profile-lbl'].textContent === 'Profile' && els['tab-btn-profile'].textContent === 'Profile' && G.profileLabel('  ') === 'Profile');
+    check('…a long name is cut with an ellipsis, not pushed out of the header', /id="hdr-profile-lbl"[^>]*max-width:96px;overflow:hidden;text-overflow:ellipsis/.test(src));
+    G.document.getElementById = _gid1; G.document.querySelector = _qs;
+  }
   const page = src.slice(src.indexOf('id="page-profile"'), src.indexOf('id="page-history"'));
   check('the weight, body-fat, BMI and lean-mass charts moved from Progress to Profile',
     ['weightChart', 'weight-history-list', 'bfChart', 'bf-input', 'bmiChart', 'lbmChart'].every(id => page.includes('id="' + id + '"')) &&
@@ -8563,10 +8589,18 @@ console.log('\n── The app is titled with the person using it ─────
   check('signing out drops the cached title with the token',
     String(G.logout || '').includes("localStorage.removeItem('wk-owner-name')") &&
     String(G.logout || '').includes("applyOwnerName('')"));
-  check('applyOwnerName writes all three visible places',
+  check('applyOwnerName writes the document title and the login logo',
     (() => { const f = String(G.applyOwnerName || '');
-             return f.includes('document.title') && f.includes('.login-logo') &&
-                    f.includes('.header-title'); })());
+             return f.includes('document.title') && f.includes('.login-logo'); })());
+  // Henrik, 2026-11-14: "I want the main screen to say TRAINING (no name) - car symbol (if a polestar login exists) -
+  // Profile symbol with user name".
+  {
+    const t = { textContent: 'TRAINING', style: {} }, lbl = { textContent: '' }, _qs = G.document.querySelector, _gid = G.document.getElementById;
+    G.document.querySelector = (q) => q === '.header-title' ? t : null; G.document.getElementById = (id) => id === 'hdr-profile-lbl' ? lbl : _gid.call(G.document, id);
+    G.applyOwnerName('Henrik');
+    check('the main screen says TRAINING with no name; the name is on the Profile button', t.textContent === 'TRAINING' && lbl.textContent === 'Henrik');
+    G.document.querySelector = _qs; G.document.getElementById = _gid;
+  }
 }
 
 // ── Section 104: choosing the implement is the user's call ──────────────────
@@ -10231,7 +10265,8 @@ console.log('\n── Polestar climate ─────────────�
     {
       const t = ctx({ cards: [] });
       await t.C.syncPolestarCar();
-      check('polestar: a saved Polestar ID shows a grey car in the header', t.els['hdr-car'].hidden === false && /ps-car-off/.test(t.els['hdr-car'].innerHTML) && /#8a8a8a/.test(t.els['hdr-car'].innerHTML));
+      // Henrik, 2026-11-14: "the car symbol for the Polestar should be the same yellow (highlight color) as the profile symbol".
+      check('polestar: a saved Polestar ID shows the car in the highlight colour in the header', t.els['hdr-car'].hidden === false && /ps-car-off/.test(t.els['hdr-car'].innerHTML) && /fill:var\(--accent\)/.test(t.els['hdr-car'].innerHTML) && !/#8a8a8a/.test(t.els['hdr-car'].innerHTML));
       t.C.psOpenStatus();
       check('  …tapping it says climate is off, with Turn on', t.open.has('psModal') && /Climate is off/.test(t.els['ps-modal-body'].innerHTML) && /psTurnOn\(\)/.test(t.els['ps-modal-body'].innerHTML));
       await t.C.psTurnOn();
