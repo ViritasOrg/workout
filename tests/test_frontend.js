@@ -6088,8 +6088,9 @@ console.log('\n── Standard machine exercises ──────────�
       unclassified.length === 0, unclassified.join(', '));
     // Exact count on purpose: adding or removing an exercise should be a conscious edit here.
     // 69 → 117 on 2026-10-12: the 48 home exercises (kettlebell, band and bodyweight).
-    check('the catalogue holds every exercise it is meant to (117)',
-      opts.length === 117, String(opts.length));
+    // 117 → 118 on 2026-11-16: Rear Delt Pullback (Henrik: "Add it with a stickman sketch as well as muscle dude images").
+    check('the catalogue holds every exercise it is meant to (118)',
+      opts.length === 118, String(opts.length));
     check('no exercise is listed twice in the picker',
       new Set(opts).size === opts.length,
       opts.filter((n, i) => opts.indexOf(n) !== i).join(', '));
@@ -8513,6 +8514,26 @@ check('…regular, wide, diamond and archer push-ups keep 64%',
   G.document.getElementById = _gid; G.weights = _w; G.bfLog = _b; if (_p === null) G.localStorage.removeItem('wkt-profile'); else G.setData('wkt-profile', _p);
 }
 
+// ── Rear Delt Pullback ───────────────────────────────────────────────────────
+// Henrik, 2026-11-16: an EZ-bar exercise where "you pull behind your self with straight arms to target rear delts";
+// "Add it with a stickman sketch as well as muscle dude images".
+{
+  console.log('\n── Rear Delt Pullback ───────');
+  const n = 'Rear Delt Pullback';
+  check('it is in the exercise picker, next to the other rear-delt exercises', G._exCatalogue().indexOf(n) === G._exCatalogue().indexOf('Rear Delt Cable Fly') + 1);
+  const sk = G.SK[n] && G.SK[n]();
+  check('it has a stick-figure sketch: side view, a cue, start and end poses with the bar', !!sk && sk.views.join() === 'side' && /straight/.test(sk.cue) && sk.start.eq[0].t === 'bar' && sk.end.eq[0].t === 'bar');
+  check('…the arms sweep back and up: the hands end behind and above where they start', !!sk && sk.end.J.wR[0] < sk.start.J.wR[0] - 10 && sk.end.J.wR[1] > sk.start.J.wR[1] + 10, sk ? sk.start.J.wR.slice(0, 2) + ' → ' + sk.end.J.wR.slice(0, 2) : '');
+  // Henrik, 2026-11-16: "you cant pull the bar through your legs, starting position is bar behind knees, so you need to bend them a bit more".
+  check('…the bar starts behind the knees (never in front of the legs), with the knees bent', !!sk && sk.start.J.wR[0] < sk.start.J.kR[0] - 3 && Math.abs(sk.start.J.wR[1] - sk.start.J.kR[1]) < 10 && sk.start.J.kR[0] > sk.start.J.aR[0] + 8,
+    sk ? 'wrist ' + sk.start.J.wR.slice(0, 2).map(Math.round) + ' knee ' + sk.start.J.kR.slice(0, 2).map(Math.round) : '');
+  check('the muscle pictures mark the rear delts and upper back', JSON.stringify(G.exMuscles(n)) === JSON.stringify(['reardelts', 'upperback']));
+  const mh = G._exMusclesHtml(n, 'male');
+  check('…and the ? card names them and draws them on the body', /Trains: [^<]*Rear/i.test(mh.line) && /data-ex-body="1"/.test(mh.body) && mh.body.length > 200);
+  check('it counts as shoulder volume', G.getExGroup(n) === 'shoulders' && JSON.stringify(G.getExSplits(n)) === JSON.stringify({ shoulders: 1 }));
+  check('it needs a barbell (an EZ bar) at home or in the gym', G._canDoAtHome(n, ['barbell']) && !G._canDoAtHome(n, ['dumbbells']));
+}
+
 // ── Section 101: Edit opens the session that was logged ─────────────────────
 // Henrik 2026-10-15: "when I open todays training in history it is empty when I click
 // edit?????" — his 2026-10-15 log (id 1792084147681, day 1) is a push session: Chest
@@ -9848,6 +9869,15 @@ console.log('\n── Exercise search ──────────────
   check('Leg lists the names starting with Leg first and the rest of Legs too',
     JSON.stringify(names(legs).slice(0, 2)) === JSON.stringify(['Leg Curl', 'Leg Press']) && ['Lunges', 'Squat'].every(n => names(legs).includes(n)));
   check('one or two letters never pull in a whole group', !G._exPickFilter(groups, 'ar').some(g => g.label === 'Arms'));
+  // Henrik, 2026-11-16: "if I search for shoulders I dont get it in the results" (Rear Delt Pullback, filed under Back).
+  {
+    const g2 = [{ label: 'Shoulders', names: ['Lateral Raise', 'Overhead Press'] }, { label: 'Back', names: ['Barbell Row', 'Rear Delt Pullback', 'Rear Delt Fly', 'Face Pulls'] }];
+    const sh = G._exPickFilter(g2, 'shoulders'), shn = names(sh);
+    check('Shoulders also lists the shoulder exercises filed under another heading (Rear Delt Pullback, Rear Delt Fly, Face Pulls)',
+      ['Lateral Raise', 'Overhead Press', 'Rear Delt Pullback', 'Rear Delt Fly', 'Face Pulls'].every(x => shn.includes(x)) && !shn.includes('Barbell Row'), shn.join(', '));
+    check('…each once', new Set(shn).size === shn.length);
+    check('Back still lists them where the picker files them', ['Barbell Row', 'Rear Delt Pullback'].every(x => names(G._exPickFilter(g2, 'back')).includes(x)));
+  }
   check('the program editor\'s "✦ Legs — same muscle" group still matches Legs',
     names(G._exPickFilter([{ label: '✦ Legs — same muscle', names: ['Squat'] }], 'legs')).includes('Squat'));
   check('nothing found says so', /No exercise matches that/.test(G._exPickListHtml([], '')));
