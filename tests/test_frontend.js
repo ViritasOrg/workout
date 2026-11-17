@@ -2789,8 +2789,8 @@ console.log('\n── Storage inspector ─────────────�
   const cardBody = cardStart >= 0 && cardEnd > cardStart ? src.slice(cardStart, cardEnd) : '';
   check('program card uses toggle switch div (not pill button) for activation',
     cardBody.includes('_activateProg') && !cardBody.includes('<button onclick="event.stopPropagation();_activateProg'));
-  check('there is ONE activate control, shared by the cards and the library rows',
-    (cardBody.match(/_progActivateToggle\(/g) || []).length >= 3,
+  check('there is ONE activate control, shared by every program card',
+    (cardBody.match(/_progActivateToggle\(/g) || []).length >= 2,
     String((cardBody.match(/_progActivateToggle\(/g) || []).length));
   check('program card toggle switch has knob that shifts position based on isActive',
     cardBody.includes("left:'+(isActive?'18px':'2px')+'"));
@@ -3932,6 +3932,49 @@ if (typeof G._generateWorkoutProgram === 'function' && typeof G._musclePlanPool 
     check('wizard back: a typed name is never replaced by the default', vm.runInContext('_progWiz.name', sandbox) === 'My plan');
     vm.runInContext('_progWiz.nameTyped=false;_progWizAutoName()', sandbox);
     check('wizard back: …an untyped one follows the choices', vm.runInContext('_progWiz.name', sandbox) !== 'My plan' && /Hypertrophy/.test(vm.runInContext('_progWiz.name', sandbox)));
+    // Henrik, 2026-11-17: fun generated names per goal, "Beyonce Ass", 3-Day Bootalicious, a Hypertrophy 6-day is
+    // "Arnolds heir"; "random, so a user can never get the same name for exact the same prgoram ever".
+    check('fun name: Bootylicious 3-day can be "Beyoncé Ass", 3-Day Bootylicious', G.progFunName('aesthetic', 'bootylicious', 3, 0, []) === '"Beyoncé Ass", 3-Day Bootylicious', G.progFunName('aesthetic', 'bootylicious', 3, 0, []));
+    check('fun name: 6-day Hypertrophy can be "Arnold\'s Heir", 6-Day Hypertrophy', G.progFunName('hypertrophy', 'balanced', 6, 0, []) === '"Arnold\'s Heir", 6-Day Hypertrophy', G.progFunName('hypertrophy', 'balanced', 6, 0, []));
+    {
+      const fn = (g, s) => vm.runInContext('PROG_FUN_NAMES[' + JSON.stringify(s ? g + '-' + s : g) + ']', sandbox);
+      const pools = [['strength', 'pure'], ['hypertrophy', 'balanced'], ['aesthetic', 'bootylicious'], ['rehab', 'knee']].map(([g, s]) => fn(g, s)[0]);
+      check('fun name: different goals draw from different pools', new Set(pools).size === pools.length, pools.join(' | '));
+      const taken = []; for (let k = 0; k < 40; k++) taken.push(G.progFunName('rehab', 'knee', 2, Math.random(), taken));
+      check('fun name: 40 identical programs in a row never share a name', new Set(taken.map(n => n.toLowerCase())).size === 40, taken.slice(-3).join(' | '));
+      const seen = new Set(); for (let k = 0; k < 30; k++) seen.add(G.progFunName('hypertrophy', 'upper', 4, Math.random(), []));
+      check('fun name: the pick is random, not always the same name', seen.size > 1, [...seen].join(' | '));
+    }
+    vm.runInContext("_programs=[];_progWiz={step:2,goal:'aesthetic',sub:'bootylicious',muscles:[],nDays:3,setsPerMuscle:12,injuries:[],name:'',homeItems:[]};_progWizAutoName()", sandbox);
+    const nm1 = vm.runInContext('_progWiz.name', sandbox); vm.runInContext('_progWizAutoName()', sandbox);
+    check('fun name: the wizard keeps one generated name while it is open', nm1 === vm.runInContext('_progWiz.name', sandbox) && /^".+", 3-Day Bootylicious$/.test(nm1), nm1);
+    vm.runInContext('_programs=[{name:' + JSON.stringify(nm1) + '}];_progWiz.funSeed=' + vm.runInContext('_progWiz.funSeed', sandbox) + ';_progWizAutoName()', sandbox);
+    check('fun name: a name an existing program carries is never handed out again', vm.runInContext('_progWiz.name', sandbox) !== nm1, vm.runInContext('_progWiz.name', sandbox));
+    vm.runInContext("_programs=[];_progWiz={step:'muscles',goal:'hypertrophy',sub:null,muscles:[],nDays:3,setsPerMuscle:12,injuries:[],name:'',homeItems:[]}", sandbox);
+    // Henrik, 2026-11-17: "add the details in a smaller text under the NAme" and "update existing users saved programs
+    // if they have the standard name still".
+    {
+      const d1 = G.progDetails({ name: 'x', goal: 'aesthetic', sub: 'bootylicious', setsPerMuscle: 12, days: [{}, {}, {}], equipment: 'gym' });
+      check('details: goal, focus, days, sets and place', d1 === 'Feminine Aesthetic · Bootylicious · 3 days a week · 12 sets per muscle · Gym', d1);
+      const d2 = G.progDetails({ name: '4-Day Hypertrophy — Upper', goal: 'hypertrophy', setsPerMuscle: 10, days: [{}, {}, {}, {}] });
+      check('details: an old program reads its focus from its standard name', d2 === 'Upper Hypertrophy · 4 days a week · 10 sets per muscle', d2);
+      const d3 = G.progDetails({ name: 'Mine', days: [{}] });
+      check('details: a hand-built program says what it can', d3 === '1 day a week', d3);
+      ['4-Day Hypertrophy — Balanced', '3-Day Feminine Aesthetic — Bootylicious', '5-Day Strength', 'Rehab — Knee', 'Strength Program', '2-Day Rehab — Upper/Lower'].forEach(n =>
+        check('standard name recognised: ' + n, G._progIsStandardName(n)));
+      ['My Program', 'Push Pull Legs', '1RM Test', '4-Day Hypertrophy — Balanced 2', '"Swole Patrol", 4-Day Hypertrophy'].forEach(n =>
+        check('a chosen name is not standard: ' + n, !G._progIsStandardName(n)));
+      vm.runInContext("_programs=[{name:'4-Day Hypertrophy — Balanced',goal:'hypertrophy',setsPerMuscle:12,days:[{},{},{},{}],injuries:[]},{name:'4-Day Hypertrophy — Balanced',goal:'hypertrophy',setsPerMuscle:12,days:[{},{},{},{}],injuries:[]},{name:'Push Pull Legs',goal:'hypertrophy',days:[{exercises:[{name:'Bench'}]}]}]", sandbox);
+      const before = vm.runInContext('JSON.stringify(_programs.map(function(p){return p.days;}))', sandbox);
+      const ch = vm.runInContext('_ensurePrograms()', sandbox);
+      const names = vm.runInContext('_programs.map(function(p){return p.name;})', sandbox);
+      check('rename: the standard names became fun ones, different from each other', ch === true && /^".+", 4-Day Hypertrophy$/.test(names[0]) && /^".+", 4-Day Hypertrophy$/.test(names[1]) && names[0] !== names[1], JSON.stringify(names));
+      check('rename: a name the user chose is left alone', names[2] === 'Push Pull Legs');
+      check('rename: the exercises are untouched', vm.runInContext('JSON.stringify(_programs.map(function(p){return p.days;}))', sandbox) === before);
+      check('rename: the focus from the old name is kept, so Regenerate still knows it', vm.runInContext('_programs[0].sub', sandbox) === 'balanced' && vm.runInContext('_progRegenSpec(_programs[0]).sub', sandbox) === 'balanced');
+      check('rename: a second load changes nothing', vm.runInContext('_ensurePrograms()', sandbox) === false);
+      vm.runInContext('_programs=[]', sandbox);
+    }
     G._progWizGoal('strength');
     check('wizard back: a different goal starts the muscles and focus afresh', vm.runInContext('_progWiz.muscles.length===0&&_progWiz.sub===null&&!_progWiz.keptMuscles', sandbox));
     vm.runInContext('_renderProgOverlay=__rpoG;_progWiz=null', sandbox);
@@ -4488,7 +4531,7 @@ if (typeof G.createOneRmProgram === 'function') {
   check('it asks before creating', _fn.includes('confirm('));
   check('…and says the active program is not changed', _fn.includes('active program is not changed'));
   check('it refuses to create a second copy', _fn.includes('_findOneRmProgram()'));
-  check('it respects the program cap', _fn.includes('_programs.length>=MAX_PROGRAMS'));
+  check('there is no program cap any more (Henrik, 2026-11-17)', !_fn.includes('MAX_PROGRAMS'));
   check('it does NOT reassign the active program',
     !/_activeProgramIndex\s*=/.test(_fn), 'must not hijack the active program');
   // Duplicate guard, exercised rather than grepped
@@ -6327,14 +6370,12 @@ console.log('\n── Program cards: a long custom name cannot break the grid �
   // All three are needed and none is sufficient: the track can only shrink if the
   // item can, the item can only shrink if the track lets it, and the name only
   // clips once it must.
-  check('the grid tracks can shrink below their content',
-    /grid-template-columns:minmax\(0,1fr\) minmax\(0,1fr\)/.test(_pcFn));
+  check('the programs are one column of cards (Henrik, 2026-11-17)',
+    /flex-direction:column/.test(_pcFn) && !/grid-template-columns/.test(_pcFn));
   check('  …and the card itself can shrink with them',
     /\.prog-card\{[^}]*min-width:0[^}]*\}/.test(_pcCss));
-  check('  …and the name truncates rather than widening the column',
-    /\.prog-card-name\{[^}]*text-overflow:ellipsis[^}]*\}/.test(_pcCss) &&
-    /\.prog-card-name\{[^}]*white-space:nowrap[^}]*\}/.test(_pcCss) &&
-    /\.prog-card-name\{[^}]*overflow:hidden[^}]*\}/.test(_pcCss));
+  check('  …and a long name wraps inside the card rather than widening it',
+    /\.prog-card-name\{[^}]*overflow-wrap:anywhere[^}]*\}/.test(_pcCss));
   check('  …with no bare 1fr track left in the program grid',
     !/grid-template-columns:1fr 1fr/.test(_pcFn));
 
@@ -6733,15 +6774,10 @@ console.log('\n── Program library + templates ──────────
       .filter(f => typeof G[f] !== 'function').join(', ') + (Array.isArray(G.PROGRAM_TEMPLATES) ? '' : ' PROGRAM_TEMPLATES'));
   if (HAVE) {
 
-  // ── The cap is no longer four ──────────────────────────────────────────────
-  check('the program cap is a shared constant, not a literal 4 in three places',
-    typeof G.MAX_PROGRAMS === 'number' && G.MAX_PROGRAMS > 4, String(G.MAX_PROGRAMS));
-  check('the card still shows exactly four slots at a glance',
-    G.PROG_CARD_SLOTS === 4, String(G.PROG_CARD_SLOTS));
-  ['createNewProgram', 'createOneRmProgram', '_progBuildManual'].forEach(fn => {
-    check(`${fn} caps on MAX_PROGRAMS, not on 4`,
-      String(G[fn]).includes('_programs.length>=MAX_PROGRAMS') &&
-      !String(G[fn]).includes('_programs.length>=4'), String(G[fn]).slice(0, 120));
+  // ── No cap (Henrik, 2026-11-17: "remove the max 4 programs limit") ───────
+  check('there is no program cap and no four-slot grid', G.MAX_PROGRAMS === undefined && G.PROG_CARD_SLOTS === undefined);
+  ['createNewProgram', 'createOneRmProgram', '_progBuildManual', 'copyTemplate'].forEach(fn => {
+    check(`${fn} has no program cap`, !/_programs\.length>=/.test(String(G[fn])), String(G[fn]).slice(0, 120));
   });
 
   // ── "4 most recent" ────────────────────────────────────────────────────────
@@ -6780,43 +6816,22 @@ console.log('\n── Program library + templates ──────────
   check('a hand-built program is stamped on creation',
     String(G._progBuildManual).includes('touchedAt:_nowStamp()'));
 
-  // ── The card: four slots, then the list ────────────────────────────────────
+  // ── The card: one column, every program (Henrik, 2026-11-17) ───────────────
   const render = () => G._programLibraryHtml();
   check('the card writes exactly what the two pure builders return',
     /card\.innerHTML=_programLibraryHtml\(\)\+_templateLibraryHtml\(\)/.test(String(G.buildProgramSettingsCard)));
   G._activeProgramIndex = 0;
-  G._programs = ['a', 'b', 'c'].map((n, i) => P(n, '2026-0' + (i + 1) + '-01T00:00:00Z'));
-  let out = render();
-  check('three programs still render as cards with an Add tile, no list',
-    out.includes('prog-card-empty') && !out.includes('More programs'), out.slice(0, 80));
-
   G._programs = ['a', 'b', 'c', 'd', 'e', 'f'].map((n, i) => P(n, '2026-0' + (i + 1) + '-01T00:00:00Z'));
-  out = render();
-  check('past four, the rest appear in a list underneath',
-    out.includes('More programs'), 'no list rendered');
-  check('the list is counted so the user knows what is hidden',
-    /More programs · 2/.test(out), (out.match(/More programs[^<]*/) || [''])[0]);
-  check('the four newest are the cards', ['f', 'e', 'd', 'c'].every(n =>
-    out.indexOf('prog-card-name">' + n) >= 0));
-  check('…and the two oldest are the rows',
-    out.indexOf('prog-row-name">b') >= 0 && out.indexOf('prog-row-name">a') >= 0);
-  check('no program is both a card and a row',
-    !(out.indexOf('prog-card-name">a') >= 0) && !(out.indexOf('prog-row-name">f') >= 0));
-  check('every program in the library is reachable', ['a', 'b', 'c', 'd', 'e', 'f']
-    .every(n => out.includes('>' + n + '</div>')));
-
-  // The display order is recency, the onclick must still carry the ARRAY index — the bug this
-  // pins is a card opening or activating the wrong program once the two orders diverge.
-  check('a card opens the program it shows, not the one at its slot position',
-    out.includes('onclick="viewProgram(5)"') && out.includes('onclick="viewProgram(0)"'),
-    'indices are positional, not array-real');
-  check('a row opens the program it shows too',
-    new RegExp('viewProgram\\(1\\)[^>]*>\\s*<div class="prog-row-main"><div class="prog-row-name">b').test(out) ||
-    out.includes('viewProgram(1)'));
-
-  // The "+" tile only exists while a slot is empty, so a full library needs its own way in.
-  check('a full grid still offers a way to add a program',
-    out.includes('createNewProgram()'), 'no add affordance once all four slots are filled');
+  let out = render();
+  check('all six programs are cards, no hidden list', ['a', 'b', 'c', 'd', 'e', 'f'].every(n => out.includes('prog-card-name">' + n + '<')) && !out.includes('More programs') && !out.includes('prog-row'), out.slice(0, 120));
+  check('newest first', out.indexOf('prog-card-name">f') < out.indexOf('prog-card-name">e') && out.indexOf('prog-card-name">b') < out.indexOf('prog-card-name">a'));
+  check('every card has its details line', (out.match(/prog-card-details/g) || []).length === 6);
+  // The display order is recency, the onclick must still carry the ARRAY index.
+  check('a card opens the program it shows, not the one at its position',
+    out.includes('onclick="viewProgram(5)"') && out.includes('onclick="viewProgram(0)"') && out.indexOf('viewProgram(5)') < out.indexOf('viewProgram(0)'));
+  check('there is always a way to add a program', out.includes('createNewProgram()'));
+  G._programs = new Array(30).fill(0).map((_, i) => P('p' + i));
+  check('thirty programs all render', (render().match(/class="prog-card[ "]/g) || []).length === 30);
 
   // ── Templates ──────────────────────────────────────────────────────────────
   check('there is a template library', Array.isArray(G.PROGRAM_TEMPLATES) && G.PROGRAM_TEMPLATES.length >= 2,
@@ -6952,11 +6967,9 @@ console.log('\n── Program library + templates ──────────
   G.copyTemplate('1rm-test');
   check('declining the confirm copies nothing', G._programs.length === 2);
   G.confirm = () => true;
-  G._programs = new Array(G.MAX_PROGRAMS).fill(0).map((_, i) => P('p' + i));
+  G._programs = new Array(25).fill(0).map((_, i) => P('p' + i));
   G.copyTemplate('1rm-test');
-  check('a full library refuses the copy rather than silently dropping it',
-    G._programs.length === G.MAX_PROGRAMS && /Maximum/.test(alerts[alerts.length - 1] || ''),
-    alerts[alerts.length - 1] || '');
+  check('a big library still takes the copy (no cap)', G._programs.length === 26, String(G._programs.length));
   check('an unknown template id is a no-op, not a throw',
     (() => { G._programs = []; G.copyTemplate('nope'); return G._programs.length === 0; })());
 
@@ -7175,8 +7188,7 @@ console.log('\n── Extending a program with a template ───────�
   }
   check('the editor marks an injected row too', String(G._renderProgOverlay).includes('_isTplEx(ex)'));
   check('the library card flags an extended program',
-    String(G._programLibraryHtml || '').includes('_progExtension(prog)') &&
-    String(G._programLibraryHtml || '').includes('_progExtension(rp)'));
+    String(G._programLibraryHtml || '').includes('_progExtension(prog)'));
 
   if (HAVE2) {
   const _savedProgs = G._programs, _savedActive = G._activeProgramIndex;
@@ -8552,6 +8564,25 @@ console.log('\n── Edit opens the session that was logged ──────�
     fn.includes('_edDay?_applyRehabSubs(_edDay.exercises,getActiveProgram()):[]') && !fn.includes('DAY_TEMPLATES'));
   check('…the same source prefillLog rendered the cards from',
     String(G.prefillLog || '').includes('_applyRehabSubs(_di.exercises,getActiveProgram())'));
+  // Henrik, 2026-11-16: removed exercises came back "like ghosts" when a History session was edited.
+  {
+    const log = { exercises: [{ name: 'Bench Press', sets: [{ kg: 60, reps: 8 }] }, { name: 'Cable Fly', sets: [{ kg: 20, reps: 12 }] }] };
+    check('editing History: a program exercise the session did not log is not brought back', G._editLoggedEx({ name: 'Lateral Raise' }, log) === null && G._editDropsUnlogged(log) &&
+      G._editLoggedEx({ name: 'Bench Press' }, log) === log.exercises[0]);
+    check('…its empty card is taken off the form', fn.includes("if(!histEx){if(_editDropsUnlogged(log)){var _gc=container.querySelector('[data-ex-idx=\"'+exIdx+'\"]');if(_gc)_gc.remove();}return;}"));
+    check('…a log with no exercises at all keeps the program\'s cards to fill in', !G._editDropsUnlogged({ exercises: [] }) && !G._editDropsUnlogged({}));
+  }
+  // Henrik, 2026-11-16: the Polestar question came up while adding an exercise to an old session from History.
+  {
+    const _gid = G.document.getElementById; const els = { 'log-edit-id': { value: '1792084147681' } };
+    const reps = [{ dataset: { type: 'reps' }, value: '10' }, { dataset: { type: 'reps' }, value: '' }];
+    els['structured-log'] = { querySelectorAll: () => [{ querySelectorAll: () => reps }] };
+    G.document.getElementById = (id) => els[id] || _gid.call(G.document, id);
+    check('no Polestar question while a History session is being edited', G._psIsTrigger(reps[0]) === false);
+    els['log-edit-id'].value = '';
+    check('…it still comes on the second-to-last set of a new workout', G._psIsTrigger(reps[0]) === true);
+    G.document.getElementById = _gid;
+  }
   check('a custom card grows to hold every logged set (4-set exercises kept all 4)',
     fn.includes("while(card.querySelectorAll('input[data-type=\"reps\"]').length<ex.sets.length)addSetToCard(card)") &&
     !/ex\.sets\.forEach\(function\(s,i\)\{if\(i<3\)/.test(fn));
@@ -10244,7 +10275,9 @@ console.log('\n── Polestar climate ─────────────�
   check('polestar: Settings carries the card', /<div id="ps-card"><\/div>/.test(_src));
   check('polestar: opening Settings loads it', /'settings'\)\{loadSettings\(\);buildFlKeyCard\(\);buildPolestarCard\(\);\}/.test(_src));
   check('polestar: the header car is checked at start and after sign-in', /syncWorkoutDraftFromAgent\(\);syncPolestarCar\(\);\}else/.test(_src) && /\}\)\(\);syncPolestarCar\(\);checkAgentStatus\(\)/.test(_src));
-  check('polestar: every set input reaches the check', /function _onLogInput\(e\)\{[^}]*_psCheck\(e\.target\)/.test(_src));
+  // Henrik, 2026-11-16: "I write 1 and then gets asked, it should wait until i added the full number of reps".
+  check('polestar: a finished reps box reaches the check (change, when it is left), not every keystroke',
+    /function _onLogChange\(e\)\{if\(e&&e\.target\)_psCheck\(e\.target\);\}/.test(_src) && !/function _onLogInput\(e\)\{[^}]*_psCheck/.test(_src) && /container\.oninput=_onLogInput;container\.onchange=_onLogChange/.test(_src));
 
   // A tiny DOM: cards of reps inputs, the log's date/day selects, the header icon and the Polestar card.
   const mkInp = v => ({ dataset: { type: 'reps' }, value: v });
@@ -10264,10 +10297,11 @@ console.log('\n── Polestar climate ─────────────�
       openModal: id => open.add(id), closeModal: id => open.delete(id),
       setTimeout: (f, ms) => { timers.push({ f, ms }); return timers.length; }, clearTimeout: () => {},
       confirm: () => { throw new Error('no native confirm'); }, alert: () => { throw new Error('no native alert'); },
-      navigator: { geolocation: { getCurrentPosition: (ok) => ok({ coords: { latitude: 60.1699, longitude: 24.9384 } }) } },
+      navigator: { geolocation: { getCurrentPosition: (ok) => { calls.push({ url: 'geolocation', method: 'GET' }); ok({ coords: { latitude: 60.1699, longitude: 24.9384 } }); } } },
       document: { getElementById: id => els[id] || null },
       fetch: async (url, o) => { calls.push({ url, method: (o && o.method) || 'GET', body: o && o.body });
         if (url.startsWith('https://api.open-meteo.com/')) return { ok: true, json: async () => ({ current: { temperature_2m: opts.temp } }) };
+        if (url === 'https://agent/user-settings' && (!o || !o.method)) return opts.settings ? { ok: true, json: async () => opts.settings } : { ok: false, status: 404, json: async () => ({}) };
         if (url === 'https://agent/polestar' && (!o || !o.method)) return { ok: true, json: async () => opts.creds || { set: true, email: 'me@x.com' } };
         if (url === 'https://agent/polestar/climate' && o && o.method === 'POST') {
           if (opts.hold) await new Promise(r => { release = r; });
@@ -10298,11 +10332,21 @@ console.log('\n── Polestar climate ─────────────�
       r[1].value = ''; check('  …and only once it holds a number', !C._psIsTrigger(r[1]));
     }
     {
+      // A location already kept: the phone is not asked again, only the heat/AC question comes.
+      const { r, cards } = threeSets(); const t = ctx({ cards, temp: 30, settings: { 'wkt-ps-pos': { lat: 60.17, lon: 24.938 } } });
+      r[1].value = '8'; await t.C._psCheck(r[1]);
+      check('polestar: with a kept location the phone is not asked for it again; straight to the question', t.calls.filter(c => c.url === 'geolocation').length === 0 && t.open.has('psModal') &&
+        t.calls.some(c => /latitude=60\.170&longitude=24\.938/.test(c.url)));
+    }
+    {
       const { r, cards } = threeSets(); const t = ctx({ cards, temp: 4.2, hold: true });
       r[1].value = '8'; await t.C._psCheck(r[1]);
       const ask = t.els['ps-modal-body'].innerHTML;
       check('polestar: cold outside opens the Polestar card with the temperature', t.open.has('psModal') && /It is 4 °C outside/.test(ask) && /warm the car/.test(ask) && /psYes\(\)/.test(ask));
       check('  …the weather is read at the phone\'s location', t.calls.some(c => /latitude=60\.170&longitude=24\.938&current=temperature_2m/.test(c.url)));
+      // Henrik, 2026-11-16: "The app should ask for location permission once and then only ask if I want to turn on car heating or AC".
+      check('  …the first time, the location is asked for once and kept on the account', t.calls.filter(c => c.url === 'geolocation').length === 1 &&
+        t.calls.some(c => c.url === 'https://agent/user-settings' && c.method === 'POST' && /"wkt-ps-pos":\{"lat":60\.17,"lon":24\.938\}/.test(c.body)));
       const p = t.C.psYes(); await tick();
       check('  …Turn on shows a waiting message while the car answers', /Starting climate…/.test(t.els['ps-modal-body'].innerHTML) && /Waiting for the car/.test(t.els['ps-modal-body'].innerHTML));
       // Henrik, 2026-11-11: "Pressing X here doesnt do anything you have to wait for the response from the car! Rather have it close".
