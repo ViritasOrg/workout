@@ -3975,6 +3975,18 @@ if (typeof G._generateWorkoutProgram === 'function' && typeof G._musclePlanPool 
       check('rename: a second load changes nothing', vm.runInContext('_ensurePrograms()', sandbox) === false);
       vm.runInContext('_programs=[]', sandbox);
     }
+    // Henrik, 2026-11-17: "add program Name to Today page for the active program as well!"
+    {
+      vm.runInContext("_programs=[{name:'\"Swole Patrol\", 4-Day Hypertrophy',goal:'hypertrophy',sub:'balanced',setsPerMuscle:12,days:[{},{},{},{}]},{name:'<b>x</b>',days:[{}]}];_activeProgramIndex=0", sandbox);
+      const th = G._todayProgramHtml(G.getActiveProgram());
+      check('Today: shows the active program name and its details', th.includes('Swole Patrol') && th.includes('Hypertrophy · 4 days a week · 12 sets per muscle') && th.includes('viewProgram(0)'), th);
+      vm.runInContext('_activeProgramIndex=1', sandbox);
+      const th2 = G._todayProgramHtml(G.getActiveProgram());
+      check('Today: follows the active program and escapes the name', th2.includes('&lt;b&gt;x&lt;/b&gt;') && th2.includes('viewProgram(1)'), th2);
+      check('Today: no program, nothing shown', G._todayProgramHtml(null) === '');
+      check('Today: rebuildDayGrid fills it every time the day grid is built', /getElementById\('today-program'\)[^;]*;if\(_tp\)_tp\.innerHTML=_todayProgramHtml\(prog\)/.test(String(G.rebuildDayGrid)));
+      vm.runInContext('_programs=[];_activeProgramIndex=0', sandbox);
+    }
     G._progWizGoal('strength');
     check('wizard back: a different goal starts the muscles and focus afresh', vm.runInContext('_progWiz.muscles.length===0&&_progWiz.sub===null&&!_progWiz.keptMuscles', sandbox));
     vm.runInContext('_renderProgOverlay=__rpoG;_progWiz=null', sandbox);
@@ -7542,6 +7554,16 @@ console.log('\n── Save never discards a workout in silence ─────�
   }
 }
 
+// ── Dropdown arrow (Henrik, 2026-11-18: "fix the down arrow being to close in all pages in all apps everywhere") ──
+// The browser's own arrow hugs the border, so every <select> draws its own, 14px in from the right, in its own text colour.
+{
+  const _selCss = html;
+  const _selRule = (_selCss.match(/select:not\(\[multiple\]\):not\(\[size\]\)\{[^}]*\}/) || [''])[0];
+  check('dropdown arrow: one rule covers every dropdown and turns the browser arrow off', /-webkit-appearance:none !important;appearance:none !important/.test(_selRule));
+  check('…the arrow is drawn 14px in from the right edge, in the dropdown\'s own colour', /background-position:right 20px center,right 14px center !important/.test(_selRule) && /currentColor/.test(_selRule));
+  check('…the text stops short of it, and an inline style cannot undo any of it', /padding-right:34px !important/.test(_selRule) && (_selRule.match(/!important/g) || []).length >= 7);
+}
+
 // ── Section: session-time summary on History (2026-10-12) ────────────────────
 // Median over believable stamps only (KCAL_DUR_MIN..KCAL_DUR_MAX); averages over the
 // latest 7 and 30 believable sessions, so they never read "—" while the median shows.
@@ -7907,7 +7929,7 @@ check('…regular, wide, diamond and archer push-ups keep 64%',
   G.logs = _l;
 
   // Page: one top row, Save stays on screen with progress, accent cleanup
-  check('Date and Day share one compact row', /<div class="log-top">\s*<select id="log-day"[\s\S]*?<input type="date" id="log-date"[^>]*>\s*<\/div>/.test(html));
+  check('Date and Day share one compact row', /<div class="log-top">\s*<select id="log-day"[\s\S]*?<input type="date" id="log-date"[^>]*>\s*(?:<div id="log-hurry"><\/div>\s*)?<\/div>/.test(html));
   check('Save sits in a bar that stays on screen above the tabs, with the progress line',
     /<div class="log-savebar"><button class="btn btn-primary" onclick="saveLog\(\)">SAVE WORKOUT<\/button><div id="log-progress"><\/div><\/div>/.test(html) && /\.log-savebar\{position:sticky;bottom:calc\(/.test(html));
   check('typing a rep updates the draft AND the progress', String(G.prefillLog).includes('container.oninput=_onLogInput') && String(G._onLogInput).includes('scheduleDraft()') && String(G._onLogInput).includes('_updateLogProgress()'));
@@ -8582,6 +8604,136 @@ console.log('\n── Edit opens the session that was logged ──────�
     els['log-edit-id'].value = '';
     check('…it still comes on the second-to-last set of a new workout', G._psIsTrigger(reps[0]) === true);
     G.document.getElementById = _gid;
+  }
+
+  // ── "I'm in a hurry" (Henrik, 2026-11-18) ──────────────────────────────────
+  // A button in the Log view and a 50-100% slider over the day's SETS: sets are cut first, an exercise is
+  // dropped only as the last step, and anything under 100% cuts something. Plus the day's average time.
+  {
+    const mkCol = r => { const inp = { value: r, dataset: { type: 'reps' } }; return { _inp: inp, firstElementChild: { textContent: 'S9' }, querySelector: sel => (sel.includes('reps') ? inp : null) }; };
+    const hCard = (name, reps, custom) => {
+      const sr = { children: reps.map(mkCol), removeChild(c) { const i = sr.children.indexOf(c); if (i >= 0) sr.children.splice(i, 1); } };
+      return { dataset: custom ? { custom: 'true' } : { tplName: name }, classList: { add() {}, remove() {} }, _nameSel: { value: name }, _sr: sr,
+        querySelector(sel) { return sel === '.sets-row' ? sr : (sel.includes('custom-name') ? this._nameSel : null); },
+        querySelectorAll(sel) { return sel.includes('reps') ? sr.children.map(c => c._inp) : []; } };
+    };
+    const _gid = G.document.getElementById, _add = G.addSetToCard;
+    sandbox.addSetToCard = card => { card._sr.children.push(mkCol('')); };
+    const mount = (cards, editId) => {
+      const els = { 'log-edit-id': { value: editId || '' }, 'log-hurry': { innerHTML: 'x' }, 'log-progress': { textContent: '' },
+        'hurry-label': { textContent: '' }, 'hurry-off': { textContent: '' },
+        'structured-log': { dataset: { logDay: '3' }, querySelectorAll: sel => (/not\(\[data-custom/.test(sel) ? cards.filter(c => !c.dataset.custom) : (sel === '.ex-card' ? cards : [])) } };
+      G.document.getElementById = id => els[id] || _gid.call(G.document, id);
+      return els;
+    };
+    const setPct = (p, open) => vm.runInContext('_hurryPct=' + p + ';_hurryOpen=' + (open ? 'true' : 'false'), sandbox);
+    const off = cards => cards.filter(c => c.dataset.hurryOff).map(c => c.dataset.tplName);
+    const rows = cards => cards.map(c => c._sr.children.length).join();
+
+    check('hurry: the slider runs from 50 to 100 in steps of 5', G._hurryClamp(10) === 50 && G._hurryClamp(200) === 100 && G._hurryClamp(72) === 70 && G._hurryClamp('85') === 85 && G._hurryClamp(undefined) === 100);
+
+    // The plan, pure. A day of 5+4+3+3+3 = 18 sets.
+    const day = [5, 4, 3, 3, 3].map(f => ({ full: f, done: 0 }));
+    const plan = pct => G._hurrySetPlan(day, pct);
+    const anyOff = p => p.off.some(Boolean);
+    check('hurry plan: 100% is the whole day', plan(100).sets.join() === '5,4,3,3,3' && plan(100).kept === 18 && !anyOff(plan(100)));
+    check('…the exercise with the most sets loses a set first', plan(95).sets.join() === '4,4,3,3,3' && plan(95).kept === 17);
+    check('…4-5 sets come down to 3 before anything else is touched', plan(85).sets.join() === '3,3,3,3,3' && !anyOff(plan(85)));
+    check('…then every exercise goes to two sets, the last ones first, and still none is dropped',
+      plan(75).sets.join() === '3,3,3,2,2' && plan(60).sets.join() === '2,2,2,2,2' && !anyOff(plan(60)) && !anyOff(plan(75)));
+    check('…dropping an exercise is the final step: only below what two sets each can give', [95, 90, 85, 80, 75, 70, 65, 60].every(pc => !anyOff(plan(pc))) && plan(55).off.join() === 'false,false,false,false,true');
+    const p50 = plan(50);
+    check('…at 50% the last exercise goes and the sets it frees are given back', p50.off.join() === 'false,false,false,false,true' && p50.kept === 9 && p50.sets.slice(0, 4).join() === '3,2,2,2', JSON.stringify(p50));
+    check('…anything under 100% cuts at least one set, on any day', [[3, 3], [1, 1], [2, 2, 2], [3, 3, 3, 3, 3], [4], [2, 1], [5, 4, 3, 3, 3]].every(d =>
+      [50, 55, 60, 65, 70, 75, 80, 85, 90, 95].every(pc => { const r = G._hurrySetPlan(d.map(f => ({ full: f, done: 0 })), pc); return r.kept < r.total && r.kept >= 1; })));
+    check('…and never more than the share asked for when sets are there to cut', [50, 55, 60, 65, 70, 75, 80, 85, 90, 95].every(pc => plan(pc).kept === Math.floor(18 * pc / 100)));
+    check('…a lower share never keeps more sets', [95, 90, 85, 80, 75, 70, 65, 60, 55, 50].every((pc, i, a) => i === 0 || plan(pc).kept <= plan(a[i - 1]).kept));
+    check('…two sets is the floor before exercises go', G.HURRY_MIN_SETS === 2 && G._hurrySetPlan([3, 3, 3].map(f => ({ full: f, done: 0 })), 70).sets.join() === '2,2,2');
+    const dn = G._hurrySetPlan([{ full: 4, done: 4 }, { full: 3, done: 0 }, { full: 3, done: 1 }], 50);
+    check('…a set that already has reps is never cut, an exercise with reps never dropped', dn.sets[0] === 4 && dn.sets[2] >= 1 && dn.off[0] === false && dn.off[2] === false, JSON.stringify(dn));
+    check('…the last exercise standing is never dropped', G._hurrySetPlan([{ full: 2, done: 0 }], 50).off.join() === 'false' && G._hurrySetPlan([{ full: 2, done: 0 }], 50).kept === 1 && G._hurrySetPlan([{ full: 2, done: 2 }], 50).kept === 2);
+
+    // The average time of THIS day, over believable full sessions only.
+    const L = (day, m, x) => Object.assign({ date: '2026-11-01', day, duration_min: m }, x || {});
+    const hist = [L(3, 60), L(3, 80), L(3, 70), L(2, 120), L(3, 2), L(3, 400), L(3, 40, { hurry_pct: 60 }), { date: '2026-11-02', day: 3 }];
+    const st = G._dayAvgTime(hist, 3);
+    check('hurry: the average is this day\'s own sessions', st.n === 3 && st.avg === 70, JSON.stringify(st));
+    check('…a session cut short with the slider is left out of it', G._dayAvgTime([L(3, 60), L(3, 30, { hurry_pct: 50 })], 3).avg === 60);
+    check('…a day never logged has no average', G._dayAvgTime(hist, 5).n === 0 && G._dayAvgTime(hist, 5).avg === null && G._hurryAvgText(5, G._dayAvgTime(hist, 5)) === '');
+    check('…shown in hours and minutes', G._hurryAvgText(3, st) === 'Day 3 takes 1 h 10 min on average in full (3 sessions logged).' && G._hurryMinText(48.4) === '48 min' && G._hurryMinText(119.6) === '2 h' && /\(1 session logged\)/.test(G._hurryAvgText(1, { n: 1, avg: 45 })));
+
+    // The button and the panel, on a form.
+    const names = ['Squat', 'Leg Press', 'Leg Curl', 'Calf Raise', 'Plank'], full = [5, 4, 3, 3, 3];
+    const mk = () => names.map((n, i) => hCard(n, Array(full[i]).fill('')));
+    let cards = mk();
+    let els = mount(cards); setPct(100, false);
+    let p = G._hurryRender();
+    check('hurry: the Log view shows an "I\'m in a hurry" button, the whole day still on the form', /<button[^>]*onclick="hurryToggle\(\)"[^>]*>I'm in a hurry<\/button>/.test(els['log-hurry'].innerHTML) && !/type="range"/.test(els['log-hurry'].innerHTML) && rows(cards) === '5,4,3,3,3' && off(cards).length === 0);
+    G.hurryToggle();
+    const open = els['log-hurry'].innerHTML;
+    check('…pressing it opens a slider from 50 to 100%', /<input type="range"[^>]*min="50"[^>]*max="100"[^>]*value="100"[^>]*oninput="hurrySet\(this\.value\)"/.test(open) && /100% · 18 of 18 sets/.test(open) && /The full day, nothing cut\./.test(open));
+    check('…with no average for a day never logged', !/on average/.test(open));
+    check('…readable: 15px or larger and never greyed', !/font-size:1[0-4]px/.test(open) && !/var\(--muted\)/.test(open) &&
+      (html.match(/\.hurry-[a-z]+\{[^}]*\}/g) || []).every(r => !/font-size:1[0-4]px/.test(r) && !/var\(--muted\)/.test(r)));
+    p = G.hurrySet('90');
+    check('hurry: 90% takes sets off the form, no exercise', rows(cards) === '4,3,3,3,3' && off(cards).length === 0, rows(cards));
+    check('…and says what it did', els['hurry-label'].textContent === '90% · 16 of 18 sets' && els['hurry-off'].textContent === 'Fewer sets: Squat 4 of 5, Leg Press 3 of 4.' && off(cards).length === 0, els['hurry-off'].textContent);
+    p = G.hurrySet('60');
+    check('hurry: 60% leaves two sets of every exercise and still drops none', rows(cards) === '2,2,2,2,2' && off(cards).length === 0 && els['hurry-label'].textContent === '60% · 10 of 18 sets');
+    check('…the set rows that are left are numbered S1, S2', cards.every(c => c._sr.children.map(x => x.firstElementChild.textContent).join() === 'S1,S2'));
+    p = G.hurrySet('50');
+    check('hurry: 50% drops the last exercise, as the final step', off(cards).join() === 'Plank' && els['hurry-label'].textContent === '50% · 9 of 18 sets' &&
+      /^Fewer sets: Squat 3 of 5, Leg Press 2 of 4, Leg Curl 2 of 3, Calf Raise 2 of 3\.\nLeft out today: Plank\.$/.test(els['hurry-off'].textContent), els['hurry-off'].textContent);
+    check('…the stylesheet hides a card left out and keeps the two lines apart', /\.ex-card\[data-hurry-off\]\{display:none;\}/.test(html) && /#hurry-off\{white-space:pre-line;\}/.test(html));
+    check('…the Save bar counts only what is left', els['log-progress'].textContent === '0 of 4 exercises done');
+    check('…the "no reps filled in" question does not name the one left out', G._incompleteExCards().length === 4 && G._incompleteExCards().every(c => !c.dataset.hurryOff));
+    check('…nor does "Are you done?"', G._saveReview(els['structured-log']).empty.join() === 'Squat,Leg Press,Leg Curl,Calf Raise');
+    p = G.hurrySet('85');
+    check('hurry: sliding up puts sets and exercises back', rows(cards) === '3,3,3,3,3' && off(cards).length === 0);
+    G.hurryToggle();
+    check('…and "Back to the full day" puts back all of them', rows(cards) === '5,4,3,3,3' && off(cards).length === 0 && cards.every(c => !c.dataset.hurryFull) && vm.runInContext('_hurryPct', sandbox) === 100 && !/type="range"/.test(els['log-hurry'].innerHTML));
+
+    // Reps already typed are never cut; exercises the user added are never touched.
+    cards = mk(); cards[0]._sr.children.forEach(c => { c._inp.value = '8'; }); cards[4]._sr.children[0]._inp.value = '12';
+    const own = hCard('Cable Curl', ['', '', '', ''], true); cards.push(own);
+    els = mount(cards); setPct(50, true);
+    p = G._hurryRender();
+    check('hurry: sets that already have reps stay, and so does an exercise with reps', cards[0]._sr.children.length === 5 && !cards[4].dataset.hurryOff && cards[4]._sr.children[0]._inp.value === '12' && off(cards).indexOf('Squat') < 0, rows(cards) + ' off ' + off(cards));
+    check('…and an exercise the user added is never touched', !own.dataset.hurryOff && own._sr.children.length === 4 && p.total === 18);
+    check('…a draft restored at 50% comes back with the panel open', /type="range"[^>]*value="50"/.test(els['log-hurry'].innerHTML) && /Back to the full day/.test(els['log-hurry'].innerHTML));
+
+    // The Polestar question follows the last exercise still on the form.
+    cards = [hCard('Squat', ['8', '8', '']), hCard('Plank', ['', '']), hCard('Dead Bug', ['', ''])];
+    els = mount(cards); setPct(50, true); G._hurryRender();
+    const last = cards.filter(c => !c.dataset.hurryOff).pop().querySelectorAll('reps');
+    last[last.length - 2].value = '8';
+    check('hurry: the Polestar question comes on the last exercise that is left', off(cards).length >= 1 && G._psIsTrigger(last[last.length - 2]) === true, rows(cards) + ' off ' + off(cards));
+
+    // The day's average, on the panel.
+    cards = mk();
+    els = mount(cards); setPct(100, true);
+    const _bk = vm.runInContext('logs', sandbox);
+    sandbox.__hL = hist; vm.runInContext('logs=__hL', sandbox);
+    G._hurryRender();
+    check('hurry: a day logged before shows its average time', /Day 3 takes 1 h 10 min on average in full \(3 sessions logged\)\./.test(els['log-hurry'].innerHTML));
+    sandbox.__hL = _bk; vm.runInContext('logs=__hL', sandbox);
+
+    // Not while a History session is edited, and not for a one-set day.
+    els = mount(cards, '1792084147681'); setPct(60, true); G._hurryRender();
+    check('hurry: no button while a History session is being edited, nothing cut', els['log-hurry'].innerHTML === '' && off(cards).length === 0 && rows(cards) === '5,4,3,3,3');
+    els = mount([hCard('Plank', [''])]); setPct(100, false); G._hurryRender();
+    check('…and none for a day with a single set', els['log-hurry'].innerHTML === '');
+    G.document.getElementById = _gid; sandbox.addSetToCard = _add; setPct(100, false);
+
+    // Wiring: the form, the draft and the saved log.
+    const pf = String(G.prefillLog), sl = String(G.saveLog);
+    check('hurry: the button shares the date\'s row, above the exercises (Henrik, 2026-11-18: day, date and hurry "take half a page")',
+      /<input type="date" id="log-date"[^>]*>\s*<div id="log-hurry"><\/div>\s*<\/div>\s*<div id="structured-log">/.test(html) && /#log-hurry\{flex:1 1 0;min-width:0;\}/.test(html));
+    check('…and the open panel takes the full width under them', /#log-hurry:has\(\.hurry-panel\)\{flex:1 1 100%;\}/.test(html));
+    check('…a fresh form starts at the full day and then takes the draft\'s share', pf.includes('_hurryPct=100;_hurryOpen=false;restoreDraft(day);_hurryRender();'));
+    check('…the draft carries the share and gives it back', String(G.saveDraft).includes('if(_hurryPct<100)d.hurry=_hurryPct;') && String(G.restoreDraft).includes('if(d.hurry)_hurryPct=_hurryClamp(d.hurry);'));
+    check('…the saved log is stamped hurry_pct, and an edit keeps the stamp it had', sl.includes('else if(_hurryPct<100)_timing.hurry_pct=_hurryPct;') && sl.includes('if(_oh&&_oh.hurry_pct)_timing.hurry_pct=_oh.hurry_pct;'));
+    check('WHATS_NEW announces it, and that sets go first', G.WHATS_NEW.some(e => /in a hurry/.test(e.title) && /50% and 100%/.test(e.text)) && G.WHATS_NEW.some(e => /sets first/.test(e.title) && /only then/.test(e.text)));
   }
   check('a custom card grows to hold every logged set (4-set exercises kept all 4)',
     fn.includes("while(card.querySelectorAll('input[data-type=\"reps\"]').length<ex.sets.length)addSetToCard(card)") &&
