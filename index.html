@@ -635,7 +635,7 @@
 const VERSION='1.282';
 // BUILD_NO counts staging builds and is never rewritten by Push to Prod (which resets VERSION to
 // prod's own counter). The What's new card is keyed to it, so its rows show in both apps (2026-11-01).
-const BUILD_NO='1.410';
+const BUILD_NO='1.411';
 const IS_STAGING=(window.location.pathname||'').startsWith('/workout-staging');
 // Backend data namespace, sent as X-App-Id on every call. Staging gets its own so
 // testing here cannot write over production data — before 2026-08-01 both sent no
@@ -4382,8 +4382,8 @@ function _renderGearChip(card){var el=card&&card.querySelector&&card.querySelect
 // done nothing at all to shorten the day"). A set that holds reps is never cut and exercises the user added are never
 // touched. Sliding back up puts the sets and exercises back. The saved log carries hurry_pct, so a cut session is left
 // out of the day's average and the average stays the time of the FULL day. Rules: docs/program-rules.md.
-var _hurryPct=100,_hurryOpen=false,HURRY_MIN_SETS=2;
-function _hurryClamp(p){p=Math.round((parseFloat(p)||100)/5)*5;return Math.max(50,Math.min(100,p));}
+var _hurryPct=100,_hurryOpen=false,HURRY_MIN_SETS=2,_hurryStopList=[];
+function _hurryClamp(p){p=Math.round((parseFloat(p)||100)/5)*5;return Math.max(45,Math.min(100,p));}
 function _hurryIsOff(card){return !!(card&&card.dataset&&card.dataset.hurryOff);}
 function _dayAvgTime(list,day){var a=[];(list||[]).forEach(function(l){if(!l||l.hurry_pct||parseInt(l.day)!==parseInt(day))return;var d=_validSessionMin(l);if(d!=null)a.push(d);});return{n:a.length,avg:a.length?a.reduce(function(x,y){return x+y;},0)/a.length:null};}
 // Pure. items: [{full: sets the day prescribes, done: sets that already hold reps}] in program order.
@@ -4401,6 +4401,14 @@ function _hurrySetPlan(items,pct){
   if(sum===total){var z=-1;for(i=0;i<n;i++)if(cur[i]>Math.max(items[i].done||0,1)&&(z<0||cur[i]>=cur[z]))z=i;if(z>=0){cur[z]--;sum--;}}
   return{sets:cur,off:off,total:total,kept:sum};}
 function _hurryMinText(min){var m=Math.round(min),h=Math.floor(m/60),r=m%60;return h?(h+' h'+(r?' '+r+' min':'')):(r+' min');}
+// The slider only stops where the day changes (Henrik, 2026-11-18: "there is no diff between 90% and 85%, in that case only
+// allow 90% 80% 70% etc, a change by the slide MUST result in a change in the schedule"): of 50..100 in steps of 5, a share
+// whose plan is the same as the next higher one is not a stop. Ascending; 100 is always the last. When 50 falls away like
+// that, 45 is added below so the slider still reaches a half day (Henrik, 2026-11-18: "if you remove 50% you need to add 45%").
+function _hurrySig(p){return p.sets.join()+'|'+p.off.join();}
+function _hurryStops(items){var out=[],last=null;for(var pc=100;pc>=50;pc-=5){var g=_hurrySig(_hurrySetPlan(items,pc));if(g!==last){out.unshift(pc);last=g;}}
+  if(out[0]!==50){var g45=_hurrySig(_hurrySetPlan(items,45));if(g45!==last)out.unshift(45);}return out;}
+function _hurrySnap(pct,stops){pct=_hurryClamp(pct);for(var i=0;i<stops.length;i++)if(stops[i]>=pct)return stops[i];return 100;}
 function _hurryLabel(pct,kept,total){return _hurryClamp(pct)+'% · '+kept+' of '+total+' sets';}
 function _hurryCutText(names,items,plan){var fewer=[],out=[];names.forEach(function(nm,i){if(plan.off[i])out.push(nm);else if(plan.sets[i]<items[i].full)fewer.push(nm+' '+plan.sets[i]+' of '+items[i].full);});
   if(!fewer.length&&!out.length)return 'The full day, nothing cut.';
@@ -4411,7 +4419,7 @@ function _hurryHtml(open,pct,plan,day,st){
   if(!open)return btn;
   var avg=_hurryAvgText(day,st);
   return '<div class="hurry-panel"><div class="hurry-label" id="hurry-label">'+_hurryLabel(pct,plan.kept,plan.total)+'</div>'
-    +'<input type="range" id="hurry-range" aria-label="Share of the day\'s sets" min="50" max="100" step="5" value="'+_hurryClamp(pct)+'" oninput="hurrySet(this.value)">'
+    +'<input type="range" id="hurry-range" aria-label="Share of the day\'s sets" min="0" max="'+(plan.stops.length-1)+'" step="1" value="'+Math.max(0,plan.stops.indexOf(_hurryClamp(pct)))+'" oninput="hurrySlide(this.value)">'
     +(avg?'<div class="hurry-line">'+_escP(avg)+'</div>':'')
     +'<div class="hurry-line" id="hurry-off">'+_escP(_hurryCutText(plan.names,plan.items,plan))+'</div>'+btn+'</div>';}
 function _hurryCards(){var c=document.getElementById('structured-log');if(!c)return [];return Array.prototype.slice.call(c.querySelectorAll('.ex-card:not([data-custom="true"])'));}
@@ -4420,7 +4428,8 @@ function _hurryEditing(){var e=document.getElementById('log-edit-id');return !!(
 // out is hidden (data-hurry-off), never removed. data-hurry-full remembers how many sets the card had.
 function _hurryApply(){var cards=_hurryCards();
   var items=cards.map(function(card){var sr=card.querySelector('.sets-row');var rows=sr?sr.children.length:0;var done=_setCols(card).done.length;return{full:Math.max(parseInt(card.dataset.hurryFull)||rows,done),done:done};});
-  var p=_hurrySetPlan(items,_hurryPct);
+  var stops=_hurryStops(items);_hurryPct=_hurrySnap(_hurryPct,stops);
+  var p=_hurrySetPlan(items,_hurryPct);p.stops=stops;
   cards.forEach(function(card,i){var sr=card.querySelector('.sets-row');if(sr){var want=p.sets[i],g;
       for(g=0;sr.children.length<want&&g<40;g++)addSetToCard(card);
       for(g=sr.children.length-1;g>=0&&sr.children.length>want;g--){var col=sr.children[g],ri=col.querySelector('input[data-type="reps"]');if(!(ri&&parseInt(ri.value)>0))sr.removeChild(col);}
@@ -4429,9 +4438,10 @@ function _hurryApply(){var cards=_hurryCards();
     if(p.off[i]||p.sets[i]<items[i].full)card.dataset.hurryFull=String(items[i].full);else delete card.dataset.hurryFull;});
   p.items=items;p.names=cards.map(_exCardName);_updateLogProgress();return p;}
 // Not while a History session is being edited: that form holds what was done, not a plan to cut.
-function _hurryRender(){var el=document.getElementById('log-hurry');if(_hurryEditing()){_hurryPct=100;_hurryOpen=false;}if(_hurryPct<100)_hurryOpen=true;var p=_hurryApply();if(!el)return p;if(_hurryEditing()||p.total<2){el.innerHTML='';return p;}var c=document.getElementById('structured-log');var day=parseInt(c&&c.dataset.logDay)||1;el.innerHTML=_hurryHtml(_hurryOpen,_hurryPct,p,day,_dayAvgTime(logs,day));return p;}
+function _hurryRender(){var el=document.getElementById('log-hurry');if(_hurryEditing()){_hurryPct=100;_hurryOpen=false;}if(_hurryPct<100)_hurryOpen=true;var p=_hurryApply();if(!el)return p;if(_hurryEditing()||p.total<2){el.innerHTML='';return p;}var c=document.getElementById('structured-log');var day=parseInt(c&&c.dataset.logDay)||1;_hurryStopList=p.stops;el.innerHTML=_hurryHtml(_hurryOpen,_hurryPct,p,day,_dayAvgTime(logs,day));return p;}
 function hurryToggle(){_hurryOpen=!_hurryOpen;if(!_hurryOpen)_hurryPct=100;_hurryRender();scheduleDraft();}
-function hurrySet(v){_hurryPct=_hurryClamp(v);var p=_hurryApply();var l=document.getElementById('hurry-label');if(l)l.textContent=_hurryLabel(_hurryPct,p.kept,p.total);var o=document.getElementById('hurry-off');if(o)o.textContent=_hurryCutText(p.names,p.items,p);scheduleDraft();return p;}
+function hurrySlide(i){var st=_hurryStopList.length?_hurryStopList:[100];return hurrySet(st[Math.max(0,Math.min(st.length-1,parseInt(i)||0))]);}
+function hurrySet(v){_hurryPct=_hurryClamp(v);var p=_hurryApply();var l=document.getElementById('hurry-label');if(l)l.textContent=_hurryLabel(_hurryPct,p.kept,p.total);var o=document.getElementById('hurry-off');if(o)o.textContent=_hurryCutText(p.names,p.items,p);if(p.stops.join()!==_hurryStopList.join())_hurryRender();scheduleDraft();return p;}
 // An exercise is done when every set has reps; the Save bar counts them.
 function _updateLogProgress(){var c=document.getElementById('structured-log');if(!c)return;var cards=Array.prototype.slice.call(c.querySelectorAll('.ex-card')).filter(function(card){return !_hurryIsOff(card);});var n=0;
   cards.forEach(function(card){var r=Array.prototype.slice.call(card.querySelectorAll('input[data-type="reps"]'));var d=r.length>0&&r.every(function(i){return parseInt(i.value)>0;});if(d){n++;card.classList.add('ex-done');}else card.classList.remove('ex-done');});
