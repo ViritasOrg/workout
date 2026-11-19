@@ -1,7 +1,7 @@
 # Workout App — Claude Instructions
 
-<!-- BEGIN ORG-WIDE RULES v24. Canonical copy: ViritasOrg/claude-agent-backend docs/org-rules.md. Edit it there; the Sync org rules workflow opens the PRs that copy this block into every other ViritasOrg repo, and the daily drift check reports any copy that differs. -->
-## Org-wide rules: every ViritasOrg repo (canonical v24, 2026-11-11)
+<!-- BEGIN ORG-WIDE RULES v26. Canonical copy: ViritasOrg/claude-agent-backend docs/org-rules.md. Edit it there; the Sync org rules workflow opens the PRs that copy this block into every other ViritasOrg repo, and the daily drift check reports any copy that differs. -->
+## Org-wide rules: every ViritasOrg repo (canonical v26, 2026-11-19)
 
 Identical in every repo's `CLAUDE.md` under `ViritasOrg`; the rest of each file adds repo-specific rules. If one seems to contradict this block, say so to Henrik instead of picking one. They bind every session, whatever started it (Claude Code, claude.ai, a Project, a scheduled task, an agent). The quote and incident behind each rule: https://github.com/ViritasOrg/claude-agent-backend/blob/main/docs/org-rules-history.md.
 
@@ -16,7 +16,7 @@ Identical in every repo's `CLAUDE.md` under `ViritasOrg`; the rest of each file 
 - **One step at a time, as the last part of the message**: a message asks Henrik for ONE thing (the next step, decision or question) with its full command or page link and what he should see, as the final part of the message. Never a list of steps; the next one comes after he says this one is done. While a step is open, every message ends with it again in full; never "the steps above" (he runs about a hundred sessions).
 - **Times in Henrik's zone**: Helsinki time labelled EET/EEST (CET/CEST while he says he is in CET), never UTC, never both.
 - **Every request carries context**: what it is for, where it fits (step N of what), what he should see when it worked.
-- **Number every question, even a single one** (https://github.com/ViritasOrg/flyt/issues/1294): "1. …", so he can answer "1 yes" (two or more: "1 yes 2 no").
+- **Number questions only when there are two or more** (Henrik, 2026-11-19: "stop numbering a single question, it looks weird"; was https://github.com/ViritasOrg/flyt/issues/1294): "1. … 2. …", so he can answer "1 yes 2 no"; a single question is asked plainly, with no number.
 - **Don't stop for minor things**: a small reversible call (an estimate, a name, an obvious adjacent fix) is made and reported, not asked. Ask only what is his: a change to what he asked for, prod, a delete, a real trade-off.
 - **Once Henrik has answered, carry on** (https://github.com/ViritasOrg/Flyt/issues/582): never end a turn on "shall I go ahead?".
 - **Never slack off when you know what to do next**: a turn never ends on a plan, a promise or a summary while work that needs nothing from Henrik is undone. End only when finished, when it truly waits on Henrik (then end with that one step) or when it waits on something that will wake the session (CI, a scheduled check), named with when it lands.
@@ -51,6 +51,7 @@ Identical in every repo's `CLAUDE.md` under `ViritasOrg`; the rest of each file 
 - If he has to say a thing twice, the first reply failed: fix it in that reply and add the rule.
 - **Only fix what was asked**: one PR = one requested change; appearance, layout and unrelated logic untouched; an improvement is mentioned, never made. **Do not ask permission for the fix itself** (2026-08-20): what caused, hid or misreported the bug is part of it. **Build the MVP, suggest the rest** (2026-09-03): the smallest version that does what was asked; a setting, extra panel, second way or unasked case ships as one sentence, not code.
 - **A requested feature is done only when it works end to end** (Henrik, 2026-11-11, https://github.com/ViritasOrg/flyt/issues/1402): every piece it needs is built in the same piece of work and the whole flow has run end to end outside production before it is reported; never report it done, or stop, with its prerequisites left as follow-up issues; only the go for production stays his.
+- **Deliver the outcome, now, for everything it covers** (Henrik, 2026-11-19: "I need all SPotify shows prioritised, it requires you to do whatever is needed to get them out on Spotify before you do anything else, ANYTHING!!!", then "update rules in all repo's to not be this daft next time!"): a request for something to happen is done for the items that already exist as well as the next ones, by whatever it takes (start the work, run it again, the quickest path first); a change that only acts on the next event is never the whole answer, and the reply says when the outcome shows, checked live.
 - **"My fix made it redundant" is not permission to remove it** (2026-06-25): only code named in the request is removed; say so and ask.
 - **A file he will use is pasted whole in the reply** (2026-09-12) and committed too; complete files, never partial edits.
 
@@ -120,7 +121,7 @@ Identical in every repo's `CLAUDE.md` under `ViritasOrg`; the rest of each file 
 
 ### CLAUDE.md holds rules, not records
 - A repo's root `CLAUDE.md` is loaded into every session, so it stays under 200 lines: imperative rules, one line each, an issue URL as provenance, at most one line of why. Quotes, incident stories, feature logs, "current state" and design notes go to `docs/` (pointed to from `CLAUDE.md` in one line), or to `.claude/rules/<area>.md` with `paths:` frontmatter when a rule only matters for part of the repo. A rule Henrik gives goes in as a rule; the quote goes to `docs/rule-history.md`.
-<!-- END ORG-WIDE RULES v24 -->
+<!-- END ORG-WIDE RULES v26 -->
 
 ## 🔒 PROD IS READ-ONLY — DO NOT TOUCH WITHOUT EXPLICIT PERMISSION
 This repo (`workout`) is **PRODUCTION**. Claude may read, inspect, and
