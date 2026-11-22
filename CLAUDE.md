@@ -1,7 +1,7 @@
 # Workout App — Claude Instructions
 
 <!-- BEGIN ORG-WIDE RULES v27. Canonical copy: ViritasOrg/claude-agent-backend docs/org-rules.md. Edit it there; the Sync org rules workflow opens the PRs that copy this block into every other ViritasOrg repo, and the daily drift check reports any copy that differs. -->
-## Org-wide rules: every ViritasOrg repo (canonical v27, 2026-11-19)
+## Org-wide rules: every ViritasOrg repo (canonical v28, 2026-11-21)
 
 Identical in every repo's `CLAUDE.md` under `ViritasOrg`; the rest of each file adds repo-specific rules. If one seems to contradict this block, say so to Henrik instead of picking one. They bind every session, whatever started it (Claude Code, claude.ai, a Project, a scheduled task, an agent). The quote and incident behind each rule: https://github.com/ViritasOrg/claude-agent-backend/blob/main/docs/org-rules-history.md.
 
@@ -86,6 +86,8 @@ Identical in every repo's `CLAUDE.md` under `ViritasOrg`; the rest of each file 
 - **Promotion to prod is Henrik's alone and is never mentioned** (2026-09-10): never trigger Push to Prod, never hand-merge the prod PR, never write "reaches prod via Push to Prod", "still needs promoting" or "prod still has the bug" unless he asks in that turn; a go-ahead for prod holds for that turn only. **Local clones are not up to date**: fetch before reading or copying from one.
 
 ### Every repo has CI and tests (https://github.com/ViritasOrg/flyt/issues/982)
+- **GitHub runners never cost money** (Henrik, 2026-11-21: "you have zero right to spend anything over the included limits ever", after Actions overran its included minutes by $63.65 and GitHub stopped every job): no push, re-run, dispatch, schedule or new job that uses GitHub-hosted runners beyond the account's included minutes; before adding CI work, check the month's usage on the Billing & Licensing page's Actions tab; when the included minutes are spent, nothing more runs on GitHub until they reset: say so, test locally and ask Henrik.
+- **GitHub Actions is stopped until 1 December 2026** (Henrik, 2026-11-21: "then we go with 3. until this resets"): the included minutes are spent and the $0 Actions budget blocks every job, hosted and self-hosted; until the reset a PR merges on a full local run of the repo's test suite, named in the PR with its result, nothing is dispatched or re-run on GitHub, and claude-agent-backend deploys through Henrik's `flyctl deploy` block on the M1 Max. On 1 December, check that a run starts, then remove this line in every repo.
 - Every repo has a GitHub Actions workflow running its tests on every PR and push to its main branch; one without gets both in its own PR before the next code change merges. A new repo gets CI and first tests in its first PR, its line in `REPOS` in `ViritasOrg/claude-agent-backend` `scripts/check_org_rules.py`, and this block in its `CLAUDE.md`.
 - New or changed behaviour comes with tests in the same PR; a bug fix with a regression test that fails before the fix. Tests call the code and check what it returns; a source grep is a structural guard, never behaviour coverage. CI never calls a real partner or needs a real secret.
 - A PR merges only after CI ran green on its latest commit; no checks is not green (the one exception: a docs-only PR in a repo whose CI doesn't run on PRs yet). Never skip, disable or loosen a test, a coverage floor or a CI step.
