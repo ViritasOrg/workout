@@ -6144,8 +6144,9 @@ console.log('\n── Standard machine exercises ──────────�
     // Exact count on purpose: adding or removing an exercise should be a conscious edit here.
     // 69 → 117 on 2026-10-12: the 48 home exercises (kettlebell, band and bodyweight).
     // 117 → 118 on 2026-11-16: Rear Delt Pullback (Henrik: "Add it with a stickman sketch as well as muscle dude images").
-    check('the catalogue holds every exercise it is meant to (118)',
-      opts.length === 118, String(opts.length));
+    // 118 → 119 on 2026-11-22: Bayesian Curl (Henrik: "Add Baisian curls in a 1/2 gear cable machine").
+    check('the catalogue holds every exercise it is meant to (119)',
+      opts.length === 119, String(opts.length));
     check('no exercise is listed twice in the picker',
       new Set(opts).size === opts.length,
       opts.filter((n, i) => opts.indexOf(n) !== i).join(', '));
@@ -7928,10 +7929,14 @@ check('…regular, wide, diamond and archer push-ups keep 64%',
   check('…an exercise never logged shows nothing', G._lastTimeText('Hip Thrust', 'kg') === '' && /hidden/.test(G._lastTimeHtml('Hip Thrust', 'kg')));
   G.logs = _l;
 
-  // Page: one top row, Save stays on screen with progress, accent cleanup
+  // Page: one top row, Save at the end of the page with progress, accent cleanup
   check('Date and Day share one compact row', /<div class="log-top">\s*<select id="log-day"[\s\S]*?<input type="date" id="log-date"[^>]*>\s*(?:<div id="log-hurry"><\/div>\s*)?<\/div>/.test(html));
-  check('Save sits in a bar that stays on screen above the tabs, with the progress line',
-    /<div class="log-savebar"><button class="btn btn-primary" onclick="saveLog\(\)">SAVE WORKOUT<\/button><div id="log-progress"><\/div><\/div>/.test(html) && /\.log-savebar\{position:sticky;bottom:calc\(/.test(html));
+  // Henrik, 2026-11-21: "The Save Workout should be bottom of page and not take screen space unless I browse down to it"
+  const _saveBarCss = (html.match(/\.log-savebar\{([^}]*)\}/) || [])[1];
+  check('Save is the last thing in the Log form, after the exercises, with the progress line',
+    /<div id="structured-log"><\/div>\s*<div class="log-savebar"><button class="btn btn-primary" onclick="saveLog\(\)">SAVE WORKOUT<\/button><div id="log-progress"><\/div><\/div>\s*<\/div>/.test(html));
+  check('…and it scrolls with the page: never sticky or fixed over the exercises',
+    typeof _saveBarCss === 'string' && !/position\s*:|bottom\s*:|z-index\s*:/.test(_saveBarCss), _saveBarCss);
   check('typing a rep updates the draft AND the progress', String(G.prefillLog).includes('container.oninput=_onLogInput') && String(G._onLogInput).includes('scheduleDraft()') && String(G._onLogInput).includes('_updateLogProgress()'));
   check('the version label is muted, not yellow', html.includes('<span style="color:var(--muted);font-weight:600" id="header-version">'));
 }
@@ -8568,6 +8573,25 @@ check('…regular, wide, diamond and archer push-ups keep 64%',
   check('it needs a barbell (an EZ bar) at home or in the gym', G._canDoAtHome(n, ['barbell']) && !G._canDoAtHome(n, ['dumbbells']));
 }
 
+// ── Bayesian Curl ────────────────────────────────────────────────────────────
+// Henrik, 2026-11-22: "Add Baisian curls in a 1/2 gear cable machine".
+{
+  console.log('\n── Bayesian Curl ───────');
+  const n = 'Bayesian Curl';
+  check('it is in the exercise picker, right after Cable Bicep Curl', G._exCatalogue().indexOf(n) === G._exCatalogue().indexOf('Cable Bicep Curl') + 1);
+  check('…and in the swap list under Arms', html.includes("'Cable Bicep Curl','Bayesian Curl','Band Curl'"));
+  check('it is a cable exercise, so the card offers ½ gear and 2× cable', G.isCableEx(n) && /\u00bd gear/.test(G._gearBtnsHtml(n, 1, 1, 1)) && /2\u00d7 cable/.test(G._gearBtnsHtml(n, 1, 1, 1)));
+  check('…½ gear shows as switched on once it is set', G._gearBtnsHtml(n, 0.5, 1, 1).includes('data-gear="0.5"') && G._gearBtnsHtml(n, 0.5, 1, 1).includes(G._gearBtnStyle(true)));
+  check('it counts as arm volume', G.getExGroup(n) === 'arms' && G.getExSplits(n).arms === 1);
+  check('the muscle pictures mark the biceps', JSON.stringify(G.exMuscles(n)) === JSON.stringify(['biceps']));
+  check('it needs a cable machine', G._canDoAtHome(n, ['cable']) && !G._canDoAtHome(n, ['dumbbells']));
+  const sk = G.SK[n] && G.SK[n]();
+  check('it has a stick-figure sketch: side view, a cue, start and end poses with the cable and handle', !!sk && sk.views.join() === 'side' && /away from a low cable/.test(sk.cue) && sk.start.eq[0].t === 'line' && sk.end.eq[0].t === 'line');
+  check('…the working arm starts straight and behind the body', !!sk && sk.start.J.wR[0] < sk.start.J.sh[0] - 8 && sk.start.J.eR[0] < sk.start.J.sh[0], sk ? 'wrist ' + sk.start.J.wR.slice(0, 2).map(Math.round) + ' shoulder ' + sk.start.J.sh.slice(0, 2).map(Math.round) : '');
+  check('…the hand curls up to the shoulder while the elbow stays behind', !!sk && sk.end.J.wR[1] > sk.start.J.wR[1] + 15 && Math.abs(sk.end.J.eR[0] - sk.start.J.eR[0]) < 1 && sk.end.J.eR[0] < sk.end.J.sh[0], sk ? sk.start.J.wR.slice(0, 2).map(Math.round) + ' → ' + sk.end.J.wR.slice(0, 2).map(Math.round) : '');
+  check('…and the cable runs down to a low pulley behind the lifter', !!sk && sk.start.eq[0].b[0] < sk.start.J.sh[0] - 20 && sk.start.eq[0].b[1] < 10);
+}
+
 // ── Section 101: Edit opens the session that was logged ─────────────────────
 // Henrik 2026-10-15: "when I open todays training in history it is empty when I click
 // edit?????" — his 2026-10-15 log (id 1792084147681, day 1) is a push session: Chest
@@ -8684,7 +8708,7 @@ console.log('\n── Edit opens the session that was logged ──────�
     G.hurryToggle();
     const open = els['log-hurry'].innerHTML;
     check('…pressing it opens a slider with one position per stop, at the full day', new RegExp('<input type="range"[^>]*min="0"[^>]*max="' + (G._hurryStops(day).length - 1) + '"[^>]*step="1"[^>]*value="' + (G._hurryStops(day).length - 1) + '"[^>]*oninput="hurrySlide\\(this\\.value\\)"').test(open) && /100% · 18 of 18 sets/.test(open) && /The full day, nothing cut\./.test(open));
-    check('…with no average for a day never logged', !/on average/.test(open));
+    check('…with no average and no estimate for a day never logged', !/on average/.test(open) && !/hurry-est/.test(open));
     check('…readable: 15px or larger and never greyed', !/font-size:1[0-4]px/.test(open) && !/var\(--muted\)/.test(open) &&
       (html.match(/\.hurry-[a-z]+\{[^}]*\}/g) || []).every(r => !/font-size:1[0-4]px/.test(r) && !/var\(--muted\)/.test(r)));
     p = G.hurrySet('90');
@@ -8734,6 +8758,18 @@ console.log('\n── Edit opens the session that was logged ──────�
     sandbox.__hL = hist; vm.runInContext('logs=__hL', sandbox);
     G._hurryRender();
     check('hurry: a day logged before shows its average time', /Day 3 takes 1 h 10 min on average in full \(3 sessions logged\)\./.test(els['log-hurry'].innerHTML));
+    // The estimated time at the chosen share (Henrik, 2026-11-18: "add the estimated time at the chosen % to the panel").
+    check('hurry estimate: the day\'s average scaled by the sets kept, to the nearest 5 minutes', G._hurryEstText({ n: 3, avg: 70 }, 9, 18) === 'About 35 min at this setting.' && G._hurryEstText({ n: 3, avg: 70 }, 16, 18) === 'About 1 h at this setting.' && G._hurryEstText({ n: 1, avg: 100 }, 17, 18) === 'About 1 h 35 min at this setting.');
+    check('…nothing at the full day, and nothing for a day never logged', G._hurryEstText({ n: 3, avg: 70 }, 18, 18) === '' && G._hurryEstText({ n: 0, avg: null }, 9, 18) === '' && G._hurryEstText(null, 9, 18) === '');
+    check('…at 100% the panel holds the line, empty', /<div class="hurry-line hurry-est" id="hurry-est"><\/div>/.test(els['log-hurry'].innerHTML) && /\.hurry-est:empty\{display:none;\}/.test(html));
+    els['hurry-est'] = { textContent: '' };
+    G.hurrySet('60');
+    check('…sliding to 60% of the 18-set day shows about 40 min', els['hurry-est'].textContent === 'About 40 min at this setting.', els['hurry-est'].textContent);
+    G.hurrySet('100');
+    check('…and back at 100% it is gone', els['hurry-est'].textContent === '');
+    setPct(60, true); G._hurryRender();
+    check('…a panel opened at 60% carries it from the start', /id="hurry-est">About 40 min at this setting\.<\/div>/.test(els['log-hurry'].innerHTML));
+    setPct(100, true); G._hurryRender();
     sandbox.__hL = _bk; vm.runInContext('logs=__hL', sandbox);
 
     // Not while a History session is edited, and not for a one-set day.
