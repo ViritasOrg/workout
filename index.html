@@ -637,7 +637,7 @@
 const VERSION='1.285';
 // BUILD_NO counts staging builds and is never rewritten by Push to Prod (which resets VERSION to
 // prod's own counter). The What's new card is keyed to it, so its rows show in both apps (2026-11-01).
-const BUILD_NO='1.414';
+const BUILD_NO='1.415';
 const IS_STAGING=(window.location.pathname||'').startsWith('/workout-staging');
 // Backend data namespace, sent as X-App-Id on every call. Staging gets its own so
 // testing here cannot write over production data — before 2026-08-01 both sent no
@@ -5617,7 +5617,11 @@ var _psStep='',_psTemp=null,_psMsg='',_psCar=null,_psRun=0,_psTimer=null;
 // (_psWarn) until a later answer succeeds or the user taps OK on the card the car opens.
 var PS_ANSWER_MS=90000,_psWarn=null,PS_HELP='help.html#polestar-no-answer';
 function _psNeedsClimate(t){return typeof t==='number'&&isFinite(t)&&(t<PS_COLD_C||t>PS_HOT_C);}
-// The reps input of the second-to-last set of the day's last exercise card, once it holds a number.
+// The reps box that leaves exactly one set of the whole workout still to do, once it holds a number: the question comes as
+// the last set starts, in the order the sets are actually done. It was the second-to-last set of the bottom card, which
+// asked too early or never when the exercises were done out of order (Henrik, 2026-11-26: "it isnt alway possible to do
+// exercises in order, so starting the heating in the car needs to happen when you do your last set, not the set lowest
+// on the list").
 // Never while a History session is being edited (Henrik, 2026-11-16: "When I go to History and then Edit-Add exercise and
 // fill it in, i get asked in the second to last set if I want to preheat the Polestar, this should not happen during edit
 // of history sessions"): log-edit-id is set only while an old log is open in the form.
@@ -5626,8 +5630,9 @@ function _psIsTrigger(inp){
   var _ed=document.getElementById('log-edit-id');if(_ed&&_ed.value)return false;
   var c=document.getElementById('structured-log');if(!c)return false;
   var cards=Array.prototype.slice.call(c.querySelectorAll('.ex-card')).filter(function(card){return !(card.dataset&&card.dataset.hurryOff);});if(!cards.length)return false;
-  var reps=cards[cards.length-1].querySelectorAll('input[data-type="reps"]');
-  return reps.length>=2&&reps[reps.length-2]===inp;}
+  var all=[];cards.forEach(function(card){Array.prototype.push.apply(all,Array.prototype.slice.call(card.querySelectorAll('input[data-type="reps"]')));});
+  if(all.length<2||all.indexOf(inp)<0)return false;
+  return all.filter(function(i){return !(parseInt(i.value)>0);}).length===1;}
 function _psWorkoutKey(){var d=document.getElementById('log-date'),y=document.getElementById('log-day');return (d?d.value:'')+'|'+(y?y.value:'');}
 // Location is asked for once (Henrik, 2026-11-16: "The app should ask for location permission once and then only ask if I
 // want to turn on car heating or AC"): the first position is kept on the account (user setting wkt-ps-pos, rounded to
@@ -5741,7 +5746,7 @@ function _psInputs(){var st='width:100%;box-sizing:border-box;margin:6px 0;paddi
 function _psBtn(label,onclick,primary){return '<button onclick="'+onclick+'" style="flex:1;margin-top:6px;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font-ui);'+(primary?'background:var(--accent);color:#000;border:none':'background:var(--surface2);color:var(--text);border:1px solid var(--border)')+'">'+label+'</button>';}
 function _psCardHtml(){var b;
   if(!_ps)b='<div style="font-size:13px;color:var(--muted)">Could not load your Polestar status. Check your connection.</div>';
-  else if(!_ps.set||_psChanging)b='<div style="font-size:13px;color:var(--text);line-height:1.5">Sign in with your Polestar ID, the one you use in the Polestar app. When it is under '+PS_COLD_C+' °C or over '+PS_HOT_C+' °C outside, the Log asks to turn on the car\'s climate as you enter the second-to-last set of the day\'s last exercise.</div>'
+  else if(!_ps.set||_psChanging)b='<div style="font-size:13px;color:var(--text);line-height:1.5">Sign in with your Polestar ID, the one you use in the Polestar app. When it is under '+PS_COLD_C+' °C or over '+PS_HOT_C+' °C outside, the Log asks to turn on the car\'s climate when one set of the workout is left, in whatever order you do the exercises.</div>'
     +_psInputs()+'<div style="display:flex;gap:8px">'+_psBtn('Save','psSave()',true)+(_psChanging?_psBtn('Cancel','psCancel()',false):'')+'</div>';
   else b='<div style="font-size:13px;color:var(--text)">Signed in as '+_escP(_ps.email)+'</div><div style="display:flex;gap:8px;margin-top:6px">'+_psBtn('Change','psChange()',true)+_psBtn('Remove','psRemove()',false)+'</div>';
   if(_psErr)b+='<div style="margin-top:10px;font-size:13px;color:var(--danger,#ff3b30)">'+_escP(_psErr)+'</div>';

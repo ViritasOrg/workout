@@ -8626,7 +8626,7 @@ console.log('\n── Edit opens the session that was logged ──────�
     G.document.getElementById = (id) => els[id] || _gid.call(G.document, id);
     check('no Polestar question while a History session is being edited', G._psIsTrigger(reps[0]) === false);
     els['log-edit-id'].value = '';
-    check('…it still comes on the second-to-last set of a new workout', G._psIsTrigger(reps[0]) === true);
+    check('…it still comes in a new workout, on the set that leaves one to do', G._psIsTrigger(reps[0]) === true);
     G.document.getElementById = _gid;
   }
 
@@ -8748,8 +8748,10 @@ console.log('\n── Edit opens the session that was logged ──────�
     cards = [hCard('Squat', ['8', '8', '']), hCard('Plank', ['', '']), hCard('Dead Bug', ['', ''])];
     els = mount(cards); setPct(50, true); G._hurryRender();
     const last = cards.filter(c => !c.dataset.hurryOff).pop().querySelectorAll('reps');
-    last[last.length - 2].value = '8';
-    check('hurry: the Polestar question comes on the last exercise that is left', off(cards).length >= 1 && G._psIsTrigger(last[last.length - 2]) === true, rows(cards) + ' off ' + off(cards));
+    // Every set still on the form gets its reps except the very last one; the sets of the exercise left out stay empty.
+    const onForm = []; cards.filter(c => !c.dataset.hurryOff).forEach(c => Array.prototype.push.apply(onForm, Array.prototype.slice.call(c.querySelectorAll('reps'))));
+    onForm.slice(0, -1).forEach(i => { i.value = '8'; });
+    check('hurry: the Polestar question counts only the exercises left on the form', off(cards).length >= 1 && onForm.length >= 2 && G._psIsTrigger(last[last.length - 2]) === true, rows(cards) + ' off ' + off(cards));
 
     // The day's average, on the panel.
     cards = mk();
@@ -10532,10 +10534,18 @@ console.log('\n── Polestar climate ─────────────�
     {
       const { r, cards } = threeSets(); const { C } = ctx({ cards });
       r[1].value = '8';
-      check('polestar: the trigger is the second-to-last set of the last exercise', C._psIsTrigger(r[1]));
-      check('  …not the last set', (r[2].value = '8', !C._psIsTrigger(r[2])));
-      check('  …not another exercise', !C._psIsTrigger(cards[0].querySelectorAll()[0]));
-      r[1].value = ''; check('  …and only once it holds a number', !C._psIsTrigger(r[1]));
+      check('polestar: the trigger is the set that leaves one set of the workout to do', C._psIsTrigger(r[1]));
+      check('  …not the very last set', (r[2].value = '8', !C._psIsTrigger(r[2])));
+      r[2].value = ''; r[1].value = ''; check('  …and only once it holds a number', !C._psIsTrigger(r[1]));
+    }
+    {
+      // Henrik, 2026-11-26: exercises done out of order. REGRESSION: both checks fail on the position-based trigger.
+      const top = [mkInp('8'), mkInp(''), mkInp('')], bottom = [mkInp(''), mkInp(''), mkInp('')];
+      const { C } = ctx({ cards: [mkCard(top), mkCard(bottom)] });
+      bottom[0].value = '8'; bottom[1].value = '8';
+      check('polestar: out of order, the second-to-last set of the bottom exercise does not ask while another exercise has sets left', !C._psIsTrigger(bottom[1]));
+      bottom[2].value = '8'; top[1].value = '8';
+      check('  …it asks on the set that leaves one set of the whole workout, wherever that exercise sits', C._psIsTrigger(top[1]) && !C._psIsTrigger(mkInp('8')));
     }
     {
       // A location already kept: the phone is not asked again, only the heat/AC question comes.
